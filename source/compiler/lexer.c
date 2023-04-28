@@ -413,8 +413,8 @@ Lexem lexer_lexCurrent(LexerState* lex) {
     skipSpaces(lex);
 
 
-    uint32_t line = lexerState->line;
-    uint32_t col = lexerState->col;
+    uint32_t line = lex->line;
+    uint32_t col = lex->col;
 
     const char c = getCurrentChar(lex);
 
