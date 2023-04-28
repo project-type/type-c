@@ -91,6 +91,11 @@ char getNextChar(LexerState* lexerState) {
  */
 void skipSpaces(LexerState* lexerState) {
     uint8_t seenSkippable = 0;
+
+    if(getCurrentChar(lexerState) == '\0') {
+        return;
+    }
+
     while (getCurrentChar(lexerState) == ' ' || getCurrentChar(lexerState) == '\n' ) {
         seenSkippable = 1;
         incLexer(lexerState);
@@ -107,6 +112,7 @@ void skipSpaces(LexerState* lexerState) {
 
     if(match(lexerState, "/*")){
         seenSkippable = 1;
+        incLexer(lexerState);
         uint8_t at_end = match(lexerState, "*/") || isAtEnd(lexerState);
         while(!at_end) {
             incLexer(lexerState);
@@ -221,7 +227,7 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     if(match(lexerState, "void")) return makeLexemLineCol(TOK_VOID, NULL, line, col);
     if(match(lexerState, "while")) return makeLexemLineCol(TOK_WHILE, NULL, line, col);
 
-    while(isalnum(getCurrentChar(lexerState))) {
+    while(isalnum(getCurrentChar(lexerState)) || getCurrentChar(lexerState)=='_') {
         incLexer(lexerState);
     }
 
@@ -307,6 +313,7 @@ Lexem lexString(LexerState* lexerState){
         c = getCurrentChar(lexerState);
     }
 
+    incLexer(lexerState);
     uint64_t len = lexerState->pos - start + 1;
     char* str_val = malloc(len*sizeof(char));
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
@@ -409,12 +416,10 @@ Lexem lexNumber(LexerState* lexerState){
 
 Lexem lexer_lexCurrent(LexerState* lex) {
     Lexem current;
-
-    skipSpaces(lex);
-
-
     uint32_t line = lex->line;
     uint32_t col = lex->col;
+
+    skipSpaces(lex);
 
     const char c = getCurrentChar(lex);
 
@@ -426,7 +431,7 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, "+=")) {
                 return makeLexemLineCol(TOK_PLUS_EQUAL, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_PLUS, NULL, line, col);
         }
 
@@ -442,7 +447,7 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, "->")) {
                 return makeLexemLineCol(TOK_FN_RETURN_TYPE, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_MINUS, NULL, line, col);
         }
 
@@ -450,7 +455,7 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, "*=")) {
                 return makeLexemLineCol(TOK_STAR_EQUAL, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_STAR, NULL, line, col);
         }
 
@@ -458,28 +463,33 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, "/=")) {
                 return makeLexemLineCol(TOK_DIV_EQUAL, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_DIV, NULL, line, col);
         }
 
-        case '%': return makeLexemLineCol(TOK_PERCENT, NULL, line, col);
+        case '%':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_PERCENT, NULL, line, col);
 
 
         case '&': {
             if(match(lex, "&&")) {
                 return makeLexemLineCol(TOK_LOGICAL_AND, NULL, line, col);
             }
+            incLexer(lex);
             return makeLexemLineCol(TOK_BITWISE_AND, NULL, line, col);
         }
 
-        case '^': return makeLexemLineCol(TOK_BITWISE_XOR, NULL, line, col);
+        case '^':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_BITWISE_XOR, NULL, line, col);
 
 
         case '|': {
             if(match(lex, "||")) {
                 return makeLexemLineCol(TOK_LOGICAL_OR, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_BITWISE_OR, NULL, line, col);
         }
 
@@ -487,10 +497,11 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, "!=")) {
                 return makeLexemLineCol(TOK_NOT_EQUAL, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_NOT, NULL, line, col);
         }
         case '~': {
+            incLexer(lex);
             return makeLexemLineCol(TOK_BITWISE_NOT, NULL, line, col);
         }
 
@@ -498,7 +509,7 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, "==")) {
                 return makeLexemLineCol(TOK_EQUAL_EQUAL, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_EQUAL, NULL, line, col);
         }
         case '<': {
@@ -509,7 +520,7 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, "<<")) {
                 return makeLexemLineCol(TOK_LEFT_SHIFT, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_LESS, NULL, line, col);
         }
 
@@ -521,29 +532,52 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             if(match(lex, ">>")) {
                 return makeLexemLineCol(TOK_RIGHT_SHIFT, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_GREATER, NULL, line, col);
         }
         case '.': {
             if(match(lex, "...")) {
                 return makeLexemLineCol(TOK_DOTDOTDOT, NULL, line, col);
             }
-
+            incLexer(lex);
             return makeLexemLineCol(TOK_DOT, NULL, line, col);
         }
 
-        case '?': return makeLexemLineCol(TOK_NULLABLE, NULL, line, col);
-        case ':': return makeLexemLineCol(TOK_COLON, NULL, line, col);
-        case ';':  return makeLexemLineCol(TOK_SEMICOLON, NULL, line, col);
-        case '(':  return makeLexemLineCol(TOK_LPAREN, NULL, line, col);
-        case ')': return makeLexemLineCol(TOK_RPAREN, NULL, line, col);
-        case '[': return makeLexemLineCol(TOK_LBRACKET, NULL, line, col);
-        case ']': return makeLexemLineCol(TOK_RBRACKET, NULL, line, col);
-        case '{': return makeLexemLineCol(TOK_LBRACE, NULL, line, col);
-        case '}': return makeLexemLineCol(TOK_RBRACE, NULL, line, col);
-        case ',': return makeLexemLineCol(TOK_COMMA, NULL, line, col);
+        case '?':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_NULLABLE, NULL, line, col);
+        case ':':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_COLON, NULL, line, col);
+        case ';':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_SEMICOLON, NULL, line, col);
+        case '(':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_LPAREN, NULL, line, col);
+        case ')':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_RPAREN, NULL, line, col);
+        case '[':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_LBRACKET, NULL, line, col);
+        case ']':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_RBRACKET, NULL, line, col);
+        case '{':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_LBRACE, NULL, line, col);
+        case '}':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_RBRACE, NULL, line, col);
+        case ',':
+            incLexer(lex);
+            return makeLexemLineCol(TOK_COMMA, NULL, line, col);
 
         default: {
+            if(getCurrentChar(lex) == '\0'){
+                return makeLexemLineCol(TOK_EOF, NULL, line, col);
+            }
             if(isalpha(c)){
                 return lexIdOrKeyword(lex);
             }

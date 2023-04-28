@@ -3,7 +3,7 @@
 #include "compiler/lexer.h"
 
 int main() {
-    char* filename = "../../samples/lexer_test.tc";
+    char* filename = "../../samples/sample.tc";
     FILE* file = fopen(filename, "r");
     if (!file)
     {
@@ -31,10 +31,12 @@ int main() {
     LexerState* lex = lexer_init("sample.tc", input, bytes_read);
     Lexem current = lexer_lexCurrent(lex);
 
-    printf("%d /%s/\n", current.type, current.string);
-    current = lexer_lexCurrent(lex);
-
-    printf("%d /%s/\n", current.type, current.string);
+    int count = 0;
+    while((current.type != TOK_EOF) && (count < 100)) {
+        printf("%d: %d /%s/\n", count, current.type, current.string);
+        current = lexer_lexCurrent(lex);
+        count++;
+    }
 
     return 0;
 }
