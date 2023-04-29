@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "compiler/lexer.h"
+#include "compiler/parser.h"
 
 int main() {
     char* filename = "../../samples/sample.tc";
@@ -29,14 +30,7 @@ int main() {
     input[bytes_read] = '\0';
 
     LexerState* lex = lexer_init("sample.tc", input, bytes_read);
-    Lexem current = lexer_lexCurrent(lex);
-
-    int count = 0;
-    while((current.type != TOK_EOF) && (count < 100)) {
-        printf("%d: %d /%s/\n", count, current.type, current.string);
-        current = lexer_lexCurrent(lex);
-        count++;
-    }
-
+    Parser* parser = parser_init(lex);
+    parser_parse(parser);
     return 0;
 }

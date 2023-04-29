@@ -5,29 +5,22 @@
 #ifndef TYPE_C_AST_H
 #define TYPE_C_AST_H
 
+#include "../utils/vec.h"
 #include "tokens.h"
+
+#define MAKE_NODE(name, nodeDataType, nodeEnum)\
+    name = (nodeType*)malloc(sizeof(Node));\
+    name->type - nodeEnum;\
+    name->
+
+typedef struct PackageID {
+    vec_str_t ids;
+}PackageID;
 
 typedef enum ASTNodeType{
     AST_PROGRAM,
     AST_IMPORT,
-    AST_FN,
-    AST_VAR_DECL,
-    AST_ID,
-    AST_BLOCK,
 }ASTNodeType;
-
-
-typedef struct ASTPostFixExpressionNode {
-    struct ASTNode* uhs;
-    TokenType op;
-}ASTPostFixExpressionNode;
-
-
-typedef struct ASTBinaryExpressionNode {
-    struct ASTNode* lhs;
-    struct ASTNode* rhs;
-    TokenType op;
-}BinaryExpressionNode;
 
 typedef struct ASTScope {
     void* variables;
@@ -38,9 +31,25 @@ typedef struct ASTScope {
     void* expressions;
 } ASTScope;
 
-typedef struct ASTProgram {
-    const char* name;
+typedef struct ASTProgramNode {
     ASTScope* scope;
-};
+}ASTProgramNode;
+
+typedef struct ASTNode {
+    ASTNodeType type;
+    union {
+        ASTProgramNode* programNode;
+    };
+}ASTNode;
+
+typedef struct ImportStmt {
+    PackageID * source;
+    PackageID * dest;
+    uint8_t hasAlias;
+    char* alias;
+}ImportStmt;
+
+
+PackageID* ast_makePackageID();
 
 #endif //TYPE_C_AST_H
