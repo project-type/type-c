@@ -3,11 +3,19 @@
 //
 
 #include <stdlib.h>
+#include <inttypes.h>
 #include <printf.h>
 #include "../utils/vec.h"
 #include "parser.h"
 #include "ast.h"
 #include "error.h"
+#include "tokens.h"
+
+#define TTTS(t) token_type_to_string(t)
+
+#define ACCEPT parser_accept(parser)
+#define CURRENT lexem = parser_peek(parser)
+#define EXPAND_LEXEME lexem.line, lexem.col, TTTS(lexem.type)
 
 Parser* parser_init(LexerState* lexerState) {
     Parser* parser = malloc(sizeof(Parser));
@@ -52,11 +60,11 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
 
     do {
         if(lexem.type == TOK_FROM) {
-            parser_accept(parser);
+            ACCEPT;
             parser_parseFromStmt(parser, node);
         }
         if(lexem.type == TOK_IMPORT) {
-            parser_accept(parser);
+            ACCEPT;
             parser_parseImportStmt(parser, node);
         }
 
@@ -66,7 +74,43 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
 
     ast_debug_programImport(node->programNode);
     // TODO: Resolve Imports and add them to symbol table
+    // we no longer expect import or from after this
 
+    if(lexem.type == TOK_TYPE) {
+        parser_parseTypeDecl(parser, node);
+    }
+}
+
+
+/*
+ * "type" <id> ("<" <generic> ">")
+ *    "=" (<id> | <basic_type> | "class" <class_body>
+ *              | "interface" <interface| "data" | "enum" | "struct" | "fn")
+ */
+void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
+    ACCEPT;
+    Lexem lexem = parser_peek(parser);
+    ASSERT(lexem.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    const char* name = strdup(lexem.string);
+    ACCEPT;
+
+    lexem = parser_peek(parser);
+    ASSERT(lexem.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    lexem = parser_peek(parser);
+    if(lexem.type == TOK_ENUM) {
+        EnumType * enum_ = parser_parseEnumDecl(parser, node);
+    }
+}
+
+/*
+ * "enum" "{" <id> (","? <id>)* "}"
+ */
+EnumType* parser_parseEnumDecl(Parser* parser, ASTNode* node) {
+    // current position: enum
+    ACCEPT;
+    Lexem CURRENT;
+    ASSERT(lexem.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
 }
 
 /*
@@ -78,10 +122,9 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node){
     PackageID* source = parser_parsePackage(parser, node);
     Lexem lexem = parser_peek(parser);
     // next we need an import
-    ASSERT(lexem.type == TOK_IMPORT,
-           "[%zu,%zu]: `import` keyword expected after import <package> but `%d` found",
-           lexem.line, lexem.col, lexem.type);
-    parser_accept(parser);
+    ASSERT(lexem.type == TOK_IMPORT, "Line: %"PRIu16", Col: %"PRIu16" `import` expected but %s was found.", EXPAND_LEXEME);
+
+    ACCEPT;
 
     uint8_t can_loop = 1;
     do {
@@ -93,11 +136,11 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node){
         // is `as` present?
         if(lexem.type == TOK_TYPE_CONVERSION) {
             hasAlias = 1;
-            parser_accept(parser);
+            ACCEPT;
             lexem = parser_peek(parser);
-            ASSERT(lexem.type == TOK_IDENTIFIER, "identifier expected after alias `as` but %d was found", lexem.type);
+            ASSERT(lexem.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
             alias = strdup(lexem.string);
-            parser_accept(parser);
+            ACCEPT;
         }
         else {
             parser_reject(parser);
@@ -109,7 +152,7 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node){
         // here we might find a comma. if we do, we accept it and keep looping
         can_loop = lexem.type == TOK_COMMA;
         if(can_loop) {
-            parser_accept(parser);
+            ACCEPT;
         }
     } while (can_loop);
     parser_reject(parser);
@@ -129,11 +172,11 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node){
     // is `as` present?
     if(lexem.type == TOK_TYPE_CONVERSION) {
         hasAlias = 1;
-        parser_accept(parser);
+        ACCEPT;
         lexem = parser_peek(parser);
-        ASSERT(lexem.type == TOK_IDENTIFIER, "identifier expected after alias `as` but %d was found", lexem.type);
+        ASSERT(lexem.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
         alias = strdup(lexem.string);
-        parser_accept(parser);
+        ACCEPT;
     }
     else{
         parser_reject(parser);
@@ -153,18 +196,18 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node){
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node) {
     PackageID * package = ast_makePackageID();
     Lexem lexem = parser_peek(parser);
-    ASSERT(lexem.type == TOK_IDENTIFIER, "[%zu, %zu] Identifier/package expected after `from` keyword, but `%d` found", lexem.line, lexem.col, lexem.type);
+    ASSERT(lexem.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier/package` expected but %s was found.", EXPAND_LEXEME);
     vec_push(&package->ids, strdup(lexem.string));
 
-    parser_accept(parser);
+    ACCEPT;
 
     lexem = parser_peek(parser);
     uint8_t can_go = lexem.type == TOK_DOT;
     while(can_go) {
         lexem = parser_peek(parser);
-        ASSERT(lexem.type == TOK_IDENTIFIER, "[%zu, %zu] Identifier/package expected after `from` keyword, but `%d` found", lexem.line, lexem.col, lexem.type);
+        ASSERT(lexem.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier/package` expected but %s was found.", EXPAND_LEXEME);
         vec_push(&package->ids, strdup(lexem.string));
-        parser_accept(parser);
+        ACCEPT;
 
         lexem = parser_peek(parser);
         can_go = lexem.type == TOK_DOT;
@@ -174,3 +217,7 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node) {
 
     return package;
 }
+
+#undef CURRENT
+#undef ACCEPT
+#undef TTTS

@@ -9,6 +9,51 @@ from x.y.z import cool.z.y as haha, cool.z, cool as yeet
 
 fn multiply(a: u8, b: u8) -> u8 = a*b
 
+type CustomArray<T: Iterable> = class(Array<T> & Sortable<T>) {}
+
+
+type Iterable<T> = interface {
+    fn next() -> T
+}
+
+type User = struct {
+    name: string,
+    age: number
+}
+
+type
+
+type LoggedInUser = struct(User) {
+    token: string
+}
+
+type unsigned_int = u32
+
+type Operation = enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}
+
+type Node<T> = data {
+    BinaryNode(op: Operation, left: Node<T>, right: Node<T>),
+    Unary(op: Operation, uhs: Node<T>),
+    Leaf(value: T)
+}
+
+type ServerResponse = data {
+    Error(code: u16),
+    Success(data: Buffer)
+}
+
+// union and joins works only for classes/structs/interfaces
+type OddType = Iterable & Sortable
+type AnotherOddType = (Iterable & Sortable) | Printable
+
+type oddFn = fn(v: u32) -> u32[]
+
+fn sum<T is Array> (val:T) -> T = val.sum()
+
+let n: Node<f32> =
+    Node.BinaryNode(Operation.ADD, Node.Unary(Operation.EXP, Node.Leaf(0.32f)), Node.Leaf(0.21f))
 
 fn main() {
     let z = multiply(2, 3)

@@ -1,0 +1,12 @@
+/**
+ * This is a cool file, trust me
+ */
+from std.io import lib.console
+from matplotlib import pyplot.plot as pt, cool
+import pandas.pandas_api as pd
+import pandas.pp
+from x.y.z import cool.z.y as haha, cool.z, cool as yeet
+
+type Operation = enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}

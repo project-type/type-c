@@ -17,10 +17,11 @@ typedef enum {
     TOK_CLASS,             // class
     TOK_CONTINUE,          // continue
     TOK_MUT,               // mut
+    TOK_DATA,              // data
     TOK_DELETE,            // delete
     TOK_DO,                // do
     TOK_ELSE,              // else
-    TOK_ENUM,            // enum
+    TOK_ENUM,              // enum
     TOK_EXTERN,            // extern
     TOK_FALSE,             // false
     TOK_FROM,              // from
@@ -45,13 +46,13 @@ typedef enum {
     TOK_LET,               // let
     TOK_NEW,               // new
     TOK_NULL,              // null
-    TOK_UNION,             // union
     TOK_UNSAFE,            // unsafe
     TOK_PTR,               // ptr
     TOK_RETURN,            // return
     TOK_SIZEOF,            // sizeof
     TOK_SUPER,             // super
     TOK_SELF,              // self
+    TOK_STATIC,            // static
     TOK_STRUCT,            // struct
     TOK_MATCH,             // switch
     TOK_TRUE,              // true
@@ -113,6 +114,7 @@ typedef enum {
     TOK_EOF,
 } TokenType;
 
+const char* token_type_to_string(TokenType type);
 
 
 #endif //TYPE_C_TOKENS_H

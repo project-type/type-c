@@ -4,7 +4,7 @@
 #include "compiler/parser.h"
 
 int main() {
-    char* filename = "../../samples/sample.tc";
+    char* filename = "../../samples/sample2.tc";
     FILE* file = fopen(filename, "r");
     if (!file)
     {

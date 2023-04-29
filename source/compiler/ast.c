@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include "ast.h"
 #include "../utils/vec.h"
+#include "../utils/map.h"
+
+#define ALLOC(v, t) t* v = malloc(sizeof(t))
+
 
 ASTNode * ast_makeProgramNode() {
     ASTProgramNode* program = malloc(sizeof(ASTProgramNode));
@@ -61,3 +65,94 @@ void ast_debug_programImport(ASTProgramNode* node) {
         printf(")\n");
     }
 }
+
+/**
+* Building AST Data types
+*/
+
+ArrayType* ast_type_makeArray() {
+    ALLOC(array, ArrayType);
+    return array;
+}
+
+EnumType* ast_type_makeEnum(){
+    ALLOC(enu, EnumType);
+    map_init(&enu->enums);
+
+    return enu;
+}
+
+PtrType * ast_type_makePtr() {
+    ALLOC(ptr, PtrType);
+    ptr->target = NULL;
+
+    return ptr;
+}
+
+ReferenceType* ast_type_makeReference() {
+    ALLOC(ref, ReferenceType);
+    ref->ref = NULL;
+
+    return ref;
+}
+
+JoinType* ast_type_makeJoin() {
+    ALLOC(join, JoinType);
+    map_init(&join->joins);
+
+    return join;
+}
+
+UnionType* ast_type_makeUnion() {
+    ALLOC(uni, UnionType);
+    map_init(&uni->unions);
+
+    return uni;
+}
+
+DataDataType* ast_type_makeData() {
+    ALLOC(data, DataDataType);
+    map_init(&data->constructors);
+    vec_init(&data->constructorNames);
+
+    return data;
+}
+
+InterfaceType* ast_type_makeInterface() {
+    ALLOC(interface, InterfaceType);
+    map_init(&interface->methods);
+    vec_init(&interface->methodNames);
+
+    return interface;
+}
+
+ClassType* ast_type_makeClass() {
+    ALLOC(class_, ClassType);
+    map_init(&class_->methods);
+    map_init(&class_->attributes);
+    vec_init(&class_->attributeNames);
+    vec_init(&class_->methodNames);
+
+    return class_;
+}
+
+FnType* ast_type_makeFn() {
+    ALLOC(fn, FnType);
+    map_init(&fn->args);
+    vec_init(&fn->argsNames);
+    fn->returnType = NULL;
+
+    return fn;
+}
+
+DataType* ast_type_makeType() {
+    ALLOC(type, DataType);
+    type->name = NULL;
+    type->isGeneric = 0;
+    type->kind = DT_UNRESOLVED;
+    type ->classType = NULL;
+
+    return type;
+}
+
+#undef ALLOC
