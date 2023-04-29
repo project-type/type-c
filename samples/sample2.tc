@@ -7,6 +7,14 @@ import pandas.pandas_api as pd
 import pandas.pp
 from x.y.z import cool.z.y as haha, cool.z, cool as yeet
 
+/*
 type Operation = enum {
     ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
 }
+*/
+
+type arr = u32[0xff]
+
+type Operation = enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}[23]

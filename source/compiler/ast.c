@@ -11,12 +11,13 @@
 
 ASTNode * ast_makeProgramNode() {
     ASTProgramNode* program = malloc(sizeof(ASTProgramNode));
-    program->scope = NULL;
+
     vec_init(&program->importStatements);
 
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = AST_PROGRAM;
     node->programNode = program;
+    map_init(&node->scope.dataTypes);
 
     return node;
 }
@@ -66,18 +67,100 @@ void ast_debug_programImport(ASTProgramNode* node) {
     }
 }
 
+void ast_debug_Type(DataType* type){
+    printf("type %s\n", type->name);
+    switch(type->kind) {
+        case DT_ENUM:
+            printf("\t is ENUM");
+            break;
+        case DT_ARRAY:
+            printf("\t is array of size %llu\n", type->arrayType->len);
+            ast_debug_Type(type->arrayType->arrayOf);
+            break;
+        case DT_I8:
+            printf("i8\n");
+        case DT_I16:
+            printf("i16\n");
+            break;
+        case DT_I32:
+            printf("i32\n");
+            break;
+        case DT_I64:
+            printf("i64\n");
+            break;
+        case DT_U8:
+            printf("u8\n");
+            break;
+        case DT_U16:
+            printf("u16\n");
+            break;
+        case DT_U32:
+            printf("u32\n");
+            break;
+        case DT_U64:
+            printf("u64\n");
+            break;
+        case DT_F32:
+            printf("f32\n");
+            break;
+        case DT_F64:
+            printf("f32\n");
+            break;
+        case DT_BOOL:
+            printf("bool\n");
+            break;
+        case DT_STRING:
+            printf("string\n");
+            break;
+        case DT_CHAR:
+            printf("char\n");
+            break;
+        case DT_CLASS:
+            printf("class\n");
+            break;
+        case DT_INTERFACE:
+            printf("interface\n");
+            break;
+        case DT_STRUCT:
+            printf("struct\n");
+            break;
+        case DT_DATA:
+            printf("data\n");
+            break;
+        case DT_FN:
+            printf("fn\n");
+            break;
+        case DT_PTR:
+            printf("ptr\n");
+            break;
+        case DT_REFERENCE:
+            printf("ref\n");
+            break;
+        case DT_TYPE_JOIN:
+            printf("join\n");
+            break;
+        case DT_TYPE_UNION:
+            printf("union\n");
+            break;
+        case DT_UNRESOLVED:
+            printf("unresolved\n");
+            break;
+    }
+}
 /**
 * Building AST Data types
 */
 
 ArrayType* ast_type_makeArray() {
     ALLOC(array, ArrayType);
+    array->len = 0;
     return array;
 }
 
 EnumType* ast_type_makeEnum(){
     ALLOC(enu, EnumType);
     map_init(&enu->enums);
+    vec_init(&enu->enumNames);
 
     return enu;
 }

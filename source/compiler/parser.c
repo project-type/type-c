@@ -76,8 +76,17 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
     // TODO: Resolve Imports and add them to symbol table
     // we no longer expect import or from after this
 
-    if(lexem.type == TOK_TYPE) {
-        parser_parseTypeDecl(parser, node);
+    can_loop = lexem.type == TOK_TYPE;
+    while (can_loop) {
+
+        if(lexem.type == TOK_TYPE) {
+            parser_parseTypeDecl(parser, node);
+
+            CURRENT;
+        }
+        else {
+            can_loop = 0;
+        }
     }
 }
 
@@ -88,29 +97,125 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
  *              | "interface" <interface| "data" | "enum" | "struct" | "fn")
  */
 void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
+    DataType * type = ast_type_makeType();
     ACCEPT;
     Lexem lexem = parser_peek(parser);
     ASSERT(lexem.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
-    const char* name = strdup(lexem.string);
+    char* name = strdup(lexem.string);
     ACCEPT;
 
     lexem = parser_peek(parser);
     ASSERT(lexem.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.", EXPAND_LEXEME);
     ACCEPT;
     lexem = parser_peek(parser);
+
     if(lexem.type == TOK_ENUM) {
         EnumType * enum_ = parser_parseEnumDecl(parser, node);
+        type->kind = DT_ENUM;
+        type->enumType = enum_;
     }
+    if((lexem.type >= TOK_I8) && (lexem.type <=TOK_CHAR)) {
+        type->kind = lexem.type - TOK_I8;
+    }
+
+    // post-types, arrays.
+
+
+    CURRENT;
+    uint8_t can_loop = lexem.type == TOK_LBRACKET;
+
+    while(can_loop) {
+        // it is an array :(
+        ArrayType* array = parser_parseArrayType(parser, node);
+        array->arrayOf = type;
+
+        DataType * arr_type = ast_type_makeType();
+        arr_type->kind = DT_ARRAY;
+        arr_type->arrayType = array;
+        type = arr_type;
+        CURRENT;
+        can_loop = lexem.type == TOK_LBRACKET;
+    }
+
+    parser_reject(parser);
+    type->name = name;
+    map_set(&node->scope.dataTypes, type->name, type);
+    ast_debug_Type(type);
+
+}
+/*
+ * "[" <int>? "]"
+ */
+ArrayType* parser_parseArrayType(Parser* parser, ASTNode* node) {
+    ArrayType* array = ast_type_makeArray();
+    // currently at [
+    ACCEPT;
+    Lexem CURRENT;
+    if (lexem.type == TOK_INT) {
+        array->len = strtoul(lexem.string, NULL, 10);
+        ACCEPT;
+        CURRENT;
+    }
+    else if (lexem.type == TOK_BINARY_INT) {
+        array->len = strtoul(lexem.string, NULL, 2);
+        ACCEPT;
+        CURRENT;
+    }
+    else if (lexem.type == TOK_OCT_INT) {
+        array->len = strtoul(lexem.string, NULL, 8);
+        ACCEPT;
+        CURRENT;
+    }
+    else if (lexem.type == TOK_HEX_INT) {
+        array->len = strtoul(lexem.string, NULL, 16);
+        ACCEPT;
+        CURRENT;
+    }
+
+    ASSERT(lexem.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` or `integer constant` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    return array;
 }
 
 /*
  * "enum" "{" <id> (","? <id>)* "}"
  */
 EnumType* parser_parseEnumDecl(Parser* parser, ASTNode* node) {
+    EnumType* enum_ = ast_type_makeEnum();
     // current position: enum
     ACCEPT;
     Lexem CURRENT;
     ASSERT(lexem.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+
+    uint8_t can_loop = 1;
+    uint32_t index = 0;
+
+    while(can_loop) {
+        ASSERT(lexem.type == TOK_IDENTIFIER,
+               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        char* name = lexem.string;
+        // TODO: make sure index doesn't exeed some limit?
+        map_set(&enum_->enums, name, index++);
+        vec_push(&enum_->enumNames, name);
+        printf("pushing %"PRIu32": %s\n", index-1, name);
+
+        ACCEPT;
+        CURRENT;
+
+        if(lexem.type == TOK_COMMA){
+            ACCEPT;
+            CURRENT;
+        }
+
+        if(lexem.type != TOK_IDENTIFIER) {
+            can_loop = 0;
+        }
+    }
+    ASSERT(lexem.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    return enum_;
 }
 
 /*

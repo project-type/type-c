@@ -11,7 +11,6 @@ typedef enum {
     TOK_ASYNC,             // async
     TOK_AWAIT,             // await
     TOK_TYPE_CONVERSION,   // as
-    TOK_BOOLEAN,           // bool
     TOK_BREAK,             // break
     TOK_CASE,              // case
     TOK_CLASS,             // class
@@ -33,6 +32,7 @@ typedef enum {
     TOK_IN,                // in
     TOK_IS,                // is
     TOK_INTERFACE,         // interface
+
     TOK_I8,                // i8
     TOK_I16,               // i16
     TOK_I32,               // i32
@@ -43,11 +43,17 @@ typedef enum {
     TOK_U64,               // u64
     TOK_F32,               // f32
     TOK_F64,               // f64
+    TOK_BOOLEAN,           // bool
+    TOK_STRING,            // string
+    TOK_CHAR,              // char
+
+    TOK_PTR,               // ptr
+    TOK_NULLABLE,          // ?
+
     TOK_LET,               // let
     TOK_NEW,               // new
     TOK_NULL,              // null
     TOK_UNSAFE,            // unsafe
-    TOK_PTR,               // ptr
     TOK_RETURN,            // return
     TOK_SIZEOF,            // sizeof
     TOK_SUPER,             // super
@@ -70,7 +76,6 @@ typedef enum {
     TOK_RBRACKET,          // ]
     TOK_LBRACE,            // {
     TOK_RBRACE,            // }
-    TOK_NULLABLE,          // ?
     TOK_NOT,               // !
     TOK_EQUAL,             // =
     TOK_LOGICAL_OR,        // ||
@@ -103,12 +108,12 @@ typedef enum {
 
     // Literals.
     TOK_IDENTIFIER,        // variable or function name
-    TOK_STRING,            // string literal  (double quotes)
-    TOK_CHAR,              // single character (single quote)
+    TOK_STRING_VAL,            // string literal  (double quotes)
+    TOK_CHAR_VAL,              // single character (single quote)
     TOK_INT,
     TOK_BINARY_INT,        // 0b[01]+
-    TOK_HEX_INT,           // 0x[0-9A-F]+
     TOK_OCT_INT,           // 0o[0-7]+
+    TOK_HEX_INT,           // 0x[0-9A-F]+
     TOK_FLOAT,             //
     TOK_DOUBLE,
     TOK_EOF,

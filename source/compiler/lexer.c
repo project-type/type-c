@@ -182,7 +182,6 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     if(match(lexerState, "async")) return makeLexemLineCol(TOK_ASYNC, NULL, line, col);
     if(match(lexerState, "await")) return makeLexemLineCol(TOK_AWAIT, NULL, line, col);
     if(match(lexerState, "as")) return makeLexemLineCol(TOK_TYPE_CONVERSION, NULL, line, col);
-    if(match(lexerState, "bool")) return makeLexemLineCol(TOK_BOOLEAN, NULL, line, col);
     if(match(lexerState, "break")) return makeLexemLineCol(TOK_BREAK, NULL, line, col);
     if(match(lexerState, "case")) return makeLexemLineCol(TOK_CASE, NULL, line, col);
     if(match(lexerState, "class")) return makeLexemLineCol(TOK_CLASS, NULL, line, col);
@@ -214,6 +213,9 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     if(match(lexerState, "u64")) return makeLexemLineCol(TOK_U64, NULL, line, col);
     if(match(lexerState, "f32")) return makeLexemLineCol(TOK_F32, NULL, line, col);
     if(match(lexerState, "f64")) return makeLexemLineCol(TOK_F64, NULL, line, col);
+    if(match(lexerState, "bool")) return makeLexemLineCol(TOK_BOOLEAN, NULL, line, col);
+    if(match(lexerState, "string")) return makeLexemLineCol(TOK_STRING, NULL, line, col);
+    if(match(lexerState, "char")) return makeLexemLineCol(TOK_CHAR, NULL, line, col);
     if(match(lexerState, "let")) return makeLexemLineCol(TOK_LET, NULL, line, col);
     if(match(lexerState, "new")) return makeLexemLineCol(TOK_NEW, NULL, line, col);
     if(match(lexerState, "null")) return makeLexemLineCol(TOK_NULL, NULL, line, col);
@@ -323,7 +325,7 @@ Lexem lexString(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_STRING, str_val, line, col);
+    Lexem lexem = makeLexemLineCol(TOK_STRING_VAL, str_val, line, col);
     return lexem;
 }
 
@@ -351,7 +353,7 @@ Lexem lexChar(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_CHAR, str_val, line, col);
+    Lexem lexem = makeLexemLineCol(TOK_CHAR_VAL, str_val, line, col);
     return lexem;
 }
 

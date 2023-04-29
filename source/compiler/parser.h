@@ -54,7 +54,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node);
 void parser_parseFromStmt(Parser* parser, ASTNode* node);
 void parser_parseImportStmt(Parser* parser, ASTNode* node);
 void parser_parseTypeDecl(Parser* parser, ASTNode* node);
-
+ArrayType* parser_parseArrayType(Parser* parser, ASTNode* node);
 EnumType* parser_parseEnumDecl(Parser* parser, ASTNode* node);
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 

@@ -21,6 +21,7 @@ struct ClassMethod;
 struct ClassAttribute;
 struct FnArgument;
 
+typedef map_t(uint32_t) u32_map_t;
 typedef map_t(struct DataType*) dtype_map_t;
 typedef map_t(struct DataConstructor*) dataconstructor_map_t;
 typedef map_t(struct InterfaceMethod*) interfacemethod_map_t;
@@ -31,12 +32,12 @@ typedef map_t(struct FnArgument*) fnargument_map_t;
  * Enums of all possible type categories
  */
 typedef enum DataTypeKind {
-    DT_U8, DT_I8,
-    DT_U16, DT_I16,
-    DT_U32, DT_I32,
-    DT_U64, DT_I64,
+    DT_I8, DT_I16, DT_I32, DT_I64,
+    DT_U8, DT_U16, DT_U32, DT_U64,
     DT_F32, DT_F64,
-    DT_STRING, DT_CHAR,
+    DT_BOOL,
+    DT_STRING,
+    DT_CHAR,
     DT_CLASS, DT_INTERFACE,
     DT_STRUCT,
     DT_ENUM, DT_DATA,
@@ -58,7 +59,8 @@ ArrayType* ast_type_makeArray();
 
 /** enum */
 typedef struct EnumType {
-    map_str_t enums;
+    u32_map_t enums;
+    vec_str_t enumNames;
 }EnumType;
 EnumType* ast_type_makeEnum();
 
@@ -182,24 +184,23 @@ typedef vec_t(ImportStmt*) import_stmt_vec;
 
 typedef enum ASTNodeType{
     AST_PROGRAM,
-    AST_IMPORT,
 }ASTNodeType;
 
 typedef struct ASTScope {
     void* variables;
     void* functions;
-    void* dataTypes;
+    dtype_map_t dataTypes;
     void* statements;
     void* externDeclarations;
     void* expressions;
 } ASTScope;
 
 typedef struct ASTProgramNode {
-    ASTScope* scope;
     import_stmt_vec importStatements;
 }ASTProgramNode;
 
 typedef struct ASTNode {
+    ASTScope scope;
     ASTNodeType type;
     union {
         ASTProgramNode* programNode;
@@ -210,6 +211,8 @@ typedef struct ASTNode {
 ASTNode * ast_makeProgramNode();
 PackageID* ast_makePackageID();
 ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias);
-void ast_debug_programImport(ASTProgramNode* node);
 
+// debugging
+void ast_debug_programImport(ASTProgramNode* node);
+void ast_debug_Type(DataType* type);
 #endif //TYPE_C_AST_H

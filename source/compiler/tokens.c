@@ -78,6 +78,10 @@ const char* token_type_to_string(TokenType type) {
             return "f32";
         case TOK_F64:
             return "f64";
+        case TOK_STRING:
+            return "string";
+        case TOK_CHAR:
+            return "char";
         case TOK_LET:
             return "let";
         case TOK_NEW:
@@ -196,10 +200,10 @@ const char* token_type_to_string(TokenType type) {
             // Literals.
         case TOK_IDENTIFIER:
             return "Identifier";        // variable or function name
-        case TOK_STRING:
-            return "string";            // string literal  (double quotes)
-        case TOK_CHAR:
-            return "character";              // single character (single quote)
+        case TOK_STRING_VAL:
+            return "string literal";            // string literal  (double quotes)
+        case TOK_CHAR_VAL:
+            return "character literal";              // single character (single quote)
         case TOK_INT:
             return "int";
         case TOK_BINARY_INT:
