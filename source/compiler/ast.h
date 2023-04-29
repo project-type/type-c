@@ -8,6 +8,31 @@
 #include "../utils/vec.h"
 #include "tokens.h"
 
+typedef enum DataTypes {
+    DT_U8,
+    DT_I8,
+    DT_U16,
+    DT_I16,
+    DT_U32,
+    DT_I32,
+    DT_U64,
+    DT_I64,
+    DT_F32,
+    DT_F64,
+    DT_STRING,
+    DT_CHAR,
+    DT_OBJECT,
+    DT_CLASS,
+    DT_INTERFACE,
+    DT_ARRAY,
+}DataTypes;
+
+typedef struct TypeKind {
+    DataTypes dataType;
+    size_t size;
+
+}TypeKind;
+
 typedef struct PackageID {
     vec_str_t ids;
 }PackageID;
@@ -19,6 +44,12 @@ typedef struct ImportStmt {
     char* alias;
 }ImportStmt;
 
+typedef struct FnArgument {
+    char* name;
+    uint8_t is_mut;
+    uint8_t is_generic;
+
+}FnArgument;
 
 typedef vec_t(ImportStmt*) import_stmt_vec;
 

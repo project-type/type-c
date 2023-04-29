@@ -1,0 +1,10 @@
+
+class String {
+    constructor(data: ptr<uint8>, uint64_t len) {
+        self.ptr = unsafe {
+            malloc(1,
+        }
+    }
+}
+
+x = "hello, world!"

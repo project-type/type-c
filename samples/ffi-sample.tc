@@ -1,0 +1,28 @@
+extern "C" capi = {
+    fn malloc(size: u64) -> ptr<any>;
+    fn memcpy(target: ptr<any>, source: ptr<any>, len: u64) -> ptr<any>;
+}
+
+fn string_to_cstr(data: string) {
+    let len: u64 = data.length
+
+    let c_str: ptr<u8> = unsafe {
+        capi.malloc(len*sizeof(u8));
+    }
+
+    unsafe {
+        capi.memcpy(c_str, data._ptr, len*sizeof(u8)+1)
+        *(c_str + len) = '\0'
+    }
+
+    return c_str;
+}
+
+extern "C" c_io = {
+    printf(fmt: ptr<u8>, ...);
+}
+
+fn printf(data: string) {
+    let c_str = string_to_cstr(data)
+    printf(c_str);
+}

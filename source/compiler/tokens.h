@@ -7,6 +7,7 @@
 
 typedef enum {
     // Keywords.
+    TOK_ANY,               // any
     TOK_ASYNC,             // async
     TOK_AWAIT,             // await
     TOK_TYPE_CONVERSION,   // as
@@ -48,6 +49,7 @@ typedef enum {
     TOK_UNSAFE,            // unsafe
     TOK_PTR,               // ptr
     TOK_RETURN,            // return
+    TOK_SIZEOF,            // sizeof
     TOK_SUPER,             // super
     TOK_MATCH,             // switch
     TOK_SELF,              // self
@@ -98,7 +100,8 @@ typedef enum {
 
     // Literals.
     TOK_IDENTIFIER,        // variable or function name
-    TOK_STRING,            // string literal
+    TOK_STRING,            // string literal  (double quotes)
+    TOK_CHAR,              // single character (single quote)
     TOK_INT,
     TOK_BINARY_INT,        // 0b[01]+
     TOK_HEX_INT,           // 0x[0-9A-F]+

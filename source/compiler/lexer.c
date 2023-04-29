@@ -178,6 +178,7 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     uint32_t col = lexerState->col;
 
     // check for keyword:
+    if(match(lexerState, "any")) return makeLexemLineCol(TOK_ANY, NULL, line, col);
     if(match(lexerState, "async")) return makeLexemLineCol(TOK_ASYNC, NULL, line, col);
     if(match(lexerState, "await")) return makeLexemLineCol(TOK_AWAIT, NULL, line, col);
     if(match(lexerState, "as")) return makeLexemLineCol(TOK_TYPE_CONVERSION, NULL, line, col);
@@ -219,6 +220,7 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     if(match(lexerState, "ptr")) return makeLexemLineCol(TOK_PTR, NULL, line, col);
     if(match(lexerState, "unsafe")) return makeLexemLineCol(TOK_UNSAFE, NULL, line, col);
     if(match(lexerState, "return")) return makeLexemLineCol(TOK_RETURN, NULL, line, col);
+    if(match(lexerState, "sizeof")) return makeLexemLineCol(TOK_SIZEOF, NULL, line, col);
     if(match(lexerState, "super")) return makeLexemLineCol(TOK_SUPER, NULL, line, col);
     if(match(lexerState, "match")) return makeLexemLineCol(TOK_MATCH, NULL, line, col);
     if(match(lexerState, "self")) return makeLexemLineCol(TOK_SELF, NULL, line, col);
@@ -320,6 +322,34 @@ Lexem lexString(LexerState* lexerState){
     str_val[len-1] = '\0';
 
     Lexem lexem = makeLexemLineCol(TOK_STRING, str_val, line, col);
+    return lexem;
+}
+
+
+
+Lexem lexChar(LexerState* lexerState){
+    // TODO: assert char len is 1
+
+    uint64_t start = lexerState->pos;
+    uint32_t line = lexerState->line;
+    uint32_t col = lexerState->col;
+    // skip first quotes
+    incLexer(lexerState);
+    char c = getCurrentChar(lexerState);
+    while(c != '\'') {
+        incLexer(lexerState);
+        // skip \"
+        match(lexerState, "\\\'");
+        c = getCurrentChar(lexerState);
+    }
+
+    incLexer(lexerState);
+    uint64_t len = lexerState->pos - start + 1;
+    char* str_val = malloc(len*sizeof(char));
+    memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
+    str_val[len-1] = '\0';
+
+    Lexem lexem = makeLexemLineCol(TOK_CHAR, str_val, line, col);
     return lexem;
 }
 
@@ -592,6 +622,9 @@ Lexem lexer_lexCurrent(LexerState* lex) {
             }
             if(c == '"') {
                 return  lexString(lex);
+            }
+            if(c == '\'') {
+                return  lexChar(lex);
             }
             if(isnumber(c)) {
                 return lexNumber(lex);

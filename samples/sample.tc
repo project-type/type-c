@@ -7,7 +7,9 @@ import pandas.pandas_api as pd
 import pandas.pp
 from x.y.z import cool.z.y as haha, cool.z, cool as yeet
 
+fn multiply(a: u8, b: u8) -> u8 = a*b
+
+
 fn main() {
-    let {x, y} = getValue<str>();
-    let {z: u32, alpha: i32} = getValue<str>();
+    let z = multiply(2, 3)
 }

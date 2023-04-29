@@ -18,7 +18,6 @@ Parser* parser_init(LexerState* lexerState) {
 }
 
 Lexem parser_peek(Parser* parser) {
-
     if (parser->stack_index == parser->stack.length) {
         Lexem lexem = lexer_lexCurrent(parser->lexerState);
         vec_push(&parser->stack, lexem);
@@ -66,6 +65,8 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
     }while(can_loop);
 
     ast_debug_programImport(node->programNode);
+    // TODO: Resolve Imports and add them to symbol table
+
 }
 
 /*
