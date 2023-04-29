@@ -20,15 +20,14 @@ typedef enum {
     TOK_DELETE,            // delete
     TOK_DO,                // do
     TOK_ELSE,              // else
+    TOK_ENUM,            // enum
     TOK_EXTERN,            // extern
-    TOK_EXTENDS,           // extends
     TOK_FALSE,             // false
     TOK_FROM,              // from
     TOK_FOR,               // for
     TOK_FOREACH,           // foreach
     TOK_FUNCTION,          // fn
     TOK_IF,                // if
-    TOK_IMPLEMENTS,        // implements
     TOK_IMPORT,            // import
     TOK_IN,                // in
     TOK_IS,                // is
@@ -46,13 +45,15 @@ typedef enum {
     TOK_LET,               // let
     TOK_NEW,               // new
     TOK_NULL,              // null
+    TOK_UNION,             // union
     TOK_UNSAFE,            // unsafe
     TOK_PTR,               // ptr
     TOK_RETURN,            // return
     TOK_SIZEOF,            // sizeof
     TOK_SUPER,             // super
-    TOK_MATCH,             // switch
     TOK_SELF,              // self
+    TOK_STRUCT,            // struct
+    TOK_MATCH,             // switch
     TOK_TRUE,              // true
     TOK_TYPE,              // type
     TOK_VOID,              // void
@@ -74,6 +75,7 @@ typedef enum {
     TOK_LOGICAL_OR,        // ||
     TOK_LOGICAL_AND,       // &&
     TOK_NOT_EQUAL,         // !=
+    TOK_DENULL,            // !!
     TOK_LESS,              // <
     TOK_LESS_EQUAL,        // <=
     TOK_GREATER,           // >

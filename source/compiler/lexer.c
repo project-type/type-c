@@ -191,15 +191,14 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     if(match(lexerState, "delete")) return makeLexemLineCol(TOK_DELETE, NULL, line, col);
     if(match(lexerState, "do")) return makeLexemLineCol(TOK_DO, NULL, line, col);
     if(match(lexerState, "else")) return makeLexemLineCol(TOK_ELSE, NULL, line, col);
+    if(match(lexerState, "enum")) return makeLexemLineCol(TOK_ENUM, NULL, line, col);
     if(match(lexerState, "extern")) return makeLexemLineCol(TOK_EXTERN, NULL, line, col);
-    if(match(lexerState, "extends")) return makeLexemLineCol(TOK_EXTENDS, NULL, line, col);
     if(match(lexerState, "false")) return makeLexemLineCol(TOK_FALSE, NULL, line, col);
     if(match(lexerState, "from")) return makeLexemLineCol(TOK_FROM, NULL, line, col);
     if(match(lexerState, "for")) return makeLexemLineCol(TOK_FOR, NULL, line, col);
     if(match(lexerState, "foreach")) return makeLexemLineCol(TOK_FOREACH, NULL, line, col);
     if(match(lexerState, "fn")) return makeLexemLineCol(TOK_FUNCTION, NULL, line, col);
     if(match(lexerState, "if")) return makeLexemLineCol(TOK_IF, NULL, line, col);
-    if(match(lexerState, "implements")) return makeLexemLineCol(TOK_IMPLEMENTS, NULL, line, col);
     if(match(lexerState, "import")) return makeLexemLineCol(TOK_IMPORT, NULL, line, col);
     if(match(lexerState, "in")) return makeLexemLineCol(TOK_IN, NULL, line, col);
     if(match(lexerState, "is")) return makeLexemLineCol(TOK_IS, NULL, line, col);
@@ -217,13 +216,15 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     if(match(lexerState, "let")) return makeLexemLineCol(TOK_LET, NULL, line, col);
     if(match(lexerState, "new")) return makeLexemLineCol(TOK_NEW, NULL, line, col);
     if(match(lexerState, "null")) return makeLexemLineCol(TOK_NULL, NULL, line, col);
-    if(match(lexerState, "ptr")) return makeLexemLineCol(TOK_PTR, NULL, line, col);
+    if(match(lexerState, "union")) return makeLexemLineCol(TOK_UNION, NULL, line, col);
     if(match(lexerState, "unsafe")) return makeLexemLineCol(TOK_UNSAFE, NULL, line, col);
+    if(match(lexerState, "ptr")) return makeLexemLineCol(TOK_PTR, NULL, line, col);
     if(match(lexerState, "return")) return makeLexemLineCol(TOK_RETURN, NULL, line, col);
     if(match(lexerState, "sizeof")) return makeLexemLineCol(TOK_SIZEOF, NULL, line, col);
     if(match(lexerState, "super")) return makeLexemLineCol(TOK_SUPER, NULL, line, col);
-    if(match(lexerState, "match")) return makeLexemLineCol(TOK_MATCH, NULL, line, col);
     if(match(lexerState, "self")) return makeLexemLineCol(TOK_SELF, NULL, line, col);
+    if(match(lexerState, "struct")) return makeLexemLineCol(TOK_STRUCT, NULL, line, col);
+    if(match(lexerState, "match")) return makeLexemLineCol(TOK_MATCH, NULL, line, col);
     if(match(lexerState, "true")) return makeLexemLineCol(TOK_TRUE, NULL, line, col);
     if(match(lexerState, "type")) return makeLexemLineCol(TOK_TYPE, NULL, line, col);
     if(match(lexerState, "void")) return makeLexemLineCol(TOK_VOID, NULL, line, col);
@@ -526,6 +527,9 @@ Lexem lexer_lexCurrent(LexerState* lex) {
         case '!': {
             if(match(lex, "!=")) {
                 return makeLexemLineCol(TOK_NOT_EQUAL, NULL, line, col);
+            }
+            if(match(lex, "!!")) {
+                return makeLexemLineCol(TOK_DENULL, NULL, line, col);
             }
             incLexer(lex);
             return makeLexemLineCol(TOK_NOT, NULL, line, col);
