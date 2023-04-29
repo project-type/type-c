@@ -42,23 +42,35 @@ void parser_reject(Parser* parser) {
 }
 
 void parser_parse(Parser* parser) {
-    ASTProgramNode* program = malloc(sizeof(ASTProgramNode));
-    ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = AST_PROGRAM;
-    node->programNode = program;
+    ASTNode* node = ast_makeProgramNode();
     parser_parseProgram(parser, node);
 }
 
 void parser_parseProgram(Parser* parser, ASTNode* node) {
     Lexem lexem = parser_peek(parser);
 
-    if(lexem.type == TOK_FROM) {
-        parser_accept(parser);
-        parser_parseFromStmt(parser, node);
-    }
+    uint8_t can_loop = lexem.type == TOK_FROM || lexem.type == TOK_IMPORT;
+
+    do {
+        if(lexem.type == TOK_FROM) {
+            parser_accept(parser);
+            parser_parseFromStmt(parser, node);
+        }
+        if(lexem.type == TOK_IMPORT) {
+            parser_accept(parser);
+            parser_parseImportStmt(parser, node);
+        }
+
+        lexem = parser_peek(parser);
+        can_loop = lexem.type == TOK_FROM || lexem.type == TOK_IMPORT;
+    }while(can_loop);
+
+    ast_debug_programImport(node->programNode);
 }
 
-
+/*
+ * "from" <package_id> "import" <package_id> ("as" <id>)? ("," <package_id> ("as" <id>)?)*
+ */
 void parser_parseFromStmt(Parser* parser, ASTNode* node){
     // from has already been accepted
     // we expect a namespace x.y.z
@@ -69,16 +81,67 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node){
            "[%zu,%zu]: `import` keyword expected after import <package> but `%d` found",
            lexem.line, lexem.col, lexem.type);
     parser_accept(parser);
-    PackageID* target = parser_parsePackage(parser, node);
 
-    lexem = parser_peek(parser);
+    uint8_t can_loop = 1;
+    do {
+        PackageID* target = parser_parsePackage(parser, node);
+        lexem = parser_peek(parser);
 
+        uint8_t hasAlias = 0;
+        char* alias = NULL;
+        // is `as` present?
+        if(lexem.type == TOK_TYPE_CONVERSION) {
+            hasAlias = 1;
+            parser_accept(parser);
+            lexem = parser_peek(parser);
+            ASSERT(lexem.type == TOK_IDENTIFIER, "identifier expected after alias `as` but %d was found", lexem.type);
+            alias = strdup(lexem.string);
+            parser_accept(parser);
+        }
+        else {
+            parser_reject(parser);
+        }
+        ImportStmt* import = ast_makeImportStmt(source, target, hasAlias, alias);
+        vec_push(&node->programNode->importStatements, import);
+        lexem = parser_peek(parser);
+
+        // here we might find a comma. if we do, we accept it and keep looping
+        can_loop = lexem.type == TOK_COMMA;
+        if(can_loop) {
+            parser_accept(parser);
+        }
+    } while (can_loop);
+    parser_reject(parser);
+}
+
+
+/*
+ * "import" <package_id> ("as" <id>)?
+ */
+void parser_parseImportStmt(Parser* parser, ASTNode* node){
+    // from has already been accepted
+    // we expect a namespace x.y.z
+    PackageID* source = parser_parsePackage(parser, node);
     uint8_t hasAlias = 0;
     char* alias = NULL;
+    Lexem lexem = parser_peek(parser);
     // is `as` present?
     if(lexem.type == TOK_TYPE_CONVERSION) {
+        hasAlias = 1;
+        parser_accept(parser);
+        lexem = parser_peek(parser);
+        ASSERT(lexem.type == TOK_IDENTIFIER, "identifier expected after alias `as` but %d was found", lexem.type);
         alias = strdup(lexem.string);
+        parser_accept(parser);
     }
+    else{
+        parser_reject(parser);
+    }
+
+    PackageID * empty = ast_makePackageID();
+    ImportStmt* import = ast_makeImportStmt(source, empty, hasAlias, alias);
+    // TODO: free empty
+    vec_push(&node->programNode->importStatements, import);
 }
 
 
@@ -107,11 +170,6 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node) {
     }
 
     parser_reject(parser);
-
-    int i; Lexem* lex;
-    vec_foreach_ptr(&parser->stack, lex, i) {
-        printf("%d : %d: %s\n", i, (*lex).type, (*lex).string);
-    }
 
     return package;
 }

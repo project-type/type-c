@@ -52,6 +52,9 @@ void parser_parse(Parser* parser);
 
 void parser_parseProgram(Parser* parser, ASTNode* node);
 void parser_parseFromStmt(Parser* parser, ASTNode* node);
+void parser_parseImportStmt(Parser* parser, ASTNode* node);
+
+
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 
 #endif //TYPE_C_PARSER_H

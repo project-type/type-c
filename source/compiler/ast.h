@@ -8,14 +8,20 @@
 #include "../utils/vec.h"
 #include "tokens.h"
 
-#define MAKE_NODE(name, nodeDataType, nodeEnum)\
-    name = (nodeType*)malloc(sizeof(Node));\
-    name->type - nodeEnum;\
-    name->
-
 typedef struct PackageID {
     vec_str_t ids;
 }PackageID;
+
+typedef struct ImportStmt {
+    // combines both source and test
+    PackageID* path;
+    uint8_t hasAlias;
+    char* alias;
+}ImportStmt;
+
+
+typedef vec_t(ImportStmt*) import_stmt_vec;
+
 
 typedef enum ASTNodeType{
     AST_PROGRAM,
@@ -33,6 +39,7 @@ typedef struct ASTScope {
 
 typedef struct ASTProgramNode {
     ASTScope* scope;
+    import_stmt_vec importStatements;
 }ASTProgramNode;
 
 typedef struct ASTNode {
@@ -42,14 +49,10 @@ typedef struct ASTNode {
     };
 }ASTNode;
 
-typedef struct ImportStmt {
-    PackageID * source;
-    PackageID * dest;
-    uint8_t hasAlias;
-    char* alias;
-}ImportStmt;
 
-
+ASTNode * ast_makeProgramNode();
 PackageID* ast_makePackageID();
+ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias);
+void ast_debug_programImport(ASTProgramNode* node);
 
 #endif //TYPE_C_AST_H
