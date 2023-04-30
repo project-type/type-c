@@ -1,0 +1,8 @@
+
+type arr = ((u32[0xff]) | (u32 | f8.cool[255]))[][]
+
+type Operation = enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}[22] | u32
+
+type UserInfo<T>  = T[25]

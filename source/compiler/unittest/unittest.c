@@ -63,13 +63,31 @@ MU_TEST(test_imports_1){
     }
 }
 
+MU_TEST(test_type_declaration_1){
+    char* input = readFile("../../source/compiler/unittest/type_decl.tc");
+    LexerState* lex = lexer_init("import.tc", input, strlen(input));
+    Parser* parser = parser_init(lex);
+    ASTNode* node = parser_parse(parser);
+
+    char* arr_dt = "array<array<union{array<u32,255>,union{u32,array<<f8.cool>,255>}},0>,0>";
+    char* operation_dt = "union{array<enum{ADD,SUB,MUL,DIV,ABS,LOG,EXP,NEG},22>,u32}";
+    char* userinfo_dt = "array<<T>,25>";
+
+    // make sure we have 3 type declarations
+    mu_assert_int_eq(3, node->scope.dataTypes.base.nnodes);
+}
 
 MU_TEST_SUITE(imports_test) {
     MU_RUN_TEST(test_imports_1);
 }
 
+MU_TEST_SUITE(type_declaration_test) {
+    MU_RUN_TEST(test_type_declaration_1);
+}
+
 int main(int argc, char *argv[]) {
     MU_RUN_SUITE(imports_test);
+    MU_RUN_SUITE(type_declaration_test);
     MU_REPORT();
     return MU_EXIT_CODE;
 }
