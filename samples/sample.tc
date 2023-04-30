@@ -58,3 +58,8 @@ let n: Node<f32> =
 fn main() {
     let z = multiply(2, 3)
 }
+
+
+type BannedUser = LoggedInUser & struct {
+    banned: bool
+}
