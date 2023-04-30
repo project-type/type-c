@@ -171,7 +171,8 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
     DataType* type_def = parser_parseTypeUnion(parser, node);
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
-    printf("%s\n", ast_stringifyType(type_def));
+    //printf("%s\n", ast_stringifyType(type_def));
+
     map_set(&node->scope.dataTypes, type->name, type);
 }
 
@@ -326,7 +327,12 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node) {
     if(lexeme.type == TOK_ENUM) {
         return parser_parseTypeEnum(parser, node);
     }
-    if(lexe)
+    if(lexeme.type == TOK_STRUCT){
+        return parser_parseTypeStruct(parser, node);
+    }
+    if(lexeme.type == TOK_VARIANT) {
+        return parser_parseTypeVariant(parser, node);
+    }
     // check if current keyword is a basic type
     if((lexeme.type >= TOK_I8) && (lexeme.type <= TOK_CHAR)) {
         // create new type assign basic to it
@@ -345,10 +351,210 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node) {
         parser_reject(parser);
         type->refType->pkg = parser_parsePackage(parser, node);
 
+        // a generic list might follow
+        lexeme = parser_peek(parser);
+        if(lexeme.type == TOK_LESS) {
+            type->isGeneric = 1;
+            // here, each generic type can be any type, so we recursively parse type
+            // format <type> ("," <type>)* ">"
+            ACCEPT;
+            lexeme = parser_peek(parser);
+            uint8_t can_loop = lexeme.type != TOK_GREATER;
+            while(can_loop) {
+                // parse type
+                DataType* genericType = parser_parseTypeUnion(parser, node);
+                // add to generic list
+                vec_push(&type->concreteGenerics, genericType);
+                // check if we have a comma
+                lexeme = parser_peek(parser);
+                if(lexeme.type == TOK_COMMA) {
+                    ACCEPT;
+                }
+                else {
+                    // if no comma, we assert ">"
+                    ASSERT(lexeme.type == TOK_GREATER,
+                           "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.",
+                           EXPAND_LEXEME);
+                    ACCEPT;
+                    can_loop = 0;
+                }
+            }
+        }
+        else {
+            parser_reject(parser);
+        }
+
         return type;
     }
 }
 
+// variant type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"
+DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node) {
+    //create base type
+    DataType * variantType = ast_type_makeType();
+    variantType->kind = DT_VARIANT;
+    variantType->variantType = ast_type_makeVariant();
+    // accept variant
+    ACCEPT;
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // make sure we have an ID next
+    CURRENT;
+
+    // prepare to loop
+    uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
+    while(can_loop) {
+        // we get the name of the variant
+        // assert we have an ID
+        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+
+        char* variantName = lexeme.string;
+        // make sure the variant doesn't have constructor with same name, by checking variantType->variantType->constructors
+        // using map_get
+        ASSERT(map_get(&variantType->variantType->constructors, variantName) == NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" near `%s` variant constructor with name %s already exists.", EXPAND_LEXEME);
+
+        // we create a new VariantConstructor
+        VariantConstructor* variantConstructor = ast_type_makeVariantConstructor();
+        variantConstructor->name = strdup(variantName);
+        // accept the name
+        ACCEPT;
+
+        CURRENT;
+        // check if we have parenthesis
+        if(lexeme.type == TOK_LPAREN) {
+            // we parse the arguments
+            // format: "(" <id>":" <type> (","? <id> ":"<type>)* ")"
+            ACCEPT;
+            CURRENT;
+            // prepare to loop
+            uint8_t can_loop_2 = lexeme.type == TOK_IDENTIFIER;
+            while(can_loop_2) {
+                // assert identifier
+                ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+
+                // we get the name of the argument
+                char* argName = lexeme.string;
+
+                // accept the name
+                ACCEPT;
+                CURRENT;
+
+                // make sure we have a colon
+                ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+                // we parse the type
+                DataType* argType = parser_parseTypeUnion(parser, node);
+                // we create a new argument
+                VariantConstructorArgument * arg = ast_type_makeVariantConstructorArgument();
+                arg->name = strdup(argName);
+                arg->type = argType;
+                // add to argument list
+
+                // make sure arg name doesn't already exist
+                ASSERT(map_get(&variantConstructor->args, argName) == NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, argument name `%s` already exists.", EXPAND_LEXEME, argName);
+                vec_push(&variantConstructor->argNames, argName);
+                map_set(&variantConstructor->args, argName, arg);
+
+                CURRENT;
+                // check if we have a comma
+
+                if(lexeme.type == TOK_COMMA) {
+                    ACCEPT;
+                    CURRENT;
+                }
+                else if(lexeme.type == TOK_RPAREN) {
+                    can_loop_2 = 0;
+                    ACCEPT;
+                }
+                else {
+                    // throw error, we need either a comma or a ")"
+                    ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" near %s, `,` or `)` expected but %s was found.", EXPAND_LEXEME);
+                }
+            }
+        }
+        // add constructor to map and its name to the vector
+        map_set(&variantType->variantType->constructors, variantName, variantConstructor);
+        vec_push(&variantType->variantType->constructorNames, variantName);
+        // skip comma if any
+        lexeme = parser_peek(parser);
+        if(lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        }
+
+        if(lexeme.type == TOK_RBRACE) {
+            can_loop = 0;
+        }
+
+        //
+
+    }
+
+    return variantType;
+}
+
+// struct_type ::= "struct" "{" <struct_decl> ("," <struct_decl>)* "}"
+DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node) {
+    DataType * structType = ast_type_makeType();
+    structType->kind = DT_STRUCT;
+    structType->structType = ast_type_makeStruct();
+
+    // currently at struct
+    // we skip struct and make sure we have { after
+    ACCEPT;
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+    // prepare to loop
+    uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
+    while(can_loop) {
+        // we parse in the form of identifier : type
+        // create struct attribute
+        StructAttribute* attr = ast_type_makeStructAttribute();
+        // parse identifier
+        ASSERT(lexeme.type == TOK_IDENTIFIER,
+               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        attr->name = strdup(lexeme.string);
+        ACCEPT;
+        CURRENT;
+        // parse :
+
+        ASSERT(lexeme.type == TOK_COLON,
+               "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+
+        // parse type
+        attr->type = parser_parseTypeUnion(parser, node);
+
+        // add to struct
+        // make sure type doesn't exist first
+        ASSERT(map_get(&structType->structType->attributes, attr->name) == NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" near %s, attribute `%s` already exists in struct.", EXPAND_LEXEME, attr->name);
+
+        vec_push(&structType->structType->attributeNames, attr->name);
+        map_set(&structType->structType->attributes, attr->name, attr);
+
+
+        // check if we reached the end, means we do not have an ID anymore
+        CURRENT;
+
+        // ignore comma if exists
+        if(lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        }
+
+        if(lexeme.type == TOK_RBRACE) {
+            can_loop = 0;
+        }
+    }
+    ACCEPT;
+    return structType;
+}
 
 // enum_type ::= "enum" "{" <enum_decl> ("," <enum_decl>)* "}"
 DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node) {

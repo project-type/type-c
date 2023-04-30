@@ -61,8 +61,13 @@ DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node);
 DataType* parser_parseTypeArray(Parser* parser, ASTNode* node);
 DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node);
 
-
 DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeClass(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeFn(Parser* parser, ASTNode* node);
+DataType* parser_parseTypePtr(Parser* parser, ASTNode* node);
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 
 #endif //TYPE_C_PARSER_H

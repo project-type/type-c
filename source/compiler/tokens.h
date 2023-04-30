@@ -16,7 +16,7 @@ typedef enum {
     TOK_CLASS,             // class
     TOK_CONTINUE,          // continue
     TOK_MUT,               // mut
-    TOK_DATA,              // data
+    TOK_VARIANT,           // variant
     TOK_DELETE,            // delete
     TOK_DO,                // do
     TOK_ELSE,              // else

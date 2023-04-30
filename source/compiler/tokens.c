@@ -26,7 +26,7 @@ const char* token_type_to_string(TokenType type) {
             return "continue";
         case TOK_MUT:
             return "mut";
-        case TOK_DATA:
+        case TOK_VARIANT:
             return "data";
         case TOK_DELETE:
             return "delete";

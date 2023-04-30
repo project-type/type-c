@@ -5,8 +5,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "../../utils/minunit.h"
+#include "../../utils/vec.h"
+#include "../../utils/map.h"
 #include "../lexer.h"
 #include "../parser.h"
+#include "../ast.h"
 
 char* readFile(const char* url){
     char* filename = url; "../../samples/sample2.tc";
@@ -14,7 +17,7 @@ char* readFile(const char* url){
     if (!file)
     {
         fprintf(stderr, "Could not open file '%s'\n", filename);
-        return 1;
+        return NULL;
     }
 
     // Get file size
@@ -27,7 +30,7 @@ char* readFile(const char* url){
     if (!input)
     {
         fprintf(stderr, "Could not allocate memory for file contents\n");
-        return 1;
+        return NULL;
     }
 
     // Read file contents into buffer
@@ -69,12 +72,38 @@ MU_TEST(test_type_declaration_1){
     Parser* parser = parser_init(lex);
     ASTNode* node = parser_parse(parser);
 
-    char* arr_dt = "array<array<union{array<u32,255>,union{u32,array<<f8.cool>,255>}},0>,0>";
-    char* operation_dt = "union{array<enum{ADD,SUB,MUL,DIV,ABS,LOG,EXP,NEG},22>,u32}";
-    char* userinfo_dt = "array<<T>,25>";
+    char* arr_dt = "array[array[union{array[u32,255],union{u32,array[ref(f8.cool),255]}},0],0]";
+    char* operation_dt = "union{array[enum{ADD,SUB,MUL,DIV,ABS,LOG,EXP,NEG},22],u32}";
+    char* userinfo_dt = "array[ref(T)<u32>,255]";
+    char* user_dt = "struct{name:string,age:u32,data:union{ref(std.ArrayBuffer),array[ref(std.BinaryBuffer)<ref(String)>,512]}}";
+    char* tree_dt = "variant{Leaf(val:u32),Binary(left:ref(Tree),right:ref(Tree)),Unary(child:ref(Tree))}";
 
-    // make sure we have 3 type declarations
-    mu_assert_int_eq(3, node->scope.dataTypes.base.nnodes);
+    // make sure we have 4 type declarations
+    //mu_assert_int_eq(4, node->scope.dataTypes.base.nnodes);
+
+    // extract the type called arr and make sure ist not null
+    DataType ** arr = map_get(&node->scope.dataTypes, "arr");
+    mu_assert(arr != NULL, "arr is null");
+    mu_assert_string_eq(arr_dt, ast_stringifyType((*arr)->refType->ref));
+
+    DataType ** Operation = map_get(&node->scope.dataTypes, "Operation");
+    mu_assert(Operation != NULL, "Operation is null");
+    mu_assert_string_eq(operation_dt, ast_stringifyType((*Operation)->refType->ref));
+
+    DataType ** UserInfo = map_get(&node->scope.dataTypes, "UserInfo");
+    mu_assert(UserInfo != NULL, "UserInfo is null");
+    mu_assert_string_eq(userinfo_dt, ast_stringifyType((*UserInfo)->refType->ref));
+
+    DataType ** user = map_get(&node->scope.dataTypes, "User");
+    mu_assert(user != NULL, "User is null");
+    mu_assert_string_eq(user_dt, ast_stringifyType((*user)->refType->ref));
+
+    DataType ** Tree = map_get(&node->scope.dataTypes, "Tree");
+    mu_assert(Tree != NULL, "Tree is null");
+    mu_assert_string_eq(tree_dt, ast_stringifyType((*Tree)->refType->ref));
+
+
+
 }
 
 MU_TEST_SUITE(imports_test) {

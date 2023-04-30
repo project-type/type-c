@@ -5,4 +5,17 @@ type Operation = enum {
     ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
 }[22] | u32
 
-type UserInfo<T>  = T[25]
+type UserInfo<T>  = T<u32>[0xff]
+
+
+type User = struct {
+    name: string
+    age: u32
+    data: (std.ArrayBuffer | std.BinaryBuffer<String>[512])
+}
+
+type Tree = variant {
+    Leaf(val: u32),
+    Binary(left: Tree, right: Tree),
+    Unary(child: Tree)
+}

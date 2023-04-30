@@ -78,22 +78,6 @@ char* ast_stringifyType(DataType* type){
         str = realloc(str, strlen(str) + strlen(type->name) + 1);
         strcat(str, type->name);
     }
-    // we check if it has generics
-    if(type->isGeneric){
-        // we add the generics to the string
-        int i; char * val;
-        // first we add a "<" to the string
-        str = realloc(str, strlen(str) + 1);
-        strcat(str, "<");
-        // then we add the generics
-        vec_foreach(&type->genericNames, val, i) {
-            str = realloc(str, strlen(str) + strlen(val) + 1);
-            strcat(str, val);
-        }
-        // we close >
-        str = realloc(str, strlen(str) + 1);
-        strcat(str, ">");
-    }
     // we check its kind
     switch (type->kind) {
         case DT_UNRESOLVED:
@@ -158,7 +142,7 @@ char* ast_stringifyType(DataType* type){
             str = realloc(str, strlen(str) + strlen("array") + 1);
             strcat(str, "array");
             str = realloc(str, strlen(str) + strlen("<") + 1);
-            strcat(str, "<");
+            strcat(str, "[");
             char* arrayType = ast_stringifyType(type->arrayType->arrayOf);
             str = realloc(str, strlen(str) + strlen(arrayType) + 1);
             strcat(str, arrayType);
@@ -169,7 +153,7 @@ char* ast_stringifyType(DataType* type){
             str = realloc(str, strlen(str) + strlen(arraySize) + 1);
             strcat(str, arraySize);
             str = realloc(str, strlen(str) + strlen(">") + 1);
-            strcat(str, ">");
+            strcat(str, "]");
 
             break;
         case DT_ENUM:
@@ -192,8 +176,8 @@ char* ast_stringifyType(DataType* type){
         case DT_REFERENCE:
             // we check if package is null, if its not we add it to the string as <p1.p2.p3>
             if(type->refType->pkg != NULL){
-                str = realloc(str, strlen(str) + strlen("<") + 1);
-                strcat(str, "<");
+                str = realloc(str, strlen(str) + strlen("ref(") + 1);
+                strcat(str, "ref(");
                 // we loop
                 int i; char * val;
                 vec_foreach(&type->refType->pkg->ids, val, i) {
@@ -203,7 +187,7 @@ char* ast_stringifyType(DataType* type){
                     strcat(str, ".");
                 }
                 // we replace the last . with >
-                str[strlen(str) - 1] = '>';
+                str[strlen(str) - 1] = ')';
             }
             else {
                 // we throw an error if the ref is nul
@@ -262,10 +246,113 @@ char* ast_stringifyType(DataType* type){
             break;
 
         }
+        case DT_STRUCT:{
+            // we add all struct fields to string
+            str = realloc(str, strlen(str) + strlen("struct") + 1);
+            strcat(str, "struct");
+            str = realloc(str, strlen(str) + strlen("{") + 1);
+            strcat(str, "{");
+            int i; char * val;
+            vec_foreach(&type->structType->attributeNames, val, i) {
+                // we add the name of the attribute
+                str = realloc(str, strlen(str) + strlen(val) + 1);
+                strcat(str, val);
+                // followed by :
+                str = realloc(str, strlen(str) + strlen(":") + 1);
+                strcat(str, ":");
+                // followed by the type of the attribute
+                // first get attribute type from the map
+                StructAttribute ** attrType = map_get(&type->structType->attributes, val);
+                // then stringify it
+                char * attrTypeStr = ast_stringifyType((*attrType)->type);
+                // then add it to the string
+                str = realloc(str, strlen(str) + strlen(attrTypeStr) + 1);
+                strcat(str, attrTypeStr);
+                // followed by ,
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+
+            }
+            // replace last , with }
+            str[strlen(str) - 1] = '}';
+            break;
+        }
+        case DT_VARIANT: {
+            // we write it as variant{ConstructorName1(arg1: type1, arg2: type2), ConstructorName2(arg1: type1, arg2: type2) , etc)}
+            str = realloc(str, strlen(str) + strlen("variant") + 1);
+            strcat(str, "variant");
+            str = realloc(str, strlen(str) + strlen("{") + 1);
+            strcat(str, "{");
+            int i; char * val;
+            vec_foreach(&type->variantType->constructorNames, val, i) {
+                // we add the name of the constructor
+                str = realloc(str, strlen(str) + strlen(val) + 1);
+                strcat(str, val);
+                // followed by (
+                str = realloc(str, strlen(str) + strlen("(") + 1);
+                strcat(str, "(");
+                // followed by the arguments
+                int j; char * argName;
+                // get current constructor
+                VariantConstructor ** constructor = map_get(&type->variantType->constructors, val);
+                // iterate through the arguments
+                vec_foreach(&(*constructor)->argNames, argName, j) {
+                    // add the name of the argument
+                    str = realloc(str, strlen(str) + strlen(argName) + 1);
+                    strcat(str, argName);
+                    // followed by :
+                    str = realloc(str, strlen(str) + strlen(":") + 1);
+                    strcat(str, ":");
+                    // followed by the type of the argument
+                    // first get the argument type from the map
+                    VariantConstructorArgument ** argType = map_get(&(*constructor)->args, argName);
+                    // then stringify it
+                    char * argTypeStr = ast_stringifyType((*argType)->type);
+                    // then add it to the string
+                    str = realloc(str, strlen(str) + strlen(argTypeStr) + 1);
+                    strcat(str, argTypeStr);
+                    // followed by ,
+                    str = realloc(str, strlen(str) + strlen(",") + 1);
+                    strcat(str, ",");
+                }
+                // replace last , with )
+                str[strlen(str) - 1] = ')';
+                // followed by ,
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+            }
+            // replace last , with }
+            str[strlen(str) - 1] = '}';
+        }
+
         default:
             break;
     }
 
+    // we check if it has generics
+    if(type->isGeneric){
+        // we add the generics to the string
+        int i; char * val;
+        // first we add a "<" to the string
+        str = realloc(str, strlen(str) + 1);
+        strcat(str, "<");
+        // then we add the generics
+        vec_foreach(&type->genericNames, val, i) {
+                str = realloc(str, strlen(str) + strlen(val) + 1);
+                strcat(str, val);
+            }
+        // we also iterator through concretegeneric types, serialize them and sparate them with a comma
+        vec_foreach(&type->concreteGenerics, val, i) {
+            char * genericType = ast_stringifyType(val);
+            str = realloc(str, strlen(str) + strlen(genericType) + 1);
+            strcat(str, genericType);
+            str = realloc(str, strlen(str) + strlen(",") + 1);
+            strcat(str, ",");
+        }
+        // replace last , with >
+        str[strlen(str) - 1] = '>';
+
+    }
     return str;
 }
 
@@ -315,8 +402,8 @@ UnionType* ast_type_makeUnion() {
     return uni;
 }
 
-DataDataType* ast_type_makeData() {
-    ALLOC(data, DataDataType);
+VariantType* ast_type_makeVariant() {
+    ALLOC(data, VariantType);
     map_init(&data->constructors);
     vec_init(&data->constructorNames);
 
@@ -350,6 +437,14 @@ FnType* ast_type_makeFn() {
     return fn;
 }
 
+StructType* ast_type_makeStruct() {
+    ALLOC(struct_, StructType);
+    map_init(&struct_->attributes);
+    vec_init(&struct_->attributeNames);
+
+    return struct_;
+}
+
 DataType* ast_type_makeType() {
     ALLOC(type, DataType);
     type->name = NULL;
@@ -357,10 +452,44 @@ DataType* ast_type_makeType() {
     type->kind = DT_UNRESOLVED;
     type ->classType = NULL;
 
+    vec_init(&type->concreteGenerics);
     vec_init(&type->genericNames);
     map_init(&type->generics);
 
     return type;
 }
+
+StructAttribute * ast_type_makeStructAttribute(){
+    ALLOC(attribute, StructAttribute);
+    attribute->type = NULL;
+    attribute->name = NULL;
+
+    return attribute;
+}
+
+ClassAttribute * ast_type_makeClassAttribute(){
+    ALLOC(attribute, ClassAttribute);
+    attribute->type = NULL;
+    attribute->name = NULL;
+
+    return attribute;
+}
+
+VariantConstructorArgument * ast_type_makeVariantConstructorArgument() {
+    ALLOC(argument, VariantConstructorArgument);
+    argument->type = NULL;
+    argument->name = NULL;
+
+    return argument;
+}
+
+VariantConstructor* ast_type_makeVariantConstructor(){
+    ALLOC(constructor, VariantConstructor);
+    map_init(&constructor->args);
+    vec_init(&constructor->argNames);
+
+    return constructor;
+}
+
 
 #undef ALLOC

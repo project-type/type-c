@@ -25,6 +25,7 @@ struct DataConstructor;
 struct InterfaceMethod;
 struct ClassMethod;
 struct ClassAttribute;
+struct StructAttribute;
 struct FnArgument;
 
 typedef map_t(uint32_t) u32_map_t;
@@ -33,7 +34,10 @@ typedef map_t(struct DataConstructor*) dataconstructor_map_t;
 typedef map_t(struct InterfaceMethod*) interfacemethod_map_t;
 typedef map_t(struct ClassMethod*) classmethod_map_t;
 typedef map_t(struct ClassAttribute*) classattribute_map_t;
+typedef map_t(struct StructAttribute*) structattribute_map_t;
 typedef map_t(struct FnArgument*) fnargument_map_t;
+typedef map_t(struct VariantConstructorArgument*) variantconstructorarg_map_t;
+typedef map_t(struct VariantConstructor*) variantconstructor_map_t;
 
 typedef vec_t(struct DataType*) dtype_vec_t;
 /**
@@ -48,7 +52,7 @@ typedef enum DataTypeKind {
     DT_CHAR,
     DT_CLASS, DT_INTERFACE,
     DT_STRUCT,
-    DT_ENUM, DT_DATA,
+    DT_ENUM, DT_VARIANT,
     DT_ARRAY,
     DT_FN,
     DT_PTR,
@@ -93,11 +97,11 @@ typedef struct UnionType {
 }UnionType;
 UnionType* ast_type_makeUnion();
 
-typedef struct DataDataType {
-    dataconstructor_map_t constructors;
+typedef struct VariantType {
+    variantconstructorarg_map_t constructors;
     vec_str_t  constructorNames;
-}DataDataType;
-DataDataType* ast_type_makeData();
+}VariantType;
+VariantType* ast_type_makeVariant();
 
 typedef struct InterfaceType {
     interfacemethod_map_t methods;
@@ -122,18 +126,33 @@ typedef struct FnType {
 }FnType;
 FnType* ast_type_makeFn();
 
+typedef struct StructType {
+    structattribute_map_t attributes;
+    // important for layout management
+    vec_str_t attributeNames;
+}StructType;
+StructType* ast_type_makeStruct();
+
 typedef struct DataType {
     char* name;
     DataTypeKind kind;
     uint8_t isGeneric;
 
+    // maintain order
     vec_str_t genericNames;
+    // map name to index
     u32_map_t generics;
+
+    // if not empty, it contains actual types that should
+    // replace generics
+    dtype_vec_t concreteGenerics;
+
 
     union {
         ClassType * classType;
         InterfaceType * interfaceType;
-        DataDataType * structType;
+        StructType* structType;
+        VariantType * variantType;
         EnumType * enumType;
         UnionType * unionType;
         JoinType * joinType;
@@ -150,10 +169,31 @@ typedef struct  ClassMethod {
     // TODO: add method decl
 } ClassMethod;
 
+
+typedef struct VariantConstructorArgument {
+    char* name;
+    DataType * type;
+}VariantConstructorArgument;
+VariantConstructorArgument * ast_type_makeVariantConstructorArgument();
+
+typedef struct VariantConstructor {
+    char* name;
+    vec_str_t argNames;
+    variantconstructorarg_map_t args;
+}VariantConstructor;
+VariantConstructor* ast_type_makeVariantConstructor();
+
+typedef struct StructAttribute {
+    char* name;
+    DataType * type;
+}StructAttribute;
+StructAttribute * ast_type_makeStructAttribute();
+
 typedef struct ClassAttribute {
     char* name;
-    // TODO: add attribute types
+    DataType * type;
 }ClassAttribute;
+ClassAttribute * ast_type_makeClassAttribute();
 
 typedef struct InterfaceMethod {
     char* name;
@@ -172,7 +212,9 @@ typedef struct GenericEntity {
 
 
 typedef struct DataConstructor {
-    vec_str_t args;
+    char* name;
+    vec_str_t argNames;
+
 }DataConstructor;
 
 
@@ -225,4 +267,5 @@ ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t has
 // debugging
 char* ast_stringifyType(DataType* type);
 char* ast_stringifyImport(ASTProgramNode* node, uint32_t index);
+
 #endif //TYPE_C_AST_H
