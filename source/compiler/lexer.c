@@ -150,11 +150,11 @@ LexerState* lexer_init(const char* filename, const char* buffer, uint64_t len) {
     return lexer;
 }
 
-Lexem lexer_next(LexerState* lexerState) {
+Lexeme lexer_next(LexerState* lexerState) {
 
 }
 
-Lexem lexer_peek(LexerState* lexerState) {
+Lexeme lexer_peek(LexerState* lexerState) {
 
 }
 
@@ -162,17 +162,17 @@ void lexer_free(LexerState* lexerState) {
 
 }
 
-Lexem makeLexem(TokenType type, const char* value, LexerState* lexerState) {
-    Lexem lexem = {type, value, lexerState->line, lexerState->col};
-    return lexem;
+Lexeme makeLexem(TokenType type, const char* value, LexerState* lexerState) {
+    Lexeme lexeme = {type, value, lexerState->line, lexerState->col};
+    return lexeme;
 }
 
-Lexem makeLexemLineCol(TokenType type, const char* value, uint32_t line, uint32_t col) {
-    Lexem lexem = {type, value, line, col};
-    return lexem;
+Lexeme makeLexemLineCol(TokenType type, const char* value, uint32_t line, uint32_t col) {
+    Lexeme lexeme = {type, value, line, col};
+    return lexeme;
 }
 
-Lexem lexIdOrKeyword(LexerState* lexerState) {
+Lexeme lexIdOrKeyword(LexerState* lexerState) {
     uint64_t start = lexerState->pos;
     uint32_t line = lexerState->line;
     uint32_t col = lexerState->col;
@@ -242,11 +242,11 @@ Lexem lexIdOrKeyword(LexerState* lexerState) {
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_IDENTIFIER, str_val, line, col);
-    return lexem;
+    Lexeme lexeme = makeLexemLineCol(TOK_IDENTIFIER, str_val, line, col);
+    return lexeme;
 }
 
-Lexem lexBinaryValue(LexerState* lexerState){
+Lexeme lexBinaryValue(LexerState* lexerState){
     uint64_t start = lexerState->pos;
     uint32_t line = lexerState->line;
     uint32_t col = lexerState->col;
@@ -261,12 +261,12 @@ Lexem lexBinaryValue(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_BINARY_INT, str_val, line, col);
-    return lexem;
+    Lexeme lexeme = makeLexemLineCol(TOK_BINARY_INT, str_val, line, col);
+    return lexeme;
 }
 
 
-Lexem lexHexValue(LexerState* lexerState){
+Lexeme lexHexValue(LexerState* lexerState){
     uint64_t start = lexerState->pos;
     uint32_t line = lexerState->line;
     uint32_t col = lexerState->col;
@@ -281,11 +281,11 @@ Lexem lexHexValue(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_HEX_INT, str_val, line, col);
-    return lexem;
+    Lexeme lexeme = makeLexemLineCol(TOK_HEX_INT, str_val, line, col);
+    return lexeme;
 }
 
-Lexem lexOctalValue(LexerState* lexerState){
+Lexeme lexOctalValue(LexerState* lexerState){
     uint64_t start = lexerState->pos;
     uint32_t line = lexerState->line;
     uint32_t col = lexerState->col;
@@ -300,12 +300,12 @@ Lexem lexOctalValue(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_OCT_INT, str_val, line, col);
-    return lexem;
+    Lexeme lexeme = makeLexemLineCol(TOK_OCT_INT, str_val, line, col);
+    return lexeme;
 }
 
 
-Lexem lexString(LexerState* lexerState){
+Lexeme lexString(LexerState* lexerState){
     uint64_t start = lexerState->pos;
     uint32_t line = lexerState->line;
     uint32_t col = lexerState->col;
@@ -325,13 +325,13 @@ Lexem lexString(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_STRING_VAL, str_val, line, col);
-    return lexem;
+    Lexeme lexeme = makeLexemLineCol(TOK_STRING_VAL, str_val, line, col);
+    return lexeme;
 }
 
 
 
-Lexem lexChar(LexerState* lexerState){
+Lexeme lexChar(LexerState* lexerState){
     // TODO: assert char len is 1
 
     uint64_t start = lexerState->pos;
@@ -353,12 +353,12 @@ Lexem lexChar(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_CHAR_VAL, str_val, line, col);
-    return lexem;
+    Lexeme lexeme = makeLexemLineCol(TOK_CHAR_VAL, str_val, line, col);
+    return lexeme;
 }
 
 
-Lexem lexNumber(LexerState* lexerState){
+Lexeme lexNumber(LexerState* lexerState){
     uint64_t start = lexerState->pos;
     uint32_t line = lexerState->line;
     uint32_t col = lexerState->col;
@@ -376,9 +376,9 @@ Lexem lexNumber(LexerState* lexerState){
         memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
         str_val[len-1] = '\0';
 
-        Lexem lexem = makeLexemLineCol(c=='f'?TOK_FLOAT:TOK_DOUBLE, str_val, line, col);
+        Lexeme lexeme = makeLexemLineCol(c=='f'?TOK_FLOAT:TOK_DOUBLE, str_val, line, col);
         incLexer(lexerState);
-        return lexem;
+        return lexeme;
     }
 
     // if we have no dot
@@ -388,8 +388,8 @@ Lexem lexNumber(LexerState* lexerState){
         memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
         str_val[len-1] = '\0';
 
-        Lexem lexem = makeLexemLineCol(TOK_INT, str_val, line, col);
-        return lexem;
+        Lexeme lexeme = makeLexemLineCol(TOK_INT, str_val, line, col);
+        return lexeme;
     }
 
     // we have a dot, keep cooking
@@ -408,9 +408,9 @@ Lexem lexNumber(LexerState* lexerState){
         memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
         str_val[len-1] = '\0';
         // d must be present for double, otherwise we presume its float.
-        Lexem lexem = makeLexemLineCol(c=='d'?TOK_DOUBLE:TOK_FLOAT, str_val, line, col);
+        Lexeme lexeme = makeLexemLineCol(c=='d'?TOK_DOUBLE:TOK_FLOAT, str_val, line, col);
         incLexer(lexerState);
-        return lexem;
+        return lexeme;
     }
 
     // if we are here, means we have the exponent
@@ -434,9 +434,9 @@ Lexem lexNumber(LexerState* lexerState){
         memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
         str_val[len-1] = '\0';
 
-        Lexem lexem = makeLexemLineCol(c=='f'?TOK_FLOAT:TOK_DOUBLE, str_val, line, col);
+        Lexeme lexeme = makeLexemLineCol(c=='f'?TOK_FLOAT:TOK_DOUBLE, str_val, line, col);
         incLexer(lexerState);
-        return lexem;
+        return lexeme;
     }
 
     uint64_t len = lexerState->pos - start + 1;
@@ -444,12 +444,12 @@ Lexem lexNumber(LexerState* lexerState){
     memcpy(str_val, lexerState->buffer+start, len*sizeof(char)-1);
     str_val[len-1] = '\0';
 
-    Lexem lexem = makeLexemLineCol(TOK_FLOAT, str_val, line, col);
-    return lexem;
+    Lexeme lexeme = makeLexemLineCol(TOK_FLOAT, str_val, line, col);
+    return lexeme;
 }
 
-Lexem lexer_lexCurrent(LexerState* lex) {
-    Lexem current;
+Lexeme lexer_lexCurrent(LexerState* lex) {
+    Lexeme current;
     uint32_t line = lex->line;
     uint32_t col = lex->col;
 

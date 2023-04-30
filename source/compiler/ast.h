@@ -34,6 +34,8 @@ typedef map_t(struct InterfaceMethod*) interfacemethod_map_t;
 typedef map_t(struct ClassMethod*) classmethod_map_t;
 typedef map_t(struct ClassAttribute*) classattribute_map_t;
 typedef map_t(struct FnArgument*) fnargument_map_t;
+
+typedef vec_t(struct DataType*) dtype_vec_t;
 /**
  * Enums of all possible type categories
  */
@@ -82,12 +84,12 @@ typedef struct ReferenceType {
 ReferenceType* ast_type_makeReference();
 
 typedef struct JoinType {
-    dtype_map_t joins;
+    dtype_vec_t joins;
 }JoinType;
 JoinType* ast_type_makeJoin();
 
 typedef struct UnionType {
-    dtype_map_t unions;
+    dtype_vec_t unions;
 }UnionType;
 UnionType* ast_type_makeUnion();
 
@@ -221,6 +223,7 @@ PackageID* ast_makePackageID();
 ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias);
 
 // debugging
+char* ast_strigifyType(DataType* type);
 void ast_debug_programImport(ASTProgramNode* node);
 void ast_debug_Type(DataType* type);
 #endif //TYPE_C_AST_H

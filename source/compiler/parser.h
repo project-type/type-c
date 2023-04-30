@@ -10,7 +10,7 @@
 #include "ast.h"
 #include "../utils/vec.h"
 
-typedef vec_t(Lexem) lexem_vec_t;
+typedef vec_t(Lexeme) lexem_vec_t;
 
 typedef struct Parser {
     LexerState* lexerState;
@@ -20,15 +20,15 @@ typedef struct Parser {
 
 Parser* parser_init(LexerState* lexerState);
 /**
- * Returns the current lexem, and caches into its stack
+ * Returns the current lexeme, and caches into its stack
  * The stack can hold as much as needed for look-aheads
  * But they must accepted or rejected.
  * Once rejected, the stack index will restart form 0
  * so it doesn't have to lex again
  * @param parser
- * @return Lexem next lexem.
+ * @return Lexeme next lexeme.
  */
-Lexem parser_peek(Parser* parser);
+Lexeme parser_peek(Parser* parser);
 
 /**
  * Accept the lexems, at the current stack position.
@@ -54,8 +54,45 @@ void parser_parseProgram(Parser* parser, ASTNode* node);
 void parser_parseFromStmt(Parser* parser, ASTNode* node);
 void parser_parseImportStmt(Parser* parser, ASTNode* node);
 void parser_parseTypeDecl(Parser* parser, ASTNode* node);
+
+DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeArray(Parser* parser, ASTNode* node);
+DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node);
+
+DataType* parser_parseTypeRegular(Parser* parser, ASTNode* node);
 ArrayType* parser_parseArrayType(Parser* parser, ASTNode* node);
-EnumType* parser_parseEnumDecl(Parser* parser, ASTNode* node);
+
+EnumType* parser_parseTypeEnum(Parser* parser, ASTNode* node);
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 
 #endif //TYPE_C_PARSER_H
+
+/*
+<type_definition> ::= "type" <identifier> "=" <union_type>
+<union_type> ::= <intersection_type> ( "|" <union_type> )*
+<intersection_type> ::= <group_type> ( "&" <intersection_type> )*
+<group_type> ::= <array_type> | "(" <union_type> ")"
+<array_type> ::= <primary_type> "[" "]"
+               | <primary_type> "[" <integer_literal> "]"
+
+
+<type_definition> ::= "type" <identifier> "=" <union_type>
+<union_type> ::= <intersection_type> ( "|" <union_type> )*
+<intersection_type> ::= <array_type> ( "&" <intersection_type> )*
+<array_type> ::= <group_type> ("[" <int>? "]")*
+<group_type> ::= <primary_type> | "(" <union_type> ")"
+
+
+
+<primary_type> ::= <interface_type>
+                 | <enum_type>
+                 | <struct_type>
+                 | <data_type>
+                 | <function_type>
+                 | <basic_type>
+                 | <ptr_type>
+                 | <class_type>
+                 | <reference_type>
+ */

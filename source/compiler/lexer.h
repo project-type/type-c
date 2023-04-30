@@ -8,12 +8,12 @@
 #include <stdint.h>
 #include "tokens.h"
 
-typedef struct Lexem {
+typedef struct Lexeme {
     TokenType type;
     char* string;
     uint32_t line;
     uint32_t col;
-}Lexem;
+}Lexeme;
 
 typedef struct LexerState {
     const char* filename; /*< Buffer source */
@@ -26,9 +26,9 @@ typedef struct LexerState {
 }LexerState;
 
 LexerState* lexer_init(const char* filename, const char* buffer, uint64_t len);
-Lexem lexer_next(LexerState* lexerState);
-Lexem lexer_peek(LexerState* lexerState);
+Lexeme lexer_next(LexerState* lexerState);
+Lexeme lexer_peek(LexerState* lexerState);
 void lexer_free(LexerState* lexerState);
-Lexem lexer_lexCurrent(LexerState* lexerState);
+Lexeme lexer_lexCurrent(LexerState* lexerState);
 
 #endif //TYPE_C_LEXER_H

@@ -67,6 +67,205 @@ void ast_debug_programImport(ASTProgramNode* node) {
     }
 }
 
+// returns a string representation of the type
+char* ast_strigifyType(DataType* type){
+    // create base string
+    char* str = strdup("");
+    if(type->name != NULL){
+        str = realloc(str, strlen(str) + strlen(type->name) + 1);
+        strcat(str, type->name);
+    }
+    // we check if it has generics
+    if(type->isGeneric){
+        // we add the generics to the string
+        int i; char * val;
+        // first we add a "<" to the string
+        str = realloc(str, strlen(str) + 1);
+        strcat(str, "<");
+        // then we add the generics
+        vec_foreach(&type->genericNames, val, i) {
+            str = realloc(str, strlen(str) + strlen(val) + 1);
+            strcat(str, val);
+        }
+        // we close >
+        str = realloc(str, strlen(str) + 1);
+        strcat(str, ">");
+    }
+    // we check its kind
+    switch (type->kind) {
+        case DT_UNRESOLVED:
+            str = realloc(str, strlen(str) + strlen("unresolved") + 1);
+            strcat(str, "unresolved");
+            break;
+        case DT_I8:
+            str = realloc(str, strlen(str) + strlen("i8") + 1);
+            strcat(str, "i8");
+            break;
+        case DT_I16:
+            str = realloc(str, strlen(str) + strlen("i16") + 1);
+            strcat(str, "i16");
+            break;
+        case DT_I32:
+            str = realloc(str, strlen(str) + strlen("i32") + 1);
+            strcat(str, "i32");
+            break;
+
+        case DT_I64:
+            str = realloc(str, strlen(str) + strlen("i64") + 1);
+            strcat(str, "i64");
+            break;
+        case DT_U8:
+            str = realloc(str, strlen(str) + strlen("u8") + 1);
+            strcat(str, "u8");
+            break;
+        case DT_U16:
+            str = realloc(str, strlen(str) + strlen("u16") + 1);
+            strcat(str, "u16");
+            break;
+        case DT_U32:
+            str = realloc(str, strlen(str) + strlen("u32") + 1);
+            strcat(str, "u32");
+            break;
+        case DT_U64:
+            str = realloc(str, strlen(str) + strlen("u64") + 1);
+            strcat(str, "u64");
+            break;
+        case DT_F32:
+            str = realloc(str, strlen(str) + strlen("f32") + 1);
+            strcat(str, "f32");
+            break;
+        case DT_F64:
+            str = realloc(str, strlen(str) + strlen("f64") + 1);
+            strcat(str, "f64");
+            break;
+        case DT_BOOL:
+            str = realloc(str, strlen(str) + strlen("bool") + 1);
+            strcat(str, "bool");
+            break;
+        case DT_CHAR:
+            str = realloc(str, strlen(str) + strlen("char") + 1);
+            strcat(str, "char");
+            break;
+        case DT_STRING:
+            str = realloc(str, strlen(str) + strlen("string") + 1);
+            strcat(str, "string");
+            break;
+        case DT_ARRAY:
+            // we print it in the form of array<type, size>
+            str = realloc(str, strlen(str) + strlen("array") + 1);
+            strcat(str, "array");
+            str = realloc(str, strlen(str) + strlen("<") + 1);
+            strcat(str, "<");
+            char* arrayType = ast_strigifyType(type->arrayType->arrayOf);
+            str = realloc(str, strlen(str) + strlen(arrayType) + 1);
+            strcat(str, arrayType);
+            str = realloc(str, strlen(str) + strlen(",") + 1);
+            strcat(str, ",");
+            char* arraySize = malloc(20);
+            sprintf(arraySize, "%llu", type->arrayType->len);
+            str = realloc(str, strlen(str) + strlen(arraySize) + 1);
+            strcat(str, arraySize);
+            str = realloc(str, strlen(str) + strlen(">") + 1);
+            strcat(str, ">");
+
+            break;
+        case DT_ENUM:
+            str = realloc(str, strlen(str) + strlen("enum") + 1);
+            strcat(str, "enum");
+            // we add all fields in the form of enum{field1, field2, field3}
+            str = realloc(str, strlen(str) + strlen("{") + 1);
+            strcat(str, "{");
+            int i; char * val;
+            vec_foreach(&type->enumType->enumNames, val, i) {
+                str = realloc(str, strlen(str) + strlen(val) + 1);
+                strcat(str, val);
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+            }
+            // replace last , with }
+            str[strlen(str) - 1] = '}';
+
+            break;
+        case DT_REFERENCE:
+            // we check if package is null, if its not we add it to the string as <p1.p2.p3>
+            if(type->refType->pkg != NULL){
+                str = realloc(str, strlen(str) + strlen("<") + 1);
+                strcat(str, "<");
+                // we loop
+                int i; char * val;
+                vec_foreach(&type->refType->pkg->ids, val, i) {
+                    str = realloc(str, strlen(str) + strlen(val) + 1);
+                    strcat(str, val);
+                    str = realloc(str, strlen(str) + strlen(".") + 1);
+                    strcat(str, ".");
+                }
+                // we replace the last . with >
+                str[strlen(str) - 1] = '>';
+            }
+            else {
+                // we throw an error if the ref is nul
+                if(type->refType->ref == NULL){
+                    printf("Error: reference type is null\n");
+                    exit(1);
+                }
+
+                // we add the name of the reference type, or "anynomous" if the name is null
+                if(type->refType->ref->name == NULL){
+                    str = realloc(str, strlen(str) + strlen("anynomous") + 1);
+                    strcat(str, "anynomous");
+                }
+                else {
+                    str = realloc(str, strlen(str) + strlen(type->refType->ref->name) + 1);
+                    strcat(str, type->refType->ref->name);
+                }
+            }
+            break;
+        case DT_TYPE_UNION: {
+            // we print union in the form of union{type1, type2, type3}
+            str = realloc(str, strlen(str) + strlen("union") + 1);
+            strcat(str, "union");
+            str = realloc(str, strlen(str) + strlen("{") + 1);
+            strcat(str, "{");
+            int i;
+            char *val;
+            vec_foreach(&type->unionType->unions, val, i) {
+                char *unionType = ast_strigifyType(val);
+                str = realloc(str, strlen(str) + strlen(unionType) + 1);
+                strcat(str, unionType);
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+            }
+            // replace last , with }
+            str[strlen(str) - 1] = '}';
+            break;
+        }
+        case DT_TYPE_JOIN: {
+            // same as we did to union but with join
+            str = realloc(str, strlen(str) + strlen("join") + 1);
+            strcat(str, "join");
+            str = realloc(str, strlen(str) + strlen("{") + 1);
+            strcat(str, "{");
+            int i;
+            char *val;
+            vec_foreach(&type->joinType->joins, val, i) {
+                char *joinType = ast_strigifyType(val);
+                str = realloc(str, strlen(str) + strlen(joinType) + 1);
+                strcat(str, joinType);
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+            }
+            // replace last , with }
+            str[strlen(str) - 1] = '}';
+            break;
+
+        }
+        default:
+            break;
+    }
+
+    return str;
+}
+
 void ast_debug_Type(DataType* type){
     printf("type %s\n", type->name);
     if(type->isGeneric){
@@ -143,7 +342,7 @@ void ast_debug_Type(DataType* type){
             printf("ptr\n");
             break;
         case DT_REFERENCE:{
-            printf("ref ");
+            printf("ref<");
             int i; char * val;
             vec_foreach(&type->refType->pkg->ids, val, i) {
                 printf(" %s ", val);
@@ -196,14 +395,14 @@ ReferenceType* ast_type_makeReference() {
 
 JoinType* ast_type_makeJoin() {
     ALLOC(join, JoinType);
-    map_init(&join->joins);
+    vec_init(&join->joins);
 
     return join;
 }
 
 UnionType* ast_type_makeUnion() {
     ALLOC(uni, UnionType);
-    map_init(&uni->unions);
+    vec_init(&uni->unions);
 
     return uni;
 }
