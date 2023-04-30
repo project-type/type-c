@@ -223,7 +223,6 @@ PackageID* ast_makePackageID();
 ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias);
 
 // debugging
-char* ast_strigifyType(DataType* type);
-void ast_debug_programImport(ASTProgramNode* node);
-void ast_debug_Type(DataType* type);
+char* ast_stringifyType(DataType* type);
+char* ast_stringifyImport(ASTProgramNode* node, uint32_t index);
 #endif //TYPE_C_AST_H

@@ -48,7 +48,7 @@ void parser_reject(Parser* parser);
  * Cooking starts here
  * @param parser
  */
-void parser_parse(Parser* parser);
+ASTNode* parser_parse(Parser* parser);
 
 void parser_parseProgram(Parser* parser, ASTNode* node);
 void parser_parseFromStmt(Parser* parser, ASTNode* node);

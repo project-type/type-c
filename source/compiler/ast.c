@@ -47,28 +47,31 @@ ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t has
     return importStmt;
 }
 
-void ast_debug_programImport(ASTProgramNode* node) {
-    uint32_t i = 0;
-    ImportStmt ** importStmt;
-    printf("Total of %d imports found\n", node->importStatements.length);
-
-    vec_foreach_ptr(&node->importStatements, importStmt, i) {
-        uint32_t j;
-        char** str;
-        ImportStmt* stmt = *importStmt;
-        printf("[%d](\n", i);
-        vec_foreach_ptr(&stmt->path->ids, str, j) {
-            printf("\t%s,\n", *str);
+char* ast_stringifyImport(ASTProgramNode* node, uint32_t index) {
+    // returns string representation of the import statement at the given index
+    // we concatenate the path and add "as" alias at the end if it has one
+    ImportStmt* importStmt = node->importStatements.data[index];
+    char* str = strdup("");
+    uint32_t i; char** val;
+    vec_foreach_ptr(&importStmt->path->ids, val, i) {
+        str = realloc(str, strlen(str) + strlen(*val) + 1);
+        strcat(str, *val);
+        if(i != importStmt->path->ids.length - 1){
+            str = realloc(str, strlen(str) + 1);
+            strcat(str, ".");
         }
-        if(stmt->hasAlias){
-            printf("\t as %s\n", stmt->alias);
-        }
-        printf(")\n");
     }
+    if(importStmt->hasAlias){
+        str = realloc(str, strlen(str) + strlen(" as ") + strlen(importStmt->alias) + 1);
+        strcat(str, " as ");
+        strcat(str, importStmt->alias);
+    }
+
+    return str;
 }
 
 // returns a string representation of the type
-char* ast_strigifyType(DataType* type){
+char* ast_stringifyType(DataType* type){
     // create base string
     char* str = strdup("");
     if(type->name != NULL){
@@ -156,7 +159,7 @@ char* ast_strigifyType(DataType* type){
             strcat(str, "array");
             str = realloc(str, strlen(str) + strlen("<") + 1);
             strcat(str, "<");
-            char* arrayType = ast_strigifyType(type->arrayType->arrayOf);
+            char* arrayType = ast_stringifyType(type->arrayType->arrayOf);
             str = realloc(str, strlen(str) + strlen(arrayType) + 1);
             strcat(str, arrayType);
             str = realloc(str, strlen(str) + strlen(",") + 1);
@@ -229,7 +232,7 @@ char* ast_strigifyType(DataType* type){
             int i;
             char *val;
             vec_foreach(&type->unionType->unions, val, i) {
-                char *unionType = ast_strigifyType(val);
+                char *unionType = ast_stringifyType(val);
                 str = realloc(str, strlen(str) + strlen(unionType) + 1);
                 strcat(str, unionType);
                 str = realloc(str, strlen(str) + strlen(",") + 1);
@@ -248,7 +251,7 @@ char* ast_strigifyType(DataType* type){
             int i;
             char *val;
             vec_foreach(&type->joinType->joins, val, i) {
-                char *joinType = ast_strigifyType(val);
+                char *joinType = ast_stringifyType(val);
                 str = realloc(str, strlen(str) + strlen(joinType) + 1);
                 strcat(str, joinType);
                 str = realloc(str, strlen(str) + strlen(",") + 1);
@@ -266,101 +269,6 @@ char* ast_strigifyType(DataType* type){
     return str;
 }
 
-void ast_debug_Type(DataType* type){
-    printf("type %s\n", type->name);
-    if(type->isGeneric){
-        int i; char * val;
-        printf("Generics: ");
-        vec_foreach(&type->genericNames, val, i) {
-            printf(" %s ", val);
-        }
-        printf("\n");
-    }
-
-    switch(type->kind) {
-        case DT_ENUM:
-            printf("\t is ENUM\n");
-            break;
-        case DT_ARRAY:
-            printf("\t is array of size %llu\n", type->arrayType->len);
-            ast_debug_Type(type->arrayType->arrayOf);
-            break;
-        case DT_I8:
-            printf("i8\n");
-        case DT_I16:
-            printf("i16\n");
-            break;
-        case DT_I32:
-            printf("i32\n");
-            break;
-        case DT_I64:
-            printf("i64\n");
-            break;
-        case DT_U8:
-            printf("u8\n");
-            break;
-        case DT_U16:
-            printf("u16\n");
-            break;
-        case DT_U32:
-            printf("u32\n");
-            break;
-        case DT_U64:
-            printf("u64\n");
-            break;
-        case DT_F32:
-            printf("f32\n");
-            break;
-        case DT_F64:
-            printf("f32\n");
-            break;
-        case DT_BOOL:
-            printf("bool\n");
-            break;
-        case DT_STRING:
-            printf("string\n");
-            break;
-        case DT_CHAR:
-            printf("char\n");
-            break;
-        case DT_CLASS:
-            printf("class\n");
-            break;
-        case DT_INTERFACE:
-            printf("interface\n");
-            break;
-        case DT_STRUCT:
-            printf("struct\n");
-            break;
-        case DT_DATA:
-            printf("data\n");
-            break;
-        case DT_FN:
-            printf("fn\n");
-            break;
-        case DT_PTR:
-            printf("ptr\n");
-            break;
-        case DT_REFERENCE:{
-            printf("ref<");
-            int i; char * val;
-            vec_foreach(&type->refType->pkg->ids, val, i) {
-                printf(" %s ", val);
-            }
-            printf("\n");
-            break;
-        }
-        case DT_TYPE_JOIN:
-            printf("join\n");
-            break;
-        case DT_TYPE_UNION:
-            printf("union\n");
-            break;
-        case DT_UNRESOLVED:
-            printf("unresolved\n");
-            break;
-    }
-}
 /**
 * Building AST Data types
 */

@@ -48,9 +48,11 @@ void parser_reject(Parser* parser) {
     parser->stack_index = 0;
 }
 
-void parser_parse(Parser* parser) {
+ASTNode* parser_parse(Parser* parser) {
     ASTNode* node = ast_makeProgramNode();
     parser_parseProgram(parser, node);
+
+    return node;
 }
 
 void parser_parseProgram(Parser* parser, ASTNode* node) {
@@ -72,7 +74,6 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
         can_loop = lexeme.type == TOK_FROM || lexeme.type == TOK_IMPORT;
     }while(can_loop);
 
-    ast_debug_programImport(node->programNode);
     // TODO: Resolve Imports and add them to symbol table
     // we no longer expect import or from after this
 
@@ -171,9 +172,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
 
-    char* desc = ast_strigifyType(type_def);
-    printf(desc);
-    printf("\n");
+    map_set(&node->scope.dataTypes, type->name, type);
 }
 
 // <union_type> ::= <intersection_type> ( "|" <union_type> )*
