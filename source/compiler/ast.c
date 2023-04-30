@@ -69,9 +69,18 @@ void ast_debug_programImport(ASTProgramNode* node) {
 
 void ast_debug_Type(DataType* type){
     printf("type %s\n", type->name);
+    if(type->isGeneric){
+        int i; char * val;
+        printf("Generics: ");
+        vec_foreach(&type->genericNames, val, i) {
+            printf(" %s ", val);
+        }
+        printf("\n");
+    }
+
     switch(type->kind) {
         case DT_ENUM:
-            printf("\t is ENUM");
+            printf("\t is ENUM\n");
             break;
         case DT_ARRAY:
             printf("\t is array of size %llu\n", type->arrayType->len);
@@ -133,9 +142,15 @@ void ast_debug_Type(DataType* type){
         case DT_PTR:
             printf("ptr\n");
             break;
-        case DT_REFERENCE:
-            printf("ref\n");
+        case DT_REFERENCE:{
+            printf("ref ");
+            int i; char * val;
+            vec_foreach(&type->refType->pkg->ids, val, i) {
+                printf(" %s ", val);
+            }
+            printf("\n");
             break;
+        }
         case DT_TYPE_JOIN:
             printf("join\n");
             break;
@@ -234,6 +249,9 @@ DataType* ast_type_makeType() {
     type->isGeneric = 0;
     type->kind = DT_UNRESOLVED;
     type ->classType = NULL;
+
+    vec_init(&type->genericNames);
+    map_init(&type->generics);
 
     return type;
 }

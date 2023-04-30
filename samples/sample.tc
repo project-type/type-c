@@ -50,7 +50,7 @@ type AnotherOddType = (Iterable & Sortable) | Printable
 
 type oddFn = fn(v: u32) -> u32[]
 
-fn sum<T is Array> (val:T) -> T = val.sum()
+fn sum<T is Array> (val:T) -> T  = val.sum()
 
 let n: Node<f32> =
     Node.BinaryNode(Operation.ADD, Node.Unary(Operation.EXP, Node.Leaf(0.32f)), Node.Leaf(0.21f))

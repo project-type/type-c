@@ -9,7 +9,13 @@
 #include "../utils/map.h"
 #include "tokens.h"
 
+/**
+ * Basic types
+ */
 
+typedef struct PackageID {
+    vec_str_t ids;
+}PackageID;
 
 /**
  * Forward declarations
@@ -70,6 +76,7 @@ typedef struct PtrType {
 PtrType * ast_type_makePtr();
 
 typedef struct ReferenceType {
+    PackageID* pkg;
     struct DataType* ref;
 }ReferenceType;
 ReferenceType* ast_type_makeReference();
@@ -118,6 +125,9 @@ typedef struct DataType {
     DataTypeKind kind;
     uint8_t isGeneric;
 
+    vec_str_t genericNames;
+    u32_map_t generics;
+
     union {
         ClassType * classType;
         InterfaceType * interfaceType;
@@ -128,6 +138,7 @@ typedef struct DataType {
         ArrayType * arrayType;
         FnType * fnType;
         PtrType* ptrType;
+        ReferenceType* refType;
     };
 }DataType;
 DataType* ast_type_makeType();
@@ -162,9 +173,6 @@ typedef struct DataConstructor {
     vec_str_t args;
 }DataConstructor;
 
-typedef struct PackageID {
-    vec_str_t ids;
-}PackageID;
 
 typedef struct ImportStmt {
     // combines both source and test

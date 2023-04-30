@@ -17,4 +17,9 @@ type arr = u32[0xff]
 
 type Operation = enum {
     ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
-}[23]
+}[22]
+
+type UserInfo<T> = T[]
+type ArrayOf = u32[5][23]
+
+

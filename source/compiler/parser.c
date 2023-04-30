@@ -81,7 +81,6 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
 
         if(lexem.type == TOK_TYPE) {
             parser_parseTypeDecl(parser, node);
-
             CURRENT;
         }
         else {
@@ -104,7 +103,52 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
     char* name = strdup(lexem.string);
     ACCEPT;
 
+    uint8_t isGeneric = 0;
+
     lexem = parser_peek(parser);
+
+    if(lexem.type == TOK_LESS) {
+        // GENERICS!
+        type->isGeneric = 1;
+        ACCEPT;
+        CURRENT;
+        uint8_t can_loop = 1;
+        uint32_t idx = 0;
+        ASSERT(lexem.type == TOK_IDENTIFIER,
+               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+
+        while(can_loop) {
+            ASSERT(lexem.type == TOK_IDENTIFIER,
+                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
+                   EXPAND_LEXEME);
+
+            // make sure same name doesn't appear twice
+            if (map_get(&type->generics, lexem.string) != NULL) {
+                ASSERT(1==0,
+                       "Line: %"PRIu16", Col: %"PRIu16", generic name duplicated: %s",
+                       lexem.line, lexem.col, lexem.string);
+            }
+            vec_push(&type->genericNames, lexem.string);
+            map_set(&type->generics, lexem.string, idx++);
+
+            ACCEPT;
+            CURRENT;
+            if(lexem.type == TOK_GREATER){
+                can_loop = 0;
+                ACCEPT;
+                CURRENT;
+            }
+
+            else {
+                ASSERT(lexem.type == TOK_COMMA,
+                       "Line: %"PRIu16", Col: %"PRIu16" `,` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            }
+        }
+    }
+
     ASSERT(lexem.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.", EXPAND_LEXEME);
     ACCEPT;
     lexem = parser_peek(parser);
@@ -114,8 +158,19 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
         type->kind = DT_ENUM;
         type->enumType = enum_;
     }
+
     if((lexem.type >= TOK_I8) && (lexem.type <=TOK_CHAR)) {
         type->kind = lexem.type - TOK_I8;
+    }
+
+    if(lexem.type == TOK_IDENTIFIER) {
+        // expect an entire package
+        parser_reject(parser);
+        PackageID * pkg = parser_parsePackage(parser, node);
+        ReferenceType * ref = ast_type_makeReference();
+        ref->pkg = pkg;
+        type->refType = ref;
+        type->kind = DT_REFERENCE;
     }
 
     // post-types, arrays.
@@ -197,6 +252,12 @@ EnumType* parser_parseEnumDecl(Parser* parser, ASTNode* node) {
                "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
         char* name = lexem.string;
         // TODO: make sure index doesn't exeed some limit?
+
+        if (map_get(&enum_->enums, name) != NULL) {
+            ASSERT(1==0,
+                   "Line: %"PRIu16", Col: %"PRIu16", enum value duplicated: %s",
+                   lexem.line, lexem.col, lexem.string);
+        }
         map_set(&enum_->enums, name, index++);
         vec_push(&enum_->enumNames, name);
         printf("pushing %"PRIu32": %s\n", index-1, name);
