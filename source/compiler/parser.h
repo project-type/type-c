@@ -61,10 +61,8 @@ DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node);
 DataType* parser_parseTypeArray(Parser* parser, ASTNode* node);
 DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node);
 
-DataType* parser_parseTypeRegular(Parser* parser, ASTNode* node);
-ArrayType* parser_parseArrayType(Parser* parser, ASTNode* node);
 
-EnumType* parser_parseTypeEnum(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node);
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 
 #endif //TYPE_C_PARSER_H

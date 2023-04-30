@@ -60,7 +60,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
 
     uint8_t can_loop = lexeme.type == TOK_FROM || lexeme.type == TOK_IMPORT;
 
-    do {
+    while(can_loop) {
         if(lexeme.type == TOK_FROM) {
             ACCEPT;
             parser_parseFromStmt(parser, node);
@@ -72,7 +72,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
 
         lexeme = parser_peek(parser);
         can_loop = lexeme.type == TOK_FROM || lexeme.type == TOK_IMPORT;
-    }while(can_loop);
+    };
 
     // TODO: Resolve Imports and add them to symbol table
     // we no longer expect import or from after this
@@ -171,7 +171,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
     DataType* type_def = parser_parseTypeUnion(parser, node);
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
-
+    printf("%s\n", ast_stringifyType(type_def));
     map_set(&node->scope.dataTypes, type->name, type);
 }
 
@@ -309,13 +309,24 @@ DataType * parser_parseTypeArray(Parser* parser, ASTNode* node) {
     return last_type;
 }
 
-// <primary_type> ::= <enum_type>
+/*
+<primary_type> ::= <interface_type>
+                 | <enum_type>
+                 | <struct_type>
+                 | <data_type>
+                 | <function_type>
+                 | <basic_type>
+                 | <ptr_type>
+                 | <class_type>
+                 | <reference_type>
+ */
 DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node) {
     // parse enum if current keyword is enum
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_ENUM) {
         return parser_parseTypeEnum(parser, node);
     }
+    if(lexe)
     // check if current keyword is a basic type
     if((lexeme.type >= TOK_I8) && (lexeme.type <= TOK_CHAR)) {
         // create new type assign basic to it
@@ -340,7 +351,7 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node) {
 
 
 // enum_type ::= "enum" "{" <enum_decl> ("," <enum_decl>)* "}"
-EnumType* parser_parseTypeEnum(Parser* parser, ASTNode* node) {
+DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node) {
     EnumType* enum_ = ast_type_makeEnum();
     // current position: enum
     ACCEPT;
