@@ -1,0 +1,14 @@
+
+type Node = interface {
+    fn forward() -> Node
+    fn backward() -> Node
+}
+
+type ConstantNode = class(Node) {
+    fn forward() -> Node {
+        return self
+    }
+    fn backward() -> Node {
+        return self
+    }
+}

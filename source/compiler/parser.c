@@ -197,6 +197,8 @@ DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node) {
         newType->unionType = unions;
         type = newType;
     }
+    // TODO: make sure that unions lhs and rhs match
+    // TODO: make sure that nullable types are valid (memory references)
 
     parser_reject(parser);
     return type;
