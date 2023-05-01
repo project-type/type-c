@@ -13,6 +13,20 @@ type Operation = enum {
 }
 */
 
+type AIAgent = class(AbstractAgent) {
+    fn __init__() {
+        super(AbstractAgent).__init__()
+    }
+
+    fn update(dt: f64){
+        super(AbstractAgent).update(dt)
+    }
+}
+
+type Serializable = interface(p1: Sortable)) {
+    fn serialize() -> u8[]
+}
+
 type arr = ((u32[0xff]) | (u32 | f8.cool[255]))[][]
 
 type Operation = enum {

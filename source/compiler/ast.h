@@ -22,7 +22,7 @@ typedef struct PackageID {
  */
 struct DataType;
 struct DataConstructor;
-struct InterfaceMethod;
+struct FnHeader;
 struct ClassMethod;
 struct ClassAttribute;
 struct StructAttribute;
@@ -31,7 +31,7 @@ struct FnArgument;
 typedef map_t(uint32_t) u32_map_t;
 typedef map_t(struct DataType*) dtype_map_t;
 typedef map_t(struct DataConstructor*) dataconstructor_map_t;
-typedef map_t(struct InterfaceMethod*) interfacemethod_map_t;
+typedef map_t(struct FnHeader*) interfacemethod_map_t;
 typedef map_t(struct ClassMethod*) classmethod_map_t;
 typedef map_t(struct ClassAttribute*) classattribute_map_t;
 typedef map_t(struct StructAttribute*) structattribute_map_t;
@@ -88,12 +88,14 @@ typedef struct ReferenceType {
 ReferenceType* ast_type_makeReference();
 
 typedef struct JoinType {
-    dtype_vec_t joins;
+    struct DataType* left;
+    struct DataType* right;
 }JoinType;
 JoinType* ast_type_makeJoin();
 
 typedef struct UnionType {
-    dtype_vec_t unions;
+    struct DataType* left;
+    struct DataType* right;
 }UnionType;
 UnionType* ast_type_makeUnion();
 
@@ -137,7 +139,7 @@ typedef struct DataType {
     char* name;
     DataTypeKind kind;
     uint8_t isGeneric;
-
+    uint8_t isNullable;
     // maintain order
     vec_str_t genericNames;
     // map name to index
@@ -164,12 +166,6 @@ typedef struct DataType {
 }DataType;
 DataType* ast_type_makeType();
 
-typedef struct  ClassMethod {
-    char* name;
-    // TODO: add method decl
-} ClassMethod;
-
-
 typedef struct VariantConstructorArgument {
     char* name;
     DataType * type;
@@ -195,10 +191,18 @@ typedef struct ClassAttribute {
 }ClassAttribute;
 ClassAttribute * ast_type_makeClassAttribute();
 
-typedef struct InterfaceMethod {
+typedef struct FnHeader {
     char* name;
-    // TODO: add interface decl
-}InterfaceMethod;
+    FnType* type;
+    uint8_t isGeneric;
+    vec_str_t genericNames;
+    u32_map_t generics;
+} FnHeader;
+FnHeader*  ast_makeFnHeader();
+
+typedef struct  ClassMethod {
+    struct FnHeader* header;
+} ClassMethod;
 
 
 
@@ -227,9 +231,10 @@ typedef struct ImportStmt {
 
 typedef struct FnArgument {
     char* name;
-    uint8_t is_mut;
+    uint8_t isMutable;
     DataType * type;
 }FnArgument;
+FnArgument * ast_type_makeFnArgument();
 
 typedef vec_t(ImportStmt*) import_stmt_vec;
 

@@ -5,6 +5,10 @@ type Operation = enum {
     ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
 }[22] | u32
 
+type OperationNullable = (enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}[22] | u32?)?
+
 type UserInfo<T>  = T<u32>[0xff]
 
 type User = struct {
@@ -13,8 +17,16 @@ type User = struct {
     data: (std.ArrayBuffer | std.BinaryBuffer<String>[512])
 }
 
+type Serializable = interface {
+    fn serialize() -> u8[]
+    fn append(data: u8[])
+    fn duplicate(data: Serializable<Serializable<u32>[][]>) -> Serializable<u32>
+}
+
 type Tree = variant {
     Leaf(val: u32),
     Binary(left: Tree, right: Tree),
     Unary(child: Tree)
 }
+
+

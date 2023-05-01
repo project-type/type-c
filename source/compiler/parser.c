@@ -188,15 +188,16 @@ DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node) {
         DataType* type2 = parser_parseTypeUnion(parser, node);
         // create intersection type
         UnionType * unions = ast_type_makeUnion();
-        vec_push(&unions->unions, type);
-        vec_push(&unions->unions, type2);
+        unions->left = type;
+        unions->right = type2;
 
         // create new datatype to hold joints
         DataType* newType = ast_type_makeType();
         newType->kind = DT_TYPE_UNION;
         newType->unionType = unions;
-        return newType;
+        type = newType;
     }
+
     parser_reject(parser);
     return type;
 }
@@ -213,8 +214,8 @@ DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node){
         DataType* type2 = parser_parseTypeIntersection(parser, node);
         // create intersection type
         JoinType * join = ast_type_makeJoin();
-        vec_push(&join->joins, type);
-        vec_push(&join->joins, type2);
+        join->left = type;
+        join->left = type2;
 
         // create new datatype to hold joints
         DataType* newType = ast_type_makeType();
@@ -226,7 +227,7 @@ DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node){
     return type;
 }
 
-// <group_type> ::= <primary_type> | "(" <union_type> ")"
+// <group_type> ::= <primary_type>  | "(" <union_type> ")" "?"?
 DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node) {
     // check if we have group first
     Lexeme lexeme = parser_peek(parser);
@@ -237,6 +238,18 @@ DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node) {
         lexeme = parser_peek(parser);
         ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
         ACCEPT;
+
+        // check if we have optional
+        lexeme = parser_peek(parser);
+        if(lexeme.type == TOK_NULLABLE) {
+            // we have an optional
+            ACCEPT;
+            type->isNullable = 1;
+
+        }
+        else {
+            parser_reject(parser);
+        }
         return type;
     }
     parser_reject(parser);
@@ -311,60 +324,64 @@ DataType * parser_parseTypeArray(Parser* parser, ASTNode* node) {
 }
 
 /*
-<primary_type> ::= <interface_type>
-                 | <enum_type>
-                 | <struct_type>
-                 | <data_type>
-                 | <function_type>
-                 | <basic_type>
-                 | <ptr_type>
-                 | <class_type>
-                 | <reference_type>
+<primary_type> ::= <interface_type> "?"?
+                 | <enum_type> "?"?
+                 | <struct_type> "?"?
+                 | <data_type> "?"?
+                 | <function_type> "?"?
+                 | <basic_type> "?"?
+                 | <ptr_type> "?"?
+                 | <class_type> "?"?
+                 | <reference_type> "?"?
  */
 DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node) {
     // parse enum if current keyword is enum
+    DataType * type = NULL;
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_ENUM) {
-        return parser_parseTypeEnum(parser, node);
+        type = parser_parseTypeEnum(parser, node);
     }
-    if(lexeme.type == TOK_STRUCT){
-        return parser_parseTypeStruct(parser, node);
+    else if(lexeme.type == TOK_STRUCT){
+        type = parser_parseTypeStruct(parser, node);
     }
-    if(lexeme.type == TOK_VARIANT) {
-        return parser_parseTypeVariant(parser, node);
+    else if(lexeme.type == TOK_VARIANT) {
+        type = parser_parseTypeVariant(parser, node);
     }
     // check if current keyword is a basic type
-    if((lexeme.type >= TOK_I8) && (lexeme.type <= TOK_CHAR)) {
+    else if((lexeme.type >= TOK_I8) && (lexeme.type <= TOK_CHAR)) {
         // create new type assign basic to it
-        DataType* type = ast_type_makeType();
-        type->kind = lexeme.type - TOK_I8;
+        DataType* basicType = ast_type_makeType();
+        basicType->kind = lexeme.type - TOK_I8;
         ACCEPT;
-        return type;
+        type = basicType;
+    }
+    else if (lexeme.type == TOK_INTERFACE){
+        type = parser_parseTypeInterface(parser, node);
     }
     // check if we have an ID, we parse package then
-    if(lexeme.type == TOK_IDENTIFIER) {
-        // we create a reference type
-        DataType* type = ast_type_makeType();
-        type->kind = DT_REFERENCE;
-        type->refType = ast_type_makeReference();
+    else if(lexeme.type == TOK_IDENTIFIER) {
+        // we create a reference refType
+        DataType* refType = ast_type_makeType();
+        refType->kind = DT_REFERENCE;
+        refType->refType = ast_type_makeReference();
         // rollback
         parser_reject(parser);
-        type->refType->pkg = parser_parsePackage(parser, node);
+        refType->refType->pkg = parser_parsePackage(parser, node);
 
         // a generic list might follow
         lexeme = parser_peek(parser);
         if(lexeme.type == TOK_LESS) {
-            type->isGeneric = 1;
-            // here, each generic type can be any type, so we recursively parse type
-            // format <type> ("," <type>)* ">"
+            refType->isGeneric = 1;
+            // here, each generic refType can be any refType, so we recursively parse refType
+            // format <refType> ("," <refType>)* ">"
             ACCEPT;
             lexeme = parser_peek(parser);
             uint8_t can_loop = lexeme.type != TOK_GREATER;
             while(can_loop) {
-                // parse type
+                // parse refType
                 DataType* genericType = parser_parseTypeUnion(parser, node);
                 // add to generic list
-                vec_push(&type->concreteGenerics, genericType);
+                vec_push(&refType->concreteGenerics, genericType);
                 // check if we have a comma
                 lexeme = parser_peek(parser);
                 if(lexeme.type == TOK_COMMA) {
@@ -384,11 +401,70 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node) {
             parser_reject(parser);
         }
 
-        return type;
+        type = refType;
     }
+    // check if we have an optional type
+    CURRENT;
+    if(lexeme.type == TOK_NULLABLE) {
+        type->isNullable = 1;
+        ACCEPT;
+    }
+    else
+        parser_reject(parser);
+
+    return type;
 }
 
-// variant type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"
+// interface_tupe ::= "interface" "{" <interface_decl> (","? <interface_decl>)* "}"
+DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node){
+    // create base type
+    DataType* interfaceType = ast_type_makeType();
+    interfaceType->kind = DT_INTERFACE;
+    interfaceType->interfaceType = ast_type_makeInterface();
+    // accept interface
+    ACCEPT;
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+    // now we expect an interface method
+    // prepare to loop
+    uint8_t can_loop = lexeme.type == TOK_FN;
+    while(can_loop) {
+        // parse interface method
+        // we assert "fn"
+        ASSERT(lexeme.type == TOK_FN,
+               "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.",
+               EXPAND_LEXEME);
+        // reject it
+        parser_reject(parser);
+        FnHeader * header = parser_parseFnHeader(parser, node);
+        // make sure fn doesn't already exist
+        ASSERT(map_get(&interfaceType->interfaceType->methods, header->name) == NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" near %s, method `%s` already exists in interface.",
+               EXPAND_LEXEME, header->name);
+
+        // else we add it
+        map_set(&interfaceType->interfaceType->methods, header->name, header);
+        vec_push(&interfaceType->interfaceType->methodNames, header->name);
+        // skip "," if any
+        CURRENT;
+        if(lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        }
+
+        // check if we reached "}"
+        if(lexeme.type == TOK_RBRACE) {
+            ACCEPT;
+            can_loop = 0;
+        }
+    }
+
+    return interfaceType;
+}
+
+// variant_type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"
 DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node) {
     //create base type
     DataType * variantType = ast_type_makeType();
@@ -488,9 +564,6 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node) {
         if(lexeme.type == TOK_RBRACE) {
             can_loop = 0;
         }
-
-        //
-
     }
 
     return variantType;
@@ -706,6 +779,121 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node) {
     parser_reject(parser);
 
     return package;
+}
+
+FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node) {
+    // build header struct
+    FnHeader* header = ast_makeFnHeader();
+    header->type = ast_type_makeFn();
+    // assert we are at "fn"
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_FN, "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+    // assert we got a name
+    ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+    header->name = strdup(lexeme.string);
+    // accept name
+    ACCEPT;
+
+    // if we have "<" its a generic
+    CURRENT;
+    if(lexeme.type == TOK_LESS) {
+        header->isGeneric = 1;
+        ACCEPT;
+        // get current lexeme
+        CURRENT;
+
+        // prepare to loop
+        uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
+        uint32_t idx = 0;
+        while(can_loop) {
+            // assert its an ID
+            ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected in function header but %s was found.", EXPAND_LEXEME);
+
+            // add it to our generic list
+            // make sure we do not have duplicates by getting the element of the map with the name and asserting it is null
+            ASSERT(map_get(&header->generics, lexeme.string) == NULL, "Line: %"PRIu16", Col: %"PRIu16" generic name `%s` already defined.", EXPAND_LEXEME);
+
+            vec_push(&header->genericNames, strdup(lexeme.string));
+            map_set(&header->generics, lexeme.string, idx++);
+
+            // get current lexeme
+            CURRENT;
+            // assert we got a name
+
+            // if we have a ">" we are done
+            if(lexeme.type == TOK_GREATER) {
+                can_loop = 0;
+                ACCEPT;
+            }
+            else {
+                ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `>` expected in generic list but %s was found.", EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            }
+        }
+    }
+    // assert we have "("
+    ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected after function name but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    // we are going to parse the arguments
+    CURRENT;
+    uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
+    // create fnHeader object
+    while(can_loop) {
+        // ASSERT ID
+        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected for arg declaration but %s was found.", EXPAND_LEXEME);
+        // accept ID
+        char* name = strdup(lexeme.string);
+        ACCEPT;
+        CURRENT;
+        // assert ":"
+        ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected after arg name but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        CURRENT;
+        // assert type
+        DataType* type = parser_parseTypeUnion(parser, node);
+
+        // make sure arg doesnt already exist
+        ASSERT(map_get(&header->type->args, name) == NULL, "Line: %"PRIu16", Col: %"PRIu16" argument name `%s` already exists.", EXPAND_LEXEME);
+
+        // make FnArg
+        FnArgument * arg = ast_type_makeFnArgument(name, type);
+        arg->type = type;
+        arg->isMutable = 0;
+        arg->name = name;
+
+        // add arg to header
+        vec_push(&header->type->argsNames, name);
+        map_set(&header->type->args, name, arg);
+
+        // check if we reached ")"
+        CURRENT;
+        if(lexeme.type == TOK_RPAREN) {
+            can_loop = 0;
+            ACCEPT;
+        }
+        else {
+            ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `)` expected after arg declaration but %s was found.", EXPAND_LEXEME);
+            ACCEPT;
+            CURRENT;
+        }
+    }
+
+    // do we have a return type?
+    CURRENT;
+    if(lexeme.type == TOK_FN_RETURN_TYPE) {
+        ACCEPT;
+        header->type->returnType = parser_parseTypeUnion(parser, node);
+    }
+    else{
+        parser_reject(parser);
+    }
+
+    return header;
+
 }
 
 #undef CURRENT

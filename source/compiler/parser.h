@@ -68,7 +68,9 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node);
 DataType* parser_parseTypeClass(Parser* parser, ASTNode* node);
 DataType* parser_parseTypeFn(Parser* parser, ASTNode* node);
 DataType* parser_parseTypePtr(Parser* parser, ASTNode* node);
+
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
+FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node);
 
 #endif //TYPE_C_PARSER_H
 

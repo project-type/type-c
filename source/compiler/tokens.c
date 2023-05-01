@@ -46,7 +46,7 @@ const char* token_type_to_string(TokenType type) {
             return "for";
         case TOK_FOREACH:
             return "foreach";
-        case TOK_FUNCTION:
+        case TOK_FN:
             return "fn";
         case TOK_IF:
             return "if";

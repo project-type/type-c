@@ -78,6 +78,11 @@ char* ast_stringifyType(DataType* type){
         str = realloc(str, strlen(str) + strlen(type->name) + 1);
         strcat(str, type->name);
     }
+    // if nullable, we add ?
+    if(type->isNullable){
+        str = realloc(str, strlen(str) + strlen("?") + 1);
+        strcat(str, "?");
+    }
     // we check its kind
     switch (type->kind) {
         case DT_UNRESOLVED:
@@ -215,15 +220,20 @@ char* ast_stringifyType(DataType* type){
             strcat(str, "{");
             int i;
             char *val;
-            vec_foreach(&type->unionType->unions, val, i) {
-                char *unionType = ast_stringifyType(val);
-                str = realloc(str, strlen(str) + strlen(unionType) + 1);
-                strcat(str, unionType);
-                str = realloc(str, strlen(str) + strlen(",") + 1);
-                strcat(str, ",");
-            }
-            // replace last , with }
-            str[strlen(str) - 1] = '}';
+            // we stringify left and right DataTypes of the union
+            char *left = ast_stringifyType(type->unionType->left);
+            char *right = ast_stringifyType(type->unionType->right);
+            // we concatenate them separate by ","
+            str = realloc(str, strlen(str) + strlen(left) + 1);
+            strcat(str, left);
+            str = realloc(str, strlen(str) + strlen(",") + 1);
+            strcat(str, ",");
+            str = realloc(str, strlen(str) + strlen(right) + 1);
+            strcat(str, right);
+            // close "}"
+            str = realloc(str, strlen(str) + strlen("}") + 1);
+            strcat(str, "}");
+
             break;
         }
         case DT_TYPE_JOIN: {
@@ -234,15 +244,19 @@ char* ast_stringifyType(DataType* type){
             strcat(str, "{");
             int i;
             char *val;
-            vec_foreach(&type->joinType->joins, val, i) {
-                char *joinType = ast_stringifyType(val);
-                str = realloc(str, strlen(str) + strlen(joinType) + 1);
-                strcat(str, joinType);
-                str = realloc(str, strlen(str) + strlen(",") + 1);
-                strcat(str, ",");
-            }
-            // replace last , with }
-            str[strlen(str) - 1] = '}';
+            // we stringify left and right DataTypes of the union
+            char *left = ast_stringifyType(type->joinType->left);
+            char *right = ast_stringifyType(type->joinType->right);
+            // we concatenate them separate by "&"
+            str = realloc(str, strlen(str) + strlen(left) + 1);
+            strcat(str, left);
+            str = realloc(str, strlen(str) + strlen(",") + 1);
+            strcat(str, ",");
+            str = realloc(str, strlen(str) + strlen(right) + 1);
+            strcat(str, right);
+            // close "}"
+            str = realloc(str, strlen(str) + strlen("}") + 1);
+            strcat(str, "}");
             break;
 
         }
@@ -323,6 +337,65 @@ char* ast_stringifyType(DataType* type){
             }
             // replace last , with }
             str[strlen(str) - 1] = '}';
+            break;
+        }
+        case DT_INTERFACE: {
+            // we write it as interface{FunctionName1(arg1: type1, arg2: type2) -> returnType1, FunctionName2(arg1: type1, arg2: type2) -> returnType2 , etc)}
+            str = realloc(str, strlen(str) + strlen("interface") + 1);
+            strcat(str, "interface");
+            str = realloc(str, strlen(str) + strlen("{") + 1);
+            strcat(str, "{");
+            int i; char * val;
+            vec_foreach(&type->interfaceType->methodNames, val, i) {
+                // we add the name of the function
+                str = realloc(str, strlen(str) + strlen(val) + 1);
+                strcat(str, val);
+                // followed by (
+                str = realloc(str, strlen(str) + strlen("(") + 1);
+                strcat(str, "(");
+                // followed by the arguments
+                int j; char * argName;
+                // get current function
+                FnHeader ** function = map_get(&type->interfaceType->methods, val);
+                // iterate through the arguments
+                vec_foreach(&(*function)->type->argsNames, argName, j) {
+                    // add the name of the argument
+                    str = realloc(str, strlen(str) + strlen(argName) + 1);
+                    strcat(str, argName);
+                    // followed by :
+                    str = realloc(str, strlen(str) + strlen(":") + 1);
+                    strcat(str, ":");
+                    // followed by the type of the argument
+                    // first get the argument type from the map
+                    FnArgument ** argType = map_get(&(*function)->type->args, argName);
+                    // then stringify it
+                    char * argTypeStr = ast_stringifyType((*argType)->type);
+                    // then add it to the string
+                    str = realloc(str, strlen(str) + strlen(argTypeStr) + 1);
+                    strcat(str, argTypeStr);
+                    // followed by ,
+                    str = realloc(str, strlen(str) + strlen(",") + 1);
+                    strcat(str, ",");
+                }
+                // replace last , with )
+                str[strlen(str) - 1] = ')';
+                // followed by -> if return type is not NULL
+                if((*function)->type->returnType != NULL){
+                    str = realloc(str, strlen(str) + strlen("->") + 1);
+                    strcat(str, "->");
+                    // followed by the return type
+                    // first get the return type from the map
+                    char * returnType = ast_stringifyType((*function)->type->returnType);
+                    // then add it to the string
+                    str = realloc(str, strlen(str) + strlen(returnType) + 1);
+                    strcat(str, returnType);
+                }
+                // followed by ,
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+            }
+            // replace last , with }
+            str[strlen(str) - 1] = '}';
         }
 
         default:
@@ -390,14 +463,16 @@ ReferenceType* ast_type_makeReference() {
 
 JoinType* ast_type_makeJoin() {
     ALLOC(join, JoinType);
-    vec_init(&join->joins);
+    join->left = NULL;
+    join->right = NULL;
 
     return join;
 }
 
 UnionType* ast_type_makeUnion() {
     ALLOC(uni, UnionType);
-    vec_init(&uni->unions);
+    uni->left = NULL;
+    uni->right = NULL;
 
     return uni;
 }
@@ -449,8 +524,9 @@ DataType* ast_type_makeType() {
     ALLOC(type, DataType);
     type->name = NULL;
     type->isGeneric = 0;
+    type->isNullable = 0;
     type->kind = DT_UNRESOLVED;
-    type ->classType = NULL;
+    type->classType = NULL;
 
     vec_init(&type->concreteGenerics);
     vec_init(&type->genericNames);
@@ -491,5 +567,25 @@ VariantConstructor* ast_type_makeVariantConstructor(){
     return constructor;
 }
 
+FnHeader*  ast_makeFnHeader(){
+    ALLOC(header, FnHeader);
+    header->name = NULL;
+    header->type = NULL;
+    header->isGeneric = 0;
+    // init vec and map
+    vec_init(&header->genericNames);
+    map_init(&header->generics);
+
+    return header;
+}
+
+FnArgument * ast_type_makeFnArgument(){
+    ALLOC(argument, FnArgument);
+    argument->type = NULL;
+    argument->name = NULL;
+    argument->isMutable = 0;
+
+    return argument;
+}
 
 #undef ALLOC

@@ -26,7 +26,7 @@ typedef enum {
     TOK_FROM,              // from
     TOK_FOR,               // for
     TOK_FOREACH,           // foreach
-    TOK_FUNCTION,          // fn
+    TOK_FN,          // fn
     TOK_IF,                // if
     TOK_IMPORT,            // import
     TOK_IN,                // in

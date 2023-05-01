@@ -74,12 +74,13 @@ MU_TEST(test_type_declaration_1){
 
     char* arr_dt = "array[array[union{array[u32,255],union{u32,array[ref(f8.cool),255]}},0],0]";
     char* operation_dt = "union{array[enum{ADD,SUB,MUL,DIV,ABS,LOG,EXP,NEG},22],u32}";
+    char* operation_null_dt = "?union{array[enum{ADD,SUB,MUL,DIV,ABS,LOG,EXP,NEG},22],?u32}";
     char* userinfo_dt = "array[ref(T)<u32>,255]";
     char* user_dt = "struct{name:string,age:u32,data:union{ref(std.ArrayBuffer),array[ref(std.BinaryBuffer)<ref(String)>,512]}}";
     char* tree_dt = "variant{Leaf(val:u32),Binary(left:ref(Tree),right:ref(Tree)),Unary(child:ref(Tree))}";
-
-    // make sure we have 4 type declarations
-    //mu_assert_int_eq(4, node->scope.dataTypes.base.nnodes);
+    char* serializable_dt = "interface{serialize)->array[u8,0],append(data:array[u8,0]),duplicate(data:ref(Serializable)<array[array[ref(Serializable)<u32>,0],0]>)->ref(Serializable)<u32>}";
+    // make sure we have 6 type declarations
+    mu_assert_int_eq(7, node->scope.dataTypes.base.nnodes);
 
     // extract the type called arr and make sure ist not null
     DataType ** arr = map_get(&node->scope.dataTypes, "arr");
@@ -89,6 +90,10 @@ MU_TEST(test_type_declaration_1){
     DataType ** Operation = map_get(&node->scope.dataTypes, "Operation");
     mu_assert(Operation != NULL, "Operation is null");
     mu_assert_string_eq(operation_dt, ast_stringifyType((*Operation)->refType->ref));
+
+    DataType ** OperationNullable = map_get(&node->scope.dataTypes, "OperationNullable");
+    mu_assert(OperationNullable != NULL, "OperationNullable is null");
+    mu_assert_string_eq(operation_null_dt, ast_stringifyType((*OperationNullable)->refType->ref));
 
     DataType ** UserInfo = map_get(&node->scope.dataTypes, "UserInfo");
     mu_assert(UserInfo != NULL, "UserInfo is null");
@@ -102,8 +107,9 @@ MU_TEST(test_type_declaration_1){
     mu_assert(Tree != NULL, "Tree is null");
     mu_assert_string_eq(tree_dt, ast_stringifyType((*Tree)->refType->ref));
 
-
-
+    DataType ** Serializable = map_get(&node->scope.dataTypes, "Serializable");
+    mu_assert(Serializable != NULL, "Serializable is null");
+    mu_assert_string_eq(serializable_dt, ast_stringifyType((*Serializable)->refType->ref));
 }
 
 MU_TEST_SUITE(imports_test) {
