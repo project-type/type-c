@@ -22,7 +22,19 @@ extern "C" c_io = {
     printf(fmt: ptr<u8>, ...);
 }
 
-fn printf(data: string) {
-    let c_str = string_to_cstr(data)
-    printf(c_str);
+type WindowOptions = struct @layout(fixed) {
+    width: u32
+    height: u32
+    title: char[]
 }
+
+type WindowOpts = struct {
+    height: u32
+    width: u32
+    title: char[]
+}
+
+x: WindowOptions? = null
+y: WindowOpts? = null
+
+x == y?

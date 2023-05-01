@@ -171,7 +171,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node) {
     DataType* type_def = parser_parseTypeUnion(parser, node);
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
-    //printf("%s\n", ast_stringifyType(type_def));
+    printf("%s\n", ast_stringifyType(type_def));
 
     map_set(&node->scope.dataTypes, type->name, type);
 }

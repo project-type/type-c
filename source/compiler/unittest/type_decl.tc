@@ -7,7 +7,6 @@ type Operation = enum {
 
 type UserInfo<T>  = T<u32>[0xff]
 
-
 type User = struct {
     name: string
     age: u32

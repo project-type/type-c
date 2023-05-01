@@ -14,6 +14,14 @@ type-c
 - Can I contribute? Ideas? Yes. Code? Probably not.
 - When will the project be finished? Never. It will always be a work in progress.
 
+## TODO:
+- [ ] Think about decorators, especially to preserve struct layout, useful for ffi
+- [ ] Think about mutability
+- [ ] Think about partial function applications
+- [ ] Think about async/await and coroutines
+- [ ] Improve error handling
+- [ ] Improve memory management
+
 ## Roadmap:
 1. `type-c`: A compiler for the `type-c` language, with full type checking and solid optimizations.
 2. `type-v`: The virtual machine for `type-c`, a register based VM able to fully run `type-c` programs.
