@@ -99,6 +99,10 @@ uint8_t match_keyword(LexerState* lexerState, const char* pattern) {
     }
 
     if(isalpha(getCurrentChar(lexerState))){
+        // invalid match, put old position back
+        lexerState->pos = oldState.pos;
+        lexerState->line = oldState.line;
+        lexerState->col = oldState.col;
         return 0;
     }
 
@@ -231,7 +235,7 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     if(match_keyword(lexerState, "from")) return makeLexemLineCol(TOK_FROM, NULL, line, col);
     if(match_keyword(lexerState, "for")) return makeLexemLineCol(TOK_FOR, NULL, line, col);
     if(match_keyword(lexerState, "foreach")) return makeLexemLineCol(TOK_FOREACH, NULL, line, col);
-    if(match_keyword(lexerState, "fn")) return makeLexemLineCol(TOK_FUNCTION, NULL, line, col);
+    if(match_keyword(lexerState, "fn")) return makeLexemLineCol(TOK_FN, NULL, line, col);
     if(match_keyword(lexerState, "if")) return makeLexemLineCol(TOK_IF, NULL, line, col);
     if(match_keyword(lexerState, "import")) return makeLexemLineCol(TOK_IMPORT, NULL, line, col);
     if(match_keyword(lexerState, "in")) return makeLexemLineCol(TOK_IN, NULL, line, col);
