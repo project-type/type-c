@@ -25,3 +25,6 @@ type Shape<T> = struct(struct {isBasic: bool}) {
 }
 
 type Callable<T> = fn(x: T, y: T) -> struct {x: T, y: T[]}
+
+type Pointer = ptr<struct {x: u32, y: u32}>
+type Pointer2<T> = ptr<struct {x: T, y: T}?>
