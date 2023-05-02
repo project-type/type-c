@@ -69,6 +69,13 @@ uint8_t match(LexerState* lexerState, const char* pattern) {
         }
     }
 
+    if (i != len){
+        lexerState->pos = oldState.pos;
+        lexerState->line = oldState.line;
+        lexerState->col = oldState.col;
+        return 0;
+    }
+
     // we keep lexerState->pos to its new position
     return 1;
 }
