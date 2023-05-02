@@ -373,6 +373,9 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
     else if (lexeme.type == TOK_FN) {
         type = parser_parseTypeFn(parser, node, parentReferee);
     }
+    else if (lexeme.type == TOK_PTR) {
+        type = parser_parseTypePtr(parser, node, parentReferee);
+    }
     // check if we have an ID, we parse package then
     else if(lexeme.type == TOK_IDENTIFIER) {
         DataType* refType = parser_parseTypeRef(parser, node, parentReferee);
@@ -851,6 +854,28 @@ DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentRefe
     }
 
     return fnType;
+}
+
+// "ptr" "<" <type> ">"
+DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee){
+    // build type
+    DataType* ptrType = ast_type_makeType();
+    ptrType->kind = DT_PTR;
+    ptrType->ptrType = ast_type_makePtr();
+    // currently at ptr
+    ACCEPT;
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_LESS, "Line: %"PRIu16", Col: %"PRIu16" `<` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // parse type
+    ptrType->ptrType->target = parser_parseTypePrimary(parser, node, parentReferee);
+    // assert type is not null
+    ASSERT(ptrType->ptrType->target != NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, type null detected, this is a parser issue.", EXPAND_LEXEME);
+    // assert we have a ">"
+    CURRENT;
+    ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    return ptrType;
 }
 
 // starts from the first argument

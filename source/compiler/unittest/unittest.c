@@ -81,8 +81,11 @@ MU_TEST(test_type_declaration_1){
     char* serializable_dt = "interface{serialize)->array[u8,0],append(data:array[u8,0]),duplicate(data:ref(Serializable)<array[array[ref(Serializable)<u32>,0],0]>)->ref(Serializable)<u32>}";
     char* serializable2_dt = "interface:(ref(Sortable)<T,ref(String)>){Serialize)->array[ref(T),0],Deserialize(data:array[ref(T),0])}";
     char* fn_dt = "fn(x:ref(T),y:ref(T))->struct{x:ref(T),y:array[ref(T),0]}";
+    char* ptr1_dt = "ptr<struct{x:u32,y:u32}>";
+    char* ptr2_dt = "ptr<?struct{x:ref(T),y:ref(T)}>";
+
     // make sure we have 9 type declarations
-    mu_assert_int_eq(9, node->scope.dataTypes.base.nnodes);
+    mu_assert_int_eq(11, node->scope.dataTypes.base.nnodes);
 
     // extract the type called arr and make sure ist not null
     DataType ** arr = map_get(&node->scope.dataTypes, "arr");
@@ -120,6 +123,14 @@ MU_TEST(test_type_declaration_1){
     DataType ** Callable = map_get(&node->scope.dataTypes, "Callable");
     mu_assert(Serializable2 != NULL, "Callable is null");
     mu_assert_string_eq(fn_dt, ast_stringifyType((*Callable)->refType->ref));
+
+    DataType ** Pointer = map_get(&node->scope.dataTypes, "Pointer");
+    mu_assert(Pointer != NULL, "Pointer is null");
+    mu_assert_string_eq(ptr1_dt, ast_stringifyType((*Pointer)->refType->ref));
+
+    DataType ** Pointer2 = map_get(&node->scope.dataTypes, "Pointer2");
+    mu_assert(Pointer2 != NULL, "Pointer2 is null");
+    mu_assert_string_eq(ptr2_dt, ast_stringifyType((*Pointer2)->refType->ref));
 
 }
 

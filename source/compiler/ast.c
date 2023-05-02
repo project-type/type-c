@@ -468,6 +468,22 @@ char* ast_stringifyType(DataType* type){
             }
             break;
         }
+        case DT_PTR:{
+            // return ptr<type>
+            str = realloc(str, strlen(str) + strlen("ptr") + 1);
+            strcat(str, "ptr");
+            // followed by <
+            str = realloc(str, strlen(str) + strlen("<") + 1);
+            strcat(str, "<");
+            // followed by the type
+            char * ptrType = ast_stringifyType(type->ptrType->target);
+            str = realloc(str, strlen(str) + strlen(ptrType) + 1);
+            strcat(str, ptrType);
+            // followed by >
+            str = realloc(str, strlen(str) + strlen(">") + 1);
+            strcat(str, ">");
+            break;
+        }
         default:
             break;
     }

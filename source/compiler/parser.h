@@ -68,10 +68,10 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
 DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee);
 DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee);
 DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee);
-
+DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee);
 
 DataType* parser_parseTypeClass(Parser* parser, ASTNode* node);
-DataType* parser_parseTypePtr(Parser* parser, ASTNode* node);
+
 void parser_parseTypeTemplate(Parser* parser, ASTNode* node, DataType* parentType);
 
 void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentType, dtype_vec_t* extends);
