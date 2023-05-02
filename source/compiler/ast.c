@@ -377,7 +377,7 @@ char* ast_stringifyType(DataType* type){
                 // get current function
                 FnHeader ** function = map_get(&type->interfaceType->methods, val);
                 // iterate through the arguments
-                vec_foreach(&(*function)->type->argsNames, argName, j) {
+                vec_foreach(&(*function)->type->argNames, argName, j) {
                     // add the name of the argument
                     str = realloc(str, strlen(str) + strlen(argName) + 1);
                     strcat(str, argName);
@@ -415,8 +415,59 @@ char* ast_stringifyType(DataType* type){
             }
             // replace last , with }
             str[strlen(str) - 1] = '}';
+            break;
         }
+        case DT_FN: {
+            // return fn(arg1: type1, arg2: type2) -> returnType
+            str = realloc(str, strlen(str) + strlen("fn") + 1);
+            strcat(str, "fn");
+            // followed by (
+            str = realloc(str, strlen(str) + strlen("(") + 1);
+            strcat(str, "(");
+            // followed by the arguments
+            int i; char * argName;
+            vec_foreach(&type->fnType->argNames, argName, i) {
+                // add the name of the argument
+                str = realloc(str, strlen(str) + strlen(argName) + 1);
+                strcat(str, argName);
+                // followed by :
+                str = realloc(str, strlen(str) + strlen(":") + 1);
+                strcat(str, ":");
+                // followed by the type of the argument
+                // first get the argument type from the map
+                FnArgument ** argType = map_get(&type->fnType->args, argName);
+                // then stringify it
+                char * argTypeStr = ast_stringifyType((*argType)->type);
+                // then add it to the string
+                str = realloc(str, strlen(str) + strlen(argTypeStr) + 1);
+                strcat(str, argTypeStr);
+                // followed by ,
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+            }
+            // if we had args, we replace last , with )
+            if(type->fnType->argNames.length > 0){
+                str[strlen(str) - 1] = ')';
+            } else {
+                // if we didn't have args, we just add )
+                str = realloc(str, strlen(str) + strlen(")") + 1);
+                strcat(str, ")");
+            }
 
+            // add return type if it exists
+            if(type->fnType->returnType != NULL){
+                // followed by -> if return type is not NULL
+                str = realloc(str, strlen(str) + strlen("->") + 1);
+                strcat(str, "->");
+                // followed by the return type
+                // first get the return type from the map
+                char * returnType = ast_stringifyType(type->fnType->returnType);
+                // then add it to the string
+                str = realloc(str, strlen(str) + strlen(returnType) + 1);
+                strcat(str, returnType);
+            }
+            break;
+        }
         default:
             break;
     }
@@ -539,7 +590,7 @@ ClassType* ast_type_makeClass() {
 FnType* ast_type_makeFn() {
     ALLOC(fn, FnType);
     map_init(&fn->args);
-    vec_init(&fn->argsNames);
+    vec_init(&fn->argNames);
     fn->returnType = NULL;
 
     return fn;

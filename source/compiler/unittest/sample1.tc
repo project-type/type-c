@@ -24,3 +24,4 @@ type Shape<T> = struct(struct {isBasic: bool}) {
     x: T, y: T? | u32
 }
 
+type Callable<T> = fn(x: T, y: T) -> struct {x: T, y: T[]}

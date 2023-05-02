@@ -126,7 +126,7 @@ ClassType* ast_type_makeClass();
 
 typedef struct FnType {
     fnargument_map_t args;
-    vec_str_t argsNames;
+    vec_str_t argNames;
     struct DataType* returnType;
 }FnType;
 FnType* ast_type_makeFn();

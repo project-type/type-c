@@ -370,6 +370,9 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
     else if (lexeme.type == TOK_INTERFACE){
         type = parser_parseTypeInterface(parser, node, parentReferee);
     }
+    else if (lexeme.type == TOK_FN) {
+        type = parser_parseTypeFn(parser, node, parentReferee);
+    }
     // check if we have an ID, we parse package then
     else if(lexeme.type == TOK_IDENTIFIER) {
         DataType* refType = parser_parseTypeRef(parser, node, parentReferee);
@@ -621,6 +624,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
 
         if(lexeme.type == TOK_RBRACE) {
             can_loop = 0;
+            ACCEPT;
         }
     }
 
@@ -818,6 +822,82 @@ void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee,
         }
     }
 }
+// "fn" "(" <param_list>? ")" ("->" <type>)? <block>
+DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee) {
+    // current position: fn
+    ACCEPT;
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+
+    // create function type
+    DataType* fnType = ast_type_makeType();
+    fnType->kind = DT_FN;
+    fnType->fnType = ast_type_makeFn();
+    // parse parameters
+    parser_parseFnDefArguments(parser, node, parentReferee, &fnType->fnType->args, &fnType->fnType->argNames);
+    // check if we have `->`
+    lexeme = parser_peek(parser);
+    if(lexeme.type == TOK_FN_RETURN_TYPE) {
+        ACCEPT;
+        // parse return type
+        fnType->fnType->returnType = parser_parseTypePrimary(parser, node, fnType);
+        // assert return type is not null
+        ASSERT(fnType->fnType->returnType != NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, return type null detected, this is a parser issue.", EXPAND_LEXEME);
+    }
+    else {
+        parser_reject(parser);
+    }
+
+    return fnType;
+}
+
+// starts from the first argument
+void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames){
+    Lexeme CURRENT;
+    uint8_t loop = lexeme.type != TOK_RPAREN;
+    while(loop) {
+        parser_reject(parser);
+        // build fnarg
+        FnArgument* fnarg = ast_type_makeFnArgument();
+        // check if we have `mut` or id
+        lexeme = parser_peek(parser);
+        if(lexeme.type == TOK_MUT) {
+            fnarg->isMutable = 1;
+            ACCEPT;
+            CURRENT;
+        }
+        // assert an id
+        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        fnarg->name = strdup(lexeme.string);
+        ACCEPT;
+        // assert ":"
+        CURRENT;
+        ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        // parse type
+        fnarg->type = parser_parseTypePrimary(parser, node, parentType);
+        // assert type is not null
+        ASSERT(fnarg->type != NULL, "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.", EXPAND_LEXEME);
+        // add to args
+        map_set(args, fnarg->name, fnarg);
+        vec_push(argsNames, fnarg->name);
+        // check if we have a comma
+        lexeme = parser_peek(parser);
+        if(lexeme.type == TOK_COMMA) {
+            ACCEPT;
+        }
+        else {
+            // if no comma, we assert ")"
+            ASSERT(lexeme.type == TOK_RPAREN,
+                   "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.",
+                   EXPAND_LEXEME);
+            ACCEPT;
+            loop = 0;
+        }
+    }
+}
 
 /*
  * "import" <package_id> ("as" <id>)?
@@ -878,6 +958,8 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node) {
     return package;
 }
 
+// parses fn header for interfaces, interfaces cannot have mut arguments, they are not allowed
+// to mutate arguments given to them.
 FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node) {
     // build header struct
     FnHeader* header = ast_makeFnHeader();
@@ -963,7 +1045,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node) {
         arg->name = name;
 
         // add arg to header
-        vec_push(&header->type->argsNames, name);
+        vec_push(&header->type->argNames, name);
         map_set(&header->type->args, name, arg);
 
         // check if we reached ")"

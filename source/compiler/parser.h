@@ -67,16 +67,18 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
 DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentReferee);
 DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee);
 DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeFn(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee);
 
 
 DataType* parser_parseTypeClass(Parser* parser, ASTNode* node);
 DataType* parser_parseTypePtr(Parser* parser, ASTNode* node);
-
 void parser_parseTypeTemplate(Parser* parser, ASTNode* node, DataType* parentType);
+
 void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentType, dtype_vec_t* extends);
+void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames);
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node);
+
 
 #endif //TYPE_C_PARSER_H
 

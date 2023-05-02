@@ -35,4 +35,6 @@ type Tree = variant {
     Unary(child: Tree)
 }
 
+type Callable<T> = fn(x: T, y: T) -> struct {x: T, y: T[]}
+
 
