@@ -179,7 +179,7 @@ char* ast_stringifyType(DataType* type){
 
             break;
         case DT_REFERENCE:
-            // we check if package is null, if its not we add it to the string as <p1.p2.p3>
+            // we check if package is null, if it's not we add it to the string as <p1.p2.p3>
             if(type->refType->pkg != NULL){
                 str = realloc(str, strlen(str) + strlen("ref(") + 1);
                 strcat(str, "ref(");
@@ -343,6 +343,25 @@ char* ast_stringifyType(DataType* type){
             // we write it as interface{FunctionName1(arg1: type1, arg2: type2) -> returnType1, FunctionName2(arg1: type1, arg2: type2) -> returnType2 , etc)}
             str = realloc(str, strlen(str) + strlen("interface") + 1);
             strcat(str, "interface");
+            // we add ":" followed "(" <list of extends> ")" if there are any
+            if (type->interfaceType->extends.length > 0) {
+                str = realloc(str, strlen(str) + strlen(":") + 1);
+                strcat(str, ":");
+                str = realloc(str, strlen(str) + strlen("(") + 1);
+                strcat(str, "(");
+                int i; DataType * val;
+                vec_foreach(&type->interfaceType->extends, val, i) {
+                    // we add the name of the interface
+                    char* parentTypeStr = ast_stringifyType(val);
+                    str = realloc(str, strlen(str) + strlen(parentTypeStr) + 1);
+                    strcat(str, parentTypeStr);
+                    // followed by ,
+                    str = realloc(str, strlen(str) + strlen(",") + 1);
+                    strcat(str, ",");
+                }
+                // replace last , with )
+                str[strlen(str) - 1] = ')';
+            }
             str = realloc(str, strlen(str) + strlen("{") + 1);
             strcat(str, "{");
             int i; char * val;
@@ -403,22 +422,35 @@ char* ast_stringifyType(DataType* type){
     }
 
     // we check if it has generics
-    if(type->isGeneric){
+    if(type->hasGeneric){
         // we add the generics to the string
-        int i; char * val;
+        int i; GenericParam * val;
         // first we add a "<" to the string
         str = realloc(str, strlen(str) + 1);
         strcat(str, "<");
         // then we add the generics
-        vec_foreach(&type->genericNames, val, i) {
-                str = realloc(str, strlen(str) + strlen(val) + 1);
-                strcat(str, val);
+        vec_foreach(&type->genericParams, val, i) {
+            // we check if the genericParam is generic or not
+            if(val->isGeneric){
+                // if it is, we add the name of the genericParam
+                str = realloc(str, strlen(str) + strlen(val->name) + 1);
+                strcat(str, val->name);
+                if(val->constraint != NULL) {
+                    // add ":"
+                    str = realloc(str, strlen(str) + strlen(":") + 1);
+                    strcat(str, ":");
+                    // if it is not, we add the type of the genericParam
+                    char * genericType = ast_stringifyType(val->constraint);
+                    str = realloc(str, strlen(str) + strlen(genericType) + 1);
+                    strcat(str, genericType);
+                }
+            } else {
+                // if it's not generic then it is a concrete type, we serialize its type
+                char * genericType = ast_stringifyType(val->type);
+                str = realloc(str, strlen(str) + strlen(genericType) + 1);
+                strcat(str, genericType);
             }
-        // we also iterator through concretegeneric types, serialize them and sparate them with a comma
-        vec_foreach(&type->concreteGenerics, val, i) {
-            char * genericType = ast_stringifyType(val);
-            str = realloc(str, strlen(str) + strlen(genericType) + 1);
-            strcat(str, genericType);
+            // followed by ,
             str = realloc(str, strlen(str) + strlen(",") + 1);
             strcat(str, ",");
         }
@@ -489,6 +521,7 @@ InterfaceType* ast_type_makeInterface() {
     ALLOC(interface, InterfaceType);
     map_init(&interface->methods);
     vec_init(&interface->methodNames);
+    vec_init(&interface->extends);
 
     return interface;
 }
@@ -516,6 +549,7 @@ StructType* ast_type_makeStruct() {
     ALLOC(struct_, StructType);
     map_init(&struct_->attributes);
     vec_init(&struct_->attributeNames);
+    vec_init(&struct_->extends);
 
     return struct_;
 }
@@ -523,14 +557,11 @@ StructType* ast_type_makeStruct() {
 DataType* ast_type_makeType() {
     ALLOC(type, DataType);
     type->name = NULL;
-    type->isGeneric = 0;
+    type->hasGeneric = 0;
     type->isNullable = 0;
     type->kind = DT_UNRESOLVED;
     type->classType = NULL;
-
-    vec_init(&type->concreteGenerics);
-    vec_init(&type->genericNames);
-    map_init(&type->generics);
+    vec_init(&type->genericParams);
 
     return type;
 }
@@ -586,6 +617,16 @@ FnArgument * ast_type_makeFnArgument(){
     argument->isMutable = 0;
 
     return argument;
+}
+
+GenericParam* ast_make_genericParam() {
+    ALLOC(param, GenericParam);
+    param->name = NULL;
+    param->type = NULL;
+    param->isGeneric = 0;
+    param->constraint = NULL;
+
+    return param;
 }
 
 #undef ALLOC

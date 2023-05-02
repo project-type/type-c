@@ -23,6 +23,12 @@ type Serializable = interface {
     fn duplicate(data: Serializable<Serializable<u32>[][]>) -> Serializable<u32>
 }
 
+
+type Serializable2<T: Iterable, U> = interface(Sortable<T, String>) {
+    fn Serialize() -> T[]
+    fn Deserialize(data: T[])
+}
+
 type Tree = variant {
     Leaf(val: u32),
     Binary(left: Tree, right: Tree),

@@ -55,20 +55,26 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node);
 void parser_parseImportStmt(Parser* parser, ASTNode* node);
 void parser_parseTypeDecl(Parser* parser, ASTNode* node);
 
-DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeArray(Parser* parser, ASTNode* node);
-DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* parentReferee);
 
+// enums can't have templates and are final
 DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeClass(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee);
 DataType* parser_parseTypeFn(Parser* parser, ASTNode* node);
+
+
+DataType* parser_parseTypeClass(Parser* parser, ASTNode* node);
 DataType* parser_parseTypePtr(Parser* parser, ASTNode* node);
 
+void parser_parseTypeTemplate(Parser* parser, ASTNode* node, DataType* parentType);
+void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentType, dtype_vec_t* extends);
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node);
 

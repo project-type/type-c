@@ -12,3 +12,22 @@ type ConstantNode = class(Node) {
         return self
     }
 }
+
+type DisplayMode = enum {
+    Windowed,
+    Fullscreen,
+    Borderless
+}
+
+type Window = struct {
+    width: u32,
+    height: u32,
+    title: string,
+    depth: u32,
+    displayMode:DisplayMode
+}
+
+
+fn printWin(w: struct {height: u32, width: u32}) {
+    println("Window: " + w.title)
+}

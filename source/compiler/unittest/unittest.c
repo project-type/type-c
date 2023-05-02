@@ -79,8 +79,9 @@ MU_TEST(test_type_declaration_1){
     char* user_dt = "struct{name:string,age:u32,data:union{ref(std.ArrayBuffer),array[ref(std.BinaryBuffer)<ref(String)>,512]}}";
     char* tree_dt = "variant{Leaf(val:u32),Binary(left:ref(Tree),right:ref(Tree)),Unary(child:ref(Tree))}";
     char* serializable_dt = "interface{serialize)->array[u8,0],append(data:array[u8,0]),duplicate(data:ref(Serializable)<array[array[ref(Serializable)<u32>,0],0]>)->ref(Serializable)<u32>}";
-    // make sure we have 6 type declarations
-    mu_assert_int_eq(7, node->scope.dataTypes.base.nnodes);
+    char* serializable2_dt = "interface:(ref(Sortable)<T,ref(String)>){Serialize)->array[ref(T),0],Deserialize(data:array[ref(T),0])}";
+    // make sure we have 8 type declarations
+    mu_assert_int_eq(8, node->scope.dataTypes.base.nnodes);
 
     // extract the type called arr and make sure ist not null
     DataType ** arr = map_get(&node->scope.dataTypes, "arr");
@@ -110,6 +111,17 @@ MU_TEST(test_type_declaration_1){
     DataType ** Serializable = map_get(&node->scope.dataTypes, "Serializable");
     mu_assert(Serializable != NULL, "Serializable is null");
     mu_assert_string_eq(serializable_dt, ast_stringifyType((*Serializable)->refType->ref));
+
+    DataType ** Serializable2 = map_get(&node->scope.dataTypes, "Serializable2");
+    mu_assert(Serializable2 != NULL, "Serializable2 is null");
+    mu_assert_string_eq(serializable2_dt, ast_stringifyType((*Serializable2)->refType->ref));
+}
+
+MU_TEST(sample_1) {
+    char* input = readFile("../../source/compiler/unittest/sample1.tc");
+    LexerState* lex = lexer_init("import.tc", input, strlen(input));
+    Parser* parser = parser_init(lex);
+    ASTNode* node = parser_parse(parser);
 }
 
 MU_TEST_SUITE(imports_test) {
@@ -120,9 +132,14 @@ MU_TEST_SUITE(type_declaration_test) {
     MU_RUN_TEST(test_type_declaration_1);
 }
 
+MU_TEST_SUITE(not_a_test) {
+    MU_RUN_TEST(sample_1);
+}
+
 int main(int argc, char *argv[]) {
-    MU_RUN_SUITE(imports_test);
-    MU_RUN_SUITE(type_declaration_test);
+    //MU_RUN_SUITE(imports_test);
+    //MU_RUN_SUITE(type_declaration_test);
+    MU_RUN_SUITE(not_a_test);
     MU_REPORT();
     return MU_EXIT_CODE;
 }

@@ -27,6 +27,7 @@ struct ClassMethod;
 struct ClassAttribute;
 struct StructAttribute;
 struct FnArgument;
+struct GenericParam;
 
 typedef map_t(uint32_t) u32_map_t;
 typedef map_t(struct DataType*) dtype_map_t;
@@ -39,6 +40,7 @@ typedef map_t(struct FnArgument*) fnargument_map_t;
 typedef map_t(struct VariantConstructorArgument*) variantconstructorarg_map_t;
 typedef map_t(struct VariantConstructor*) variantconstructor_map_t;
 
+typedef vec_t(struct GenericParam*) genericparam_vec_t;
 typedef vec_t(struct DataType*) dtype_vec_t;
 /**
  * Enums of all possible type categories
@@ -100,7 +102,7 @@ typedef struct UnionType {
 UnionType* ast_type_makeUnion();
 
 typedef struct VariantType {
-    variantconstructorarg_map_t constructors;
+    variantconstructor_map_t constructors;
     vec_str_t  constructorNames;
 }VariantType;
 VariantType* ast_type_makeVariant();
@@ -108,6 +110,7 @@ VariantType* ast_type_makeVariant();
 typedef struct InterfaceType {
     interfacemethod_map_t methods;
     vec_str_t  methodNames;
+    dtype_vec_t extends;
 }InterfaceType;
 InterfaceType* ast_type_makeInterface();
 
@@ -132,23 +135,27 @@ typedef struct StructType {
     structattribute_map_t attributes;
     // important for layout management
     vec_str_t attributeNames;
+    dtype_vec_t extends;
 }StructType;
 StructType* ast_type_makeStruct();
+
+typedef struct GenericParam {
+    uint8_t isGeneric;
+    // if is generic, we check the name
+    // else we check the type
+    char* name;
+    struct DataType* type;
+    struct DataType* constraint; // i.e must be an instance of something
+}GenericParam;
+GenericParam* ast_make_genericParam();
 
 typedef struct DataType {
     char* name;
     DataTypeKind kind;
-    uint8_t isGeneric;
+    uint8_t hasGeneric;
     uint8_t isNullable;
-    // maintain order
-    vec_str_t genericNames;
-    // map name to index
-    u32_map_t generics;
 
-    // if not empty, it contains actual types that should
-    // replace generics
-    dtype_vec_t concreteGenerics;
-
+    genericparam_vec_t genericParams;
 
     union {
         ClassType * classType;
