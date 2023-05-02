@@ -1,10 +1,42 @@
 type-c
 ===
-
-
-
 `type-c`: Compiler and `type-v`: VM.
 
+## About:
+`type-c` is a strong statically typed programming language. 
+The compiler is at 10% progress and features  might change.
+
+Planned Features:
+- Static typing & Strong type inference engine
+- Anonymous functions and types. Type checking in based on structure rather than layout. 
+- Interface oriented programming (classes cannot extend classes, only implement behaviors)
+- Functional programming
+- Mutability by default (yes it's a feature)
+- Generics
+- Built-in coroutines and async/await supports
+- Solid `ffi`, data structures designed to be easily used with C libraries
+
+## Hello world
+```
+fn main() =
+    print("Hello world!")
+```
+
+## Want more?
+```
+type User = struct {
+    name: string,
+    profession: string,
+    age: u8,
+}
+
+fn main() {
+    let user1 = {name: "John", age: u8(42)} // type casting is similar to function call.
+    let user2: User = {"Jane", "Twitch streamer", 24} // 
+    
+    let {name: string} = user1 // destructuring, type is optional
+}
+```
 
 ## FAQ:
 - What is `type-c`? A programming language.
@@ -33,6 +65,17 @@ type-c
 8. Game engine
 9. OS
 10. Big Brain AI
+
+## How to contribute
+Well, not much you can do now in terms of code, but you can try lifting my spirit by giving me a star and maybe sharing your thoughts.
+I would rather keep working on this project alone for now as its a learning experience, but if you want to help me
+with solid ideas and foundations, please go ahead.
+
+I very much welcome anyone to challenge my design and detect any flaws.
+
+Reach out:
+- Tweet me [@alonnesora](https://twitter.com/alonnesora) 
+- Or email: doit@praisethemoon.org
 
 ## Third party libraries:
 
