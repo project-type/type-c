@@ -29,6 +29,10 @@ struct StructAttribute;
 struct FnArgument;
 struct GenericParam;
 
+struct Expr;
+struct CaseExpr;
+
+/* Data types */
 typedef map_t(uint32_t) u32_map_t;
 typedef map_t(struct DataType*) dtype_map_t;
 typedef map_t(struct DataConstructor*) dataconstructor_map_t;
@@ -42,6 +46,11 @@ typedef map_t(struct VariantConstructor*) variantconstructor_map_t;
 
 typedef vec_t(struct GenericParam*) genericparam_vec_t;
 typedef vec_t(struct DataType*) dtype_vec_t;
+
+/* Expressions */
+typedef vec_t(struct Expr*) expr_vec_t;
+typedef vec_t(struct CaseExpr*) caseexpr_vec_t;
+
 /**
  * Enums of all possible type categories
  */
@@ -138,6 +147,7 @@ typedef struct StructType {
     dtype_vec_t extends;
 }StructType;
 StructType* ast_type_makeStruct();
+
 
 typedef struct GenericParam {
     uint8_t isGeneric;
@@ -259,6 +269,8 @@ typedef struct ASTScope {
     void* expressions;
 } ASTScope;
 
+
+
 typedef struct ASTProgramNode {
     import_stmt_vec importStatements;
 }ASTProgramNode;
@@ -271,6 +283,249 @@ typedef struct ASTNode {
     };
 }ASTNode;
 
+typedef enum BinaryExprType {
+    BET_ADD,
+    BET_SUB,
+    BET_MUL,
+    BET_DIV,
+    BET_MOD,
+    BET_AND,
+    BET_OR,
+    BET_XOR,
+    BET_LSHIFT,
+    BET_RSHIFT,
+    BET_EQ,
+    BET_NEQ,
+    BET_LT,
+    BET_LTE,
+    BET_GT,
+    BET_GTE,
+    BET_ASSIGN,
+    BET_ADD_ASSIGN,
+    BET_SUB_ASSIGN,
+    BET_MUL_ASSIGN,
+    BET_DIV_ASSIGN
+}BinaryExprType;
+
+typedef enum UnaryExprType {
+    UET_NOT,
+    UET_NEG,
+    UET_PRE_INC,
+    UET_PRE_DEC,
+    UET_POST_INC,
+    UET_POST_DEC,
+    UET_DEREF,
+    UET_ADDRESS_OF,
+    UET_CAST,
+}UnaryExprType;
+
+
+typedef enum LiteralType {
+    LT_STRING,
+    LT_INTEGER,
+    LT_BINARY_INT,
+    LT_OCTAL_INT,
+    LT_HEX_INT,
+    LT_DOUBLE,
+    LT_FLOAT,
+    LT_BOOLEAN,
+    LT_CHARACTER
+}LiteralType;
+
+// 3.14
+typedef struct LiteralExpr {
+    LiteralType type;
+    char* value;
+}LiteralExpr;
+LiteralExpr* ast_expr_makeLiteralExpr(LiteralType type);
+
+// x
+typedef struct ElementExpr {
+    char* name;
+}ElementExpr;
+ElementExpr* ast_expr_makeElementExpr(char* name);
+
+// x++
+typedef struct UnaryExpr {
+    UnaryExprType type;
+    struct Expr *expr;
+}UnaryExpr;
+UnaryExpr* ast_expr_makeUnaryExpr(UnaryExprType type, struct Expr *expr);
+
+// x + y
+typedef struct BinaryExpr {
+    BinaryExprType type;
+    struct Expr *left;
+    struct Expr *right;
+}BinaryExpr;
+BinaryExpr* ast_expr_makeBinaryExpr(BinaryExprType type, struct Expr *left, struct Expr *right);
+
+// new x()
+typedef struct NewExpr {
+    DataType *type;
+    expr_vec_t args;
+}NewExpr;
+NewExpr* ast_expr_makeNewExpr(DataType *type, expr_vec_t args);
+
+// x()
+typedef struct CallExpr {
+    struct Expr *callee;
+    expr_vec_t args;
+}CallExpr;
+CallExpr* ast_expr_makeCallExpr(struct Expr *callee, expr_vec_t args);
+
+// x.y
+typedef struct MemberAccessExpr {
+    struct Expr *expr;
+    char *member;
+}MemberAccessExpr;
+MemberAccessExpr* ast_expr_makeMemberAccessExpr(struct Expr *expr, char *member);
+
+// x[10]
+typedef struct IndexAccessExpr {
+    struct Expr *expr;
+    struct Expr *index;
+}IndexAccessExpr;
+IndexAccessExpr* ast_expr_makeIndexAccessExpr(struct Expr *expr, struct Expr *index);
+
+// u32(10)
+typedef struct CastExpr {
+    DataType *type;
+    struct Expr *expr;
+}CastExpr;
+CastExpr* ast_expr_makeCastExpr(DataType *type, struct Expr *expr);
+
+// if condition else (if condition else ( ... ))
+typedef struct IfElseExpr {
+    struct Expr *condition; //
+    struct Expr *ifExpr;
+    struct Expr *elseExpr;
+}IfElseExpr;
+IfElseExpr* ast_expr_makeIfElseExpr(struct Expr *condition, struct Expr *ifExpr, struct Expr *elseExpr);
+
+// case 1 => 1
+typedef struct CaseExpr {
+    struct Expr *condition;
+    struct Expr *expr;
+}CaseExpr;
+CaseExpr * ast_expr_makeCaseExpr(struct Expr *condition, struct Expr *expr);
+
+// match x { 1 => 1, 2 => 2, _ => 3 }
+typedef struct MatchExpr {
+    struct Expr *expr;
+    caseexpr_vec_t cases;
+    CaseExpr* elseCase;
+}MatchExpr;
+MatchExpr* ast_expr_makeMatchExpr(struct Expr *expr);
+
+typedef enum LetInitializerType {
+    LIT_NONE,
+    LIT_STRUCT_DECONSTRUCTION,
+    LIT_ARRAY_DECONSTRUCTION
+}LetInitializerType;
+
+// let x = 10 in x + 10
+typedef struct LetExpr {
+    LetInitializerType initializerType;
+    vec_str_t variableNames;
+    fnargument_map_t variables;
+    struct Expr *initializer;
+    struct Expr *inExpr;
+}LetExpr;
+LetExpr* ast_expr_makeLetExpr();
+
+typedef enum ExpressionType {
+    ET_LITERAL,
+    ET_ELEMENT,
+    //ET_PACKAGE,
+    ET_NEW,
+    ET_CALL,
+    ET_MEMBER_ACCESS,
+    ET_INDEX_ACCESS,
+    ET_CAST,
+    ET_UNARY,
+    ET_BINARY,
+    ET_IF_ELSE,
+    ET_MATCH,
+    ET_LET,
+}ExpressionType;
+
+
+typedef struct Expr {
+    ExpressionType type;
+    union {
+        LiteralExpr* literalExpr;
+        ElementExpr* elementExpr;
+        LetExpr * letExpr;
+        NewExpr* newExpr;
+        CallExpr* callExpr;
+        MemberAccessExpr* memberAccessExpr;
+        IndexAccessExpr* indexAccessExpr;
+        CastExpr* castExpr;
+        UnaryExpr* unaryExpr;
+        BinaryExpr* binaryExpr;
+        IfElseExpr* ifElseExpr;
+        MatchExpr* matchExpr;
+    };
+}Expr;
+Expr* ast_expr_makeExpr(ExpressionType type);
+
+
+typedef struct ExprStatement {
+    void* expr;
+}ExprStatement;
+
+
+
+typedef enum StatmentType {
+    ST_EXPR,
+    ST_VAR_DECL,
+    ST_FN_DECL,
+
+    // conditional
+    ST_IF_CHAIN,
+    ST_MATCH,
+
+    // iterative
+    ST_WHILE,
+    ST_FOR,
+    ST_FOREACH,
+    T_DO_WHILE,
+
+    // keywords
+    ST_CONTINUE,
+    ST_RETURN,
+    ST_DELETE,
+    ST_BREAK,
+
+    // BLOCK
+    ST_BLOCK,
+    ST_UNSAFE,
+    ST_WITH
+}StatmentType;
+
+typedef struct Statement {
+    StatmentType type;
+    union {
+        void* expr;
+        void* varDecl;
+        void* fnDecl;
+        void* ifChain;
+        void* match;
+        void* whileLoop;
+        void* forLoop;
+        void* foreachLoop;
+        void* doWhileLoop;
+        void* continueStmt;
+        void* returnStmt;
+        void* deleteStmt;
+        void* breakStmt;
+        void* blockStmt;
+        void* unsafeStmt;
+        void* withStmt;
+    };
+}Statement;
+
 
 ASTNode * ast_makeProgramNode();
 PackageID* ast_makePackageID();
@@ -279,5 +534,5 @@ ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t has
 // debugging
 char* ast_stringifyType(DataType* type);
 char* ast_stringifyImport(ASTProgramNode* node, uint32_t index);
-
+char* ast_strigifyExpr(Expr* expr);
 #endif //TYPE_C_AST_H

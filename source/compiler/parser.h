@@ -80,6 +80,11 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
 FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node);
 
 
+Expr* parser_parseExpr(Parser* parser, ASTNode* node);
+Expr* parser_parseLetExpr(Parser* parser, ASTNode* node);
+Expr* parser_parseLiteral(Parser* parser, ASTNode* node);
+
+
 #endif //TYPE_C_PARSER_H
 
 /*

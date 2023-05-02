@@ -528,6 +528,78 @@ char* ast_stringifyType(DataType* type){
     return str;
 }
 
+char* ast_strigifyExpr(Expr* expr){
+    char * str = malloc(1);
+    // check if its a let
+    if(expr->type == ET_LET){
+        LetExpr * let = expr->letExpr;
+        // prepare let(<id>":"<type>, <id2>":"<type2>, ...) "=" <expr>
+
+        str[0] = '\0';
+        // add let
+        str = realloc(str, strlen(str) + strlen("let") + 1);
+        strcat(str, "let");
+        // followed by (
+        str = realloc(str, strlen(str) + strlen("(") + 1);
+        strcat(str, "(");
+        // followed by the arguments
+        int i; char * argName;
+        vec_foreach(&let->variableNames, argName, i) {
+            // add the name of the argument
+            str = realloc(str, strlen(str) + strlen(argName) + 1);
+            strcat(str, argName);
+            // followed by :
+            str = realloc(str, strlen(str) + strlen(":") + 1);
+            strcat(str, ":");
+            // followed by the type of the argument
+            // first get the argument type from the map
+            FnArgument ** argType = map_get(&let->variables, argName);
+            // then stringify it
+            char * argTypeStr = ast_stringifyType((*argType)->type);
+            // then add it to the string
+            str = realloc(str, strlen(str) + strlen(argTypeStr) + 1);
+            strcat(str, argTypeStr);
+            // followed by ,
+            str = realloc(str, strlen(str) + strlen(",") + 1);
+            strcat(str, ",");
+        }
+        // replace last , with ) if length > 1
+        if(let->variableNames.length > 0){
+            str[strlen(str) - 1] = ')';
+        } else {
+            // if we didn't have args, we just add )
+            str = realloc(str, strlen(str) + strlen(")") + 1);
+            strcat(str, ")");
+        }
+        // followed by =
+        str = realloc(str, strlen(str) + strlen("=") + 1);
+        strcat(str, "=");
+        // followed by the expression
+        char * exprStr = ast_strigifyExpr(let->initializer);
+        str = realloc(str, strlen(str) + strlen(exprStr) + 1);
+        strcat(str, exprStr);
+        // followed by "in" <expr>
+        str = realloc(str, strlen(str) + strlen("in") + 1);
+        strcat(str, "in");
+        // followed by the expression
+        exprStr = ast_strigifyExpr(let->inExpr);
+        str = realloc(str, strlen(str) + strlen(exprStr) + 1);
+        strcat(str, exprStr);
+    }
+    // literal
+    else if (expr->type == ET_LITERAL){
+        LiteralExpr * lit = expr->literalExpr;
+        // prepare <type> <value>
+        str[0] = '\0';
+        // add the type
+        // followed by the value
+        char * valueStr = lit->value;
+        str = realloc(str, strlen(str) + strlen(valueStr) + 1);
+        strcat(str, valueStr);
+    }
+
+    return str;
+}
 /**
 * Building AST Data types
 */
@@ -695,5 +767,123 @@ GenericParam* ast_make_genericParam() {
 
     return param;
 }
+
+ElementExpr* ast_expr_makeElementExpr(char* name){
+    ALLOC(element, ElementExpr);
+    element->name = strdup(name);
+
+    return element;
+}
+
+UnaryExpr* ast_expr_makeUnaryExpr(UnaryExprType type, struct Expr *expr){
+    ALLOC(unary, UnaryExpr);
+    unary->type = type;
+    unary->expr = expr;
+
+    return unary;
+}
+
+BinaryExpr* ast_expr_makeBinaryExpr(BinaryExprType type, struct Expr *left, struct Expr *right){
+    ALLOC(binary, BinaryExpr);
+    binary->type = type;
+    binary->left = left;
+    binary->right = right;
+
+    return binary;
+}
+
+NewExpr* ast_expr_makeNewExpr(DataType *type, expr_vec_t args){
+    ALLOC(new, NewExpr);
+    new->type = type;
+    new->args = args;
+
+    return new;
+}
+
+CallExpr* ast_expr_makeCallExpr(struct Expr *callee, expr_vec_t args){
+    ALLOC(call, CallExpr);
+    call->callee = callee;
+    call->args = args;
+
+    return call;
+}
+
+MemberAccessExpr* ast_expr_makeMemberAccessExpr(struct Expr *expr, char *member){
+    ALLOC(memberAccess, MemberAccessExpr);
+    memberAccess->expr = expr;
+    memberAccess->member = strdup(member);
+
+    return memberAccess;
+}
+
+IndexAccessExpr* ast_expr_makeIndexAccessExpr(struct Expr *expr, struct Expr *index){
+    ALLOC(indexAccess, IndexAccessExpr);
+    indexAccess->expr = expr;
+    indexAccess->index = index;
+
+    return indexAccess;
+}
+
+CastExpr* ast_expr_makeCastExpr(DataType *type, struct Expr *expr){
+    ALLOC(cast, CastExpr);
+    cast->type = type;
+    cast->expr = expr;
+
+    return cast;
+}
+
+IfElseExpr* ast_expr_makeIfElseExpr(struct Expr *condition, struct Expr *ifExpr, struct Expr *elseExpr) {
+    ALLOC(ifElse, IfElseExpr);
+    ifElse->condition = condition;
+    ifElse->ifExpr = ifExpr;
+    ifElse->elseExpr = elseExpr;
+
+    return ifElse;
+}
+
+CaseExpr * ast_expr_makeCaseExpr(struct Expr *condition, struct Expr *expr){
+    ALLOC(caseExpr, CaseExpr);
+    caseExpr->condition = condition;
+    caseExpr->expr = expr;
+
+    return caseExpr;
+}
+
+MatchExpr* ast_expr_makeMatchExpr(struct Expr *expr) {
+    ALLOC(match, MatchExpr);
+    match->expr = expr;
+    vec_init(&match->cases);
+
+    return match;
+}
+
+LetExpr* ast_expr_makeLetExpr(){
+    ALLOC(let, LetExpr);
+    let->initializerType = LIT_NONE;
+    vec_init(&let->variableNames);
+    map_init(&let->variables);
+    let->inExpr = NULL;
+    let->initializer = NULL;
+
+
+    return let;
+}
+
+LiteralExpr* ast_expr_makeLiteralExpr(LiteralType type){
+    ALLOC(literal, LiteralExpr);
+    literal->type = type;
+    literal->value = NULL;
+
+    return literal;
+}
+
+Expr* ast_expr_makeExpr(ExpressionType type){
+    ALLOC(expr, Expr);
+    expr->type = type;
+    expr->literalExpr = NULL;
+
+    return expr;
+}
+
 
 #undef ALLOC

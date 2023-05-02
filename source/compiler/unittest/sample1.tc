@@ -1,30 +1,5 @@
 
-type Serializable = interface {
-    fn serialize() -> u8[]
-    fn append(data: u8[])
-    fn duplicate(data: Serializable<Serializable<u32>[][]>) -> Serializable<u32>
-}
 
 
-type Serializable2<T: Iterable, U> = interface(Sortable<T, String>) {
-    fn Serialize() -> T[]
-    fn Deserialize(data: T[])
-}
-
-type Serializab3e2<T: Iterable, U> = interface(interface {fn cool() -> T}) {
-     fn Serialize() -> T[]
-     fn Deserialize(data: T[])
-}
-
-type Basic = struct {
-    isBasic: bool
-}
-
-type Shape<T> = struct(struct {isBasic: bool}) {
-    x: T, y: T? | u32
-}
-
-type Callable<T> = fn(x: T, y: T) -> struct {x: T, y: T[]}
-
-type Pointer = ptr<struct {x: u32, y: u32}>
-type Pointer2<T> = ptr<struct {x: T, y: T}?>
+let alpha: u32 = 0xff
+    in "unreachable"

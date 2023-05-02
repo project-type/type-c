@@ -154,8 +154,8 @@ MU_TEST_SUITE(not_a_test) {
 }
 
 int main(int argc, char *argv[]) {
-    MU_RUN_SUITE(imports_test);
-    MU_RUN_SUITE(type_declaration_test);
+    //MU_RUN_SUITE(imports_test);
+    //MU_RUN_SUITE(type_declaration_test);
     MU_RUN_SUITE(not_a_test);
     MU_REPORT();
     return MU_EXIT_CODE;

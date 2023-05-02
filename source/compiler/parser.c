@@ -77,11 +77,19 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
     // TODO: Resolve Imports and add them to symbol table
     // we no longer expect import or from after this
 
-    can_loop = lexeme.type == TOK_TYPE;
+    can_loop = 1; //lexeme.type == TOK_TYPE;
     while (can_loop) {
 
         if(lexeme.type == TOK_TYPE) {
             parser_parseTypeDecl(parser, node);
+            CURRENT;
+        }
+        else if(lexeme.type == TOK_LET){
+            parser_reject(parser);
+            Expr* expr = parser_parseExpr(parser, node);
+
+            printf(ast_strigifyExpr(expr));
+            printf("\n");
             CURRENT;
         }
         else {
@@ -268,7 +276,6 @@ DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentR
     DataType* type = parser_parseTypePrimary(parser, node, parentReferee);
     return type;
 }
-
 
 // <array_type> ::= <primary_type> "[" "]" | <primary_type> "[" <integer_literal> "]"
 DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parentReferee) {
@@ -953,6 +960,171 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node){
     vec_push(&node->programNode->importStatements, import);
 }
 
+
+/** Expressions **/
+Expr* parser_parseExpr(Parser* parser, ASTNode* node) {
+    Lexeme CURRENT;
+    Expr* expr = NULL;
+    if(lexeme.type == TOK_LET) {
+        parser_reject(parser);
+        expr = parser_parseLetExpr(parser, node);
+    }
+    else {
+        parser_reject(parser);
+        expr = parser_parseLiteral(parser, node);
+    }
+
+    return expr;
+}
+
+/*
+ * let <id> (":" <type>)? "=" <expr> "in" <expr>
+ * let "{"<id> (":" <type>)? (<id> (":" <type>)?)*"}" "=" <expr> "in" <expr>
+ * let "["<id> (":" <type>)? (<id> (":" <type>)?)*"]" "=" <expr> "in" <expr>
+ */
+Expr* parser_parseLetExpr(Parser* parser, ASTNode* node) {
+    Expr * expr = ast_expr_makeExpr(ET_LET);
+    LetExpr* let = ast_expr_makeLetExpr();
+    expr->letExpr = let;
+    Lexeme CURRENT;
+    // assert let
+    ASSERT(lexeme.type == TOK_LET, "Line: %"PRIu16", Col: %"PRIu16" `let` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    CURRENT;
+
+    char* expect = NULL;
+
+    // check if we have id or { or [
+    if(lexeme.type == TOK_LBRACE){
+        expect = "]";
+        let->initializerType = LIT_ARRAY_DECONSTRUCTION;
+        ACCEPT;
+        CURRENT;
+    }
+    else if (lexeme.type == TOK_LBRACKET){
+        expect = "]";
+        let->initializerType = LIT_ARRAY_DECONSTRUCTION;
+        ACCEPT;
+        CURRENT;
+    }
+    else{
+        expect = NULL;
+        let->initializerType = LIT_NONE;
+    }
+
+    uint8_t loop = 1;
+    while(loop){
+        FnArgument* var = ast_type_makeFnArgument();
+        // check if we have a mut
+        if(lexeme.type == TOK_MUT){
+            var->isMutable = 0;
+            ACCEPT;
+            CURRENT;
+        }
+        // assert ID
+        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        var->name = strdup(lexeme.string);
+        ACCEPT;
+        CURRENT;
+        // assert ":"
+        ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        // parse type
+        var->type = parser_parseTypePrimary(parser, node, NULL);
+        // assert type is not null
+        ASSERT(var->type != NULL, "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.", EXPAND_LEXEME);
+        // add to args
+        map_set(&let->variables, var->name, var);
+        vec_push(&let->variableNames, var->name);
+
+        // check if we have a comma
+        lexeme = parser_peek(parser);
+        if(lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        }
+        else {
+            parser_reject(parser);
+            loop = 0;
+        }
+    }
+    CURRENT;
+    // assert "="
+    ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    Expr* initializer = parser_parseExpr(parser, node);
+    let->initializer = initializer;
+    // assert initializer is not null
+    ASSERT(initializer != NULL, "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.", EXPAND_LEXEME);
+
+
+    // assert "in"
+    CURRENT;
+    ASSERT(lexeme.type == TOK_IN, "Line: %"PRIu16", Col: %"PRIu16" `in` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    // parse in expr
+    Expr* inExpr = parser_parseExpr(parser, node);
+    let->inExpr = inExpr;
+    // assert in expr is not null
+    ASSERT(inExpr != NULL, "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.", EXPAND_LEXEME);
+
+
+
+
+    return expr;
+}
+
+
+/*
+    TOK_STRING_VAL,            // string literal  (double quotes)
+    TOK_CHAR_VAL,              // single character (single quote)
+    TOK_INT,
+    TOK_BINARY_INT,         // 0b[01]+
+    TOK_OCT_INT,           // 0o[0-7]+
+    TOK_HEX_INT,           // 0x[0-9A-F]+
+    TOK_FLOAT,             //
+    TOK_DOUBLE,
+ */
+Expr* parser_parseLiteral(Parser* parser, ASTNode* node) {
+    Expr* expr = ast_expr_makeExpr(ET_LITERAL);
+    expr->literalExpr = ast_expr_makeLiteralExpr(0);
+    Lexeme lexeme = parser_peek(parser);
+    expr->literalExpr->value = strdup(lexeme.string);
+    switch(lexeme.type){
+        case TOK_STRING_VAL:
+            expr->literalExpr->type = LT_STRING;
+            break;
+        case TOK_CHAR_VAL:
+            expr->literalExpr->type = LT_CHARACTER;
+            break;
+        case TOK_INT:
+            expr->literalExpr->type = LT_INTEGER;
+            break;
+        case TOK_BINARY_INT:
+            expr->literalExpr->type = LT_BINARY_INT;
+            break;
+        case TOK_OCT_INT:
+            expr->literalExpr->type = LT_OCTAL_INT;
+            break;
+        case TOK_HEX_INT:
+            expr->literalExpr->type = LT_HEX_INT;
+            break;
+        case TOK_FLOAT:
+            expr->literalExpr->type = LT_FLOAT;
+            break;
+        case TOK_DOUBLE:
+            expr->literalExpr->type = LT_DOUBLE;
+            break;
+        case TOK_TRUE:
+            expr->literalExpr->type = LT_BOOLEAN;
+        default:
+            ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" `literal` expected but %s was found.", EXPAND_LEXEME);
+    }
+    return expr;
+}
 
 /*
  * Terminal parsers

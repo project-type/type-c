@@ -26,7 +26,7 @@ typedef enum {
     TOK_FROM,              // from
     TOK_FOR,               // for
     TOK_FOREACH,           // foreach
-    TOK_FN,          // fn
+    TOK_FN,                // fn
     TOK_IF,                // if
     TOK_IMPORT,            // import
     TOK_IN,                // in
@@ -60,7 +60,7 @@ typedef enum {
     TOK_SELF,              // self
     TOK_STATIC,            // static
     TOK_STRUCT,            // struct
-    TOK_MATCH,             // switch
+    TOK_MATCH,             // match
     TOK_TRUE,              // true
     TOK_TYPE,              // type
     TOK_VOID,              // void
