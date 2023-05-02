@@ -1,5 +1,7 @@
 
+let x: u8 = 8 in
+    let y: u32 = 32 in
+        "haha"
 
-
-let alpha: u32 = 0xff
-    in "unreachable"
+let alpha: u32 = 0xff in
+    "unreachable"

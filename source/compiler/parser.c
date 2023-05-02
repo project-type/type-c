@@ -1093,6 +1093,7 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node) {
     expr->literalExpr = ast_expr_makeLiteralExpr(0);
     Lexeme lexeme = parser_peek(parser);
     expr->literalExpr->value = strdup(lexeme.string);
+    ACCEPT;
     switch(lexeme.type){
         case TOK_STRING_VAL:
             expr->literalExpr->type = LT_STRING;
