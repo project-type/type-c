@@ -7,6 +7,7 @@ type-c
 The compiler is at 10% progress and features  might change.
 
 Planned Features:
+- Single pass compiler, fast quick and efficient
 - Static typing & Strong type inference engine
 - Anonymous functions and types. Type checking in based on structure rather than layout. 
 - Interface oriented programming (classes cannot extend classes, only implement behaviors)
@@ -15,6 +16,7 @@ Planned Features:
 - Generics
 - Built-in coroutines and async/await supports
 - Solid `ffi`, data structures designed to be easily used with C libraries
+
 
 ## Hello world
 ```
@@ -40,7 +42,7 @@ fn main() {
 
 ## FAQ:
 - What is `type-c`? A programming language.
-- Why? Because I can.
+- Why? Because I can. And because I want to.
 - What sets `type-c` apart? For now it doesn't exist. The goal is to design a language that is highly expressive, easy to use, and fast.
 - What is `type-v`? The VM that will run type-c.
 - Can I contribute? Ideas? Yes. Code? Probably not.
