@@ -1218,7 +1218,7 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope currentScope) 
             break;
         case TOK_INT:
             expr->literalExpr->type = LT_INTEGER;
-            // TODO maybe check the value?
+            // TODO maybe check the value to compute an accurate type ?
             expr->dataType->kind = DT_I32;
             break;
         case TOK_BINARY_INT:
