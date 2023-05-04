@@ -141,7 +141,7 @@ void skipSpaces(LexerState* lexerState) {
         return;
     }
 
-    while (getCurrentChar(lexerState) == ' ' || getCurrentChar(lexerState) == '\n' ) {
+    while (getCurrentChar(lexerState) == ' ' || getCurrentChar(lexerState) == '\t' || getCurrentChar(lexerState) == '\n' ) {
         seenSkippable = 1;
         incLexer(lexerState);
     }
@@ -590,6 +590,9 @@ Lexeme lexer_lexCurrent(LexerState* lex) {
         case '=': {
             if(match(lex, "==")) {
                 return makeLexemLineCol(TOK_EQUAL_EQUAL, NULL, line, col);
+            }
+            if(match(lex, "=>")) {
+                return makeLexemLineCol(TOK_CASE_EXPR, NULL, line, col);
             }
             incLexer(lex);
             return makeLexemLineCol(TOK_EQUAL, NULL, line, col);
