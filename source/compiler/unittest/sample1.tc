@@ -5,3 +5,11 @@ let x: u8 = 8 in
 
 let alpha: u32 = 0xff in
     "unreachable"
+
+let y: u32 = 1 in
+    match 1 {
+        1 => "one",
+        2 => "two",
+        3 => "three",
+        5 => "other"
+    }
