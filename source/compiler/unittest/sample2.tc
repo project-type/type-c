@@ -13,4 +13,4 @@ type Iterable = interface {
     fn get() -> Tree
 }
 
-let {t: Tree, matata: Operation} = 1, t2: Tree = 2 in 3
+let {t: Tree, matata: Operation} = 1, [t2: Tree, tt23: Tree?] = 2 in 3

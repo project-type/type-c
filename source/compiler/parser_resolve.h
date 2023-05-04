@@ -10,6 +10,6 @@
 #include "parser.h"
 #include "lexer.h"
 
-DataType*  parser_resolveType(Parser* parser, ASTNode* node, ASTScope currentScope, char* typeName);
+DataType*  resolver_resolveType(Parser* parser, ASTNode* node, ASTScope currentScope, char* typeName);
 
 #endif //TYPE_C_PARSER_RESOLVE_H

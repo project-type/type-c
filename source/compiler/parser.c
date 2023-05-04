@@ -477,7 +477,7 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
             printf("Type `%s` is resolved by itself\n", refType->refType->pkg->ids.data[0]);
         }
 
-        DataType* t = parser_resolveType(parser, node, currentScope, refType->refType->pkg->ids.data[0]);
+        DataType* t = resolver_resolveType(parser, node, currentScope, refType->refType->pkg->ids.data[0]);
         if(t != NULL) {
             printf("Type `%s` is resolved!\n", refType->refType->pkg->ids.data[0]);
         }
@@ -1201,6 +1201,8 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope
  */
 Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope currentScope) {
     Expr* expr = ast_expr_makeExpr(ET_LITERAL);
+    expr->dataType = ast_type_makeType();
+
     expr->literalExpr = ast_expr_makeLiteralExpr(0);
     Lexeme lexeme = parser_peek(parser);
     expr->literalExpr->value = strdup(lexeme.string);
@@ -1208,30 +1210,40 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope currentScope) 
     switch(lexeme.type){
         case TOK_STRING_VAL:
             expr->literalExpr->type = LT_STRING;
+            expr->dataType->kind = DT_STRING;
             break;
         case TOK_CHAR_VAL:
             expr->literalExpr->type = LT_CHARACTER;
+            expr->dataType->kind = DT_CHAR;
             break;
         case TOK_INT:
             expr->literalExpr->type = LT_INTEGER;
+            // TODO maybe check the value?
+            expr->dataType->kind = DT_I32;
             break;
         case TOK_BINARY_INT:
             expr->literalExpr->type = LT_BINARY_INT;
+            expr->dataType->kind = DT_U32;
             break;
         case TOK_OCT_INT:
             expr->literalExpr->type = LT_OCTAL_INT;
+            expr->dataType->kind = DT_U32;
             break;
         case TOK_HEX_INT:
             expr->literalExpr->type = LT_HEX_INT;
+            expr->dataType->kind = DT_U32;
             break;
         case TOK_FLOAT:
             expr->literalExpr->type = LT_FLOAT;
+            expr->dataType->kind = DT_F32;
             break;
         case TOK_DOUBLE:
             expr->literalExpr->type = LT_DOUBLE;
+            expr->dataType->kind = DT_F64;
             break;
         case TOK_TRUE:
             expr->literalExpr->type = LT_BOOLEAN;
+            expr->dataType->kind = DT_BOOL;
         default:
             ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" `literal` expected but %s was found.", EXPAND_LEXEME);
     }
