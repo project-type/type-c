@@ -51,38 +51,90 @@ void parser_reject(Parser* parser);
 ASTNode* parser_parse(Parser* parser);
 
 void parser_parseProgram(Parser* parser, ASTNode* node);
-void parser_parseFromStmt(Parser* parser, ASTNode* node);
-void parser_parseImportStmt(Parser* parser, ASTNode* node);
-void parser_parseTypeDecl(Parser* parser, ASTNode* node);
+void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope currentScope);
+void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope currentScope);
+void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope currentScope);
 
-DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
 
 // enums can't have templates and are final
-DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node);
-DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee);
-DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee);
+DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope currentScope);
+DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
+DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope);
 
-DataType* parser_parseTypeClass(Parser* parser, ASTNode* node);
+DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, ASTScope currentScope);
 
-void parser_parseTypeTemplate(Parser* parser, ASTNode* node, DataType* parentType);
+void parser_parseTypeTemplate(Parser* parser, ASTNode* node, DataType* parentType, ASTScope currentScope);
 
-void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentType, dtype_vec_t* extends);
-void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames);
-PackageID* parser_parsePackage(Parser* parser, ASTNode* node);
-FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node);
+void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentType, dtype_vec_t* extends, ASTScope currentScope);
+void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames, ASTScope currentScope);
+PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope currentScope);
+FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope currentScope);
 
+Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope currentScope);
 
-Expr* parser_parseExpr(Parser* parser, ASTNode* node);
-Expr* parser_parseLetExpr(Parser* parser, ASTNode* node);
-Expr* parser_parseLiteral(Parser* parser, ASTNode* node);
+// let x = y in z
+Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// match z {cases}
+Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// +=, -=, *=, /=
+Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// ||
+Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// &&
+Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// |
+Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// ^
+Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// &
+Expr* parser_parseOpBinAndOr(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// == !=
+Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// < > <= >=, is
+Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// << >>
+Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// + -
+Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// * / %
+Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// ++ -- ! new sizeof
+Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// >> <<
+Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// a.b, a[b], a(b)
+Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+// fn (args_list) -> return_type { body }
+// fn (args_list) { body }
+// fn (args_list) -> return_type = expr
+Expr* parser_parseOpLambda(Parser* parser, ASTNode* node, ASTScope currentScope);
+
+Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope currentScope);
 
 
 #endif //TYPE_C_PARSER_H

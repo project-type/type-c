@@ -8,7 +8,12 @@ let alpha: u32 = 0xff in
 
 let y: u32 = 1 in
     match 1 {
-        1 => "one",
+        1 => match 2 {
+            2 => "two",
+            3 => "three",
+            5 => "other",
+            7 => "unreachable"
+        },
         2 => "two",
         3 => "three",
         5 => "other"

@@ -1,0 +1,16 @@
+
+type Operation = enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}
+
+type Tree = variant {
+    Leaf(value: u32),
+    Binary(left: Tree, op: Operation, right: Tree),
+    Unary(op: Operation, unary: Tree)
+}
+
+type Iterable = interface {
+    fn get() -> Tree
+}
+
+let t: Tree = 1 in 2

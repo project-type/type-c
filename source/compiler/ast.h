@@ -28,6 +28,7 @@ struct ClassAttribute;
 struct StructAttribute;
 struct FnArgument;
 struct GenericParam;
+struct UnresolvedType;
 
 struct Expr;
 struct CaseExpr;
@@ -46,6 +47,7 @@ typedef map_t(struct VariantConstructor*) variantconstructor_map_t;
 
 typedef vec_t(struct GenericParam*) genericparam_vec_t;
 typedef vec_t(struct DataType*) dtype_vec_t;
+typedef vec_t(struct UnresolvedType) unresolvedtype_vec_t;
 
 /* Expressions */
 typedef vec_t(struct Expr*) expr_vec_t;
@@ -266,13 +268,19 @@ typedef struct ASTScope {
     dtype_map_t dataTypes;
     void* statements;
     void* externDeclarations;
-    void* expressions;
+    struct ASTScope* parentScope;
 } ASTScope;
 
-
+// this is used to store unresolved types, meaning types whose dependencies hasn't been
+// found yet. A program will only run after all dependencies are resolved.
+typedef struct UnresolvedType{
+    DataType* typeRef;
+    ASTScope scope;
+}UnresolvedType;
 
 typedef struct ASTProgramNode {
     import_stmt_vec importStatements;
+    unresolvedtype_vec_t unresolvedTypes;
 }ASTProgramNode;
 
 typedef struct ASTNode {
@@ -431,6 +439,7 @@ typedef struct LetExpr {
     fnargument_map_t variables;
     struct Expr *initializer;
     struct Expr *inExpr;
+    ASTScope scope;
 }LetExpr;
 LetExpr* ast_expr_makeLetExpr();
 
@@ -453,6 +462,7 @@ typedef enum ExpressionType {
 
 typedef struct Expr {
     ExpressionType type;
+    DataType* dataType;
     union {
         LiteralExpr* literalExpr;
         ElementExpr* elementExpr;

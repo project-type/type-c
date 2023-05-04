@@ -13,11 +13,13 @@ ASTNode * ast_makeProgramNode() {
     ASTProgramNode* program = malloc(sizeof(ASTProgramNode));
 
     vec_init(&program->importStatements);
+    vec_init(&program->unresolvedTypes);
 
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = AST_PROGRAM;
     node->programNode = program;
     map_init(&node->scope.dataTypes);
+    node->scope.parentScope = NULL;
 
     return node;
 }
@@ -586,6 +588,46 @@ char* ast_strigifyExpr(Expr* expr){
         str = realloc(str, strlen(str) + strlen(exprStr) + 1);
         strcat(str, exprStr);
     }
+    // match
+    else if (expr->type == ET_MATCH){
+        // we print match(<expr>:(condition1 => expr1, condition2 => expr2, ...))
+        MatchExpr * match = expr->matchExpr;
+        // prepare match(<expr>:(condition1 => expr1, condition2 => expr2, ...))
+        str[0] = '\0';
+        // add match
+        str = realloc(str, strlen(str) + strlen("match") + 1);
+        strcat(str, "match");
+        // followed by (
+        str = realloc(str, strlen(str) + strlen("(") + 1);
+        strcat(str, "(");
+        // iterate over the cases
+        int i; CaseExpr * matchCase;
+        vec_foreach(&match->cases, matchCase, i) {
+            // add the condition
+            char * conditionStr = ast_strigifyExpr(matchCase->condition);
+            str = realloc(str, strlen(str) + strlen(conditionStr) + 1);
+            strcat(str, conditionStr);
+            // followed by =>
+            str = realloc(str, strlen(str) + strlen("=>") + 1);
+            strcat(str, "=>");
+            // followed by the expression
+            char * exprStr = ast_strigifyExpr(matchCase->expr);
+            str = realloc(str, strlen(str) + strlen(exprStr) + 1);
+            strcat(str, exprStr);
+            // followed by ,
+            str = realloc(str, strlen(str) + strlen(",") + 1);
+            strcat(str, ",");
+        }
+        // replace last , with ) if length > 1
+        if(match->cases.length > 0){
+            str[strlen(str) - 1] = ')';
+        } else {
+            // if we didn't have cases, we just add )
+            str = realloc(str, strlen(str) + strlen(")") + 1);
+            strcat(str, ")");
+        }
+
+    }
     // literal
     else if (expr->type == ET_LITERAL){
         LiteralExpr * lit = expr->literalExpr;
@@ -864,6 +906,7 @@ LetExpr* ast_expr_makeLetExpr(){
     map_init(&let->variables);
     let->inExpr = NULL;
     let->initializer = NULL;
+
 
 
     return let;

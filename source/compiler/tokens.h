@@ -46,6 +46,7 @@ typedef enum {
     TOK_BOOLEAN,           // bool
     TOK_STRING,            // string
     TOK_CHAR,              // char
+    TOK_VEC,               // vec
 
     TOK_PTR,               // ptr
     TOK_NULLABLE,          // ?
@@ -81,6 +82,7 @@ typedef enum {
     TOK_LOGICAL_OR,        // ||
     TOK_LOGICAL_AND,       // &&
     TOK_NOT_EQUAL,         // !=
+    TOK_CASE_EXPR,         // =>
     TOK_DENULL,            // !!
     TOK_LESS,              // <
     TOK_LESS_EQUAL,        // <=
@@ -94,6 +96,7 @@ typedef enum {
     TOK_STAR_EQUAL,        // *=
     TOK_DIV,               // /
     TOK_DIV_EQUAL,         // /=
+
     TOK_PERCENT,           // %
     TOK_BITWISE_NOT,       // ~
     TOK_BITWISE_OR,        // |
