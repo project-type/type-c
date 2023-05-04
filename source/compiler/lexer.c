@@ -261,6 +261,7 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     if(match_keyword(lexerState, "bool")) return makeLexemLineCol(TOK_BOOLEAN, NULL, line, col);
     if(match_keyword(lexerState, "string")) return makeLexemLineCol(TOK_STRING, NULL, line, col);
     if(match_keyword(lexerState, "char")) return makeLexemLineCol(TOK_CHAR, NULL, line, col);
+    if(match_keyword(lexerState, "vec")) return makeLexemLineCol(TOK_VEC, NULL, line, col);
     if(match_keyword(lexerState, "let")) return makeLexemLineCol(TOK_LET, NULL, line, col);
     if(match_keyword(lexerState, "new")) return makeLexemLineCol(TOK_NEW, NULL, line, col);
     if(match_keyword(lexerState, "null")) return makeLexemLineCol(TOK_NULL, NULL, line, col);

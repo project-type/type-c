@@ -545,48 +545,55 @@ char* ast_strigifyExpr(Expr* expr){
         str = realloc(str, strlen(str) + strlen("(") + 1);
         strcat(str, "(");
         // followed by the arguments
-        int i; char * argName;
-        vec_foreach(&let->variableNames, argName, i) {
-            // add the name of the argument
-            str = realloc(str, strlen(str) + strlen(argName) + 1);
-            strcat(str, argName);
-            // followed by :
-            str = realloc(str, strlen(str) + strlen(":") + 1);
-            strcat(str, ":");
-            // followed by the type of the argument
-            // first get the argument type from the map
-            FnArgument ** argType = map_get(&let->variables, argName);
-            // then stringify it
-            char * argTypeStr = ast_stringifyType((*argType)->type);
-            // then add it to the string
-            str = realloc(str, strlen(str) + strlen(argTypeStr) + 1);
-            strcat(str, argTypeStr);
-            // followed by ,
-            str = realloc(str, strlen(str) + strlen(",") + 1);
-            strcat(str, ",");
+        int i; LetExprDecl * letDecl;
+        uint32_t counter = 0;
+        // each let contains multiple declarations
+        // each declaration declare one or many vars,
+        // when printing, we print them flat
+        // first iterate over the declarations
+        vec_foreach(&let->letList, letDecl, i) {
+            // iterate through the decl vars
+            int j; char * var;
+            vec_foreach(&letDecl->variableNames, var, j) {
+                counter++;
+                // get the variable var from the map
+                FnArgument ** varDecl = map_get(&letDecl->variables, var);
+                // print the variable name
+                str = realloc(str, strlen(str) + strlen(var) + 1);
+                strcat(str, var);
+                // followed by :
+                str = realloc(str, strlen(str) + strlen(":") + 1);
+                strcat(str, ":");
+                // followed by the type
+                char * varType = ast_stringifyType((*varDecl)->type);
+                str = realloc(str, strlen(str) + strlen(varType) + 1);
+                strcat(str, varType);
+                // followed by ,
+                str = realloc(str, strlen(str) + strlen(",") + 1);
+                strcat(str, ",");
+            }
         }
-        // replace last , with ) if length > 1
-        if(let->variableNames.length > 0){
+        // replace last , with ) if we had more than two vars previously
+        if(counter > 1){
             str[strlen(str) - 1] = ')';
         } else {
             // if we didn't have args, we just add )
             str = realloc(str, strlen(str) + strlen(")") + 1);
             strcat(str, ")");
         }
-        // followed by =
-        str = realloc(str, strlen(str) + strlen("=") + 1);
-        strcat(str, "=");
-        // followed by the expression
-        char * exprStr = ast_strigifyExpr(let->initializer);
-        str = realloc(str, strlen(str) + strlen(exprStr) + 1);
-        strcat(str, exprStr);
-        // followed by "in" <expr>
-        str = realloc(str, strlen(str) + strlen("in") + 1);
-        strcat(str, "in");
-        // followed by the expression
-        exprStr = ast_strigifyExpr(let->inExpr);
-        str = realloc(str, strlen(str) + strlen(exprStr) + 1);
-        strcat(str, exprStr);
+        // we print in { <expr> }
+        // add in {
+        str = realloc(str, strlen(str) + strlen(" in {") + 1);
+        strcat(str, " in {");
+        // add the expr
+        char * letExpr = ast_strigifyExpr(let->inExpr);
+        str = realloc(str, strlen(str) + strlen(letExpr) + 1);
+        strcat(str, letExpr);
+        // add in }
+        str = realloc(str, strlen(str) + strlen("}") + 1);
+        strcat(str, "}");
+
+
     }
     // match
     else if (expr->type == ET_MATCH){
@@ -899,17 +906,24 @@ MatchExpr* ast_expr_makeMatchExpr(struct Expr *expr) {
     return match;
 }
 
-LetExpr* ast_expr_makeLetExpr(){
+LetExpr* ast_expr_makeLetExpr(ASTScope* parentScope){
     ALLOC(let, LetExpr);
-    let->initializerType = LIT_NONE;
-    vec_init(&let->variableNames);
-    map_init(&let->variables);
+    vec_init(&let->letList);
     let->inExpr = NULL;
-    let->initializer = NULL;
-
+    vec_init(&let->scope.dataTypes);
 
 
     return let;
+}
+
+LetExprDecl* ast_expr_makeLetExprDecl(){
+    ALLOC(decls, LetExprDecl);
+    decls->initializerType = LIT_NONE;
+    vec_init(&decls->variableNames);
+    map_init(&decls->variables);
+    decls->initializer = NULL;
+
+    return decls;
 }
 
 LiteralExpr* ast_expr_makeLiteralExpr(LiteralType type){
@@ -924,6 +938,7 @@ Expr* ast_expr_makeExpr(ExpressionType type){
     ALLOC(expr, Expr);
     expr->type = type;
     expr->literalExpr = NULL;
+    expr->dataType = NULL;
 
     return expr;
 }

@@ -43,11 +43,10 @@ typedef enum {
     TOK_U64,               // u64
     TOK_F32,               // f32
     TOK_F64,               // f64
+    TOK_VEC,               // vec
     TOK_BOOLEAN,           // bool
     TOK_STRING,            // string
     TOK_CHAR,              // char
-    TOK_VEC,               // vec
-
     TOK_PTR,               // ptr
     TOK_NULLABLE,          // ?
 

@@ -29,6 +29,7 @@ struct StructAttribute;
 struct FnArgument;
 struct GenericParam;
 struct UnresolvedType;
+struct LetExprList;
 
 struct Expr;
 struct CaseExpr;
@@ -51,6 +52,7 @@ typedef vec_t(struct UnresolvedType) unresolvedtype_vec_t;
 
 /* Expressions */
 typedef vec_t(struct Expr*) expr_vec_t;
+typedef vec_t(struct LetExprList*) letexprlist_vec_t;
 typedef vec_t(struct CaseExpr*) caseexpr_vec_t;
 
 /**
@@ -432,12 +434,17 @@ typedef enum LetInitializerType {
     LIT_ARRAY_DECONSTRUCTION
 }LetInitializerType;
 
-// let x = 10 in x + 10
-typedef struct LetExpr {
+typedef struct LetExprDecl {
     LetInitializerType initializerType;
     vec_str_t variableNames;
     fnargument_map_t variables;
     struct Expr *initializer;
+}LetExprDecl;
+LetExprDecl* ast_expr_makeLetExprDecl();
+
+// let x = 10, y = 3 in x + 10
+typedef struct LetExpr {
+    letexprlist_vec_t letList;
     struct Expr *inExpr;
     ASTScope scope;
 }LetExpr;

@@ -1004,7 +1004,8 @@ Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
  */
 Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
     Expr * expr = ast_expr_makeExpr(ET_LET);
-    LetExpr* let = ast_expr_makeLetExpr();
+    LetExpr* let = ast_expr_makeLetExpr(currentScope);
+
     expr->letExpr = let;
     Lexeme CURRENT;
     // assert let
@@ -1012,72 +1013,111 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope) 
     ACCEPT;
 
     CURRENT;
+    uint8_t loop_over_expr = 1;
+    while(loop_over_expr) {
+        LetExprDecl* letDecl = ast_expr_makeLetExprDecl();
+        char *expect = NULL;
 
-    char* expect = NULL;
-
-    // check if we have id or { or [
-    if(lexeme.type == TOK_LBRACE){
-        expect = "]";
-        let->initializerType = LIT_ARRAY_DECONSTRUCTION;
-        ACCEPT;
-        CURRENT;
-    }
-    else if (lexeme.type == TOK_LBRACKET){
-        expect = "]";
-        let->initializerType = LIT_ARRAY_DECONSTRUCTION;
-        ACCEPT;
-        CURRENT;
-    }
-    else{
-        expect = NULL;
-        let->initializerType = LIT_NONE;
-    }
-
-    uint8_t loop = 1;
-    while(loop){
-        FnArgument* var = ast_type_makeFnArgument();
-        // check if we have a mut
-        if(lexeme.type == TOK_MUT){
-            var->isMutable = 0;
+        // check if we have id or { or [
+        if (lexeme.type == TOK_LBRACE) {
+            expect = "]";
+            letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
             ACCEPT;
             CURRENT;
+        } else if (lexeme.type == TOK_LBRACKET) {
+            expect = "]";
+            letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
+            ACCEPT;
+            CURRENT;
+        } else {
+            expect = NULL;
+            letDecl->initializerType = LIT_NONE;
         }
-        // assert ID
-        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
-        var->name = strdup(lexeme.string);
-        ACCEPT;
-        CURRENT;
-        // assert ":"
-        ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
-        ACCEPT;
-        // parse type
-        var->type = parser_parseTypePrimary(parser, node, NULL, currentScope);
-        // assert type is not null
-        ASSERT(var->type != NULL, "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.", EXPAND_LEXEME);
-        // add to args
-        map_set(&let->variables, var->name, var);
-        vec_push(&let->variableNames, var->name);
 
+        uint8_t loop = 1;
+        while (loop) {
+            FnArgument *var = ast_type_makeFnArgument();
+            // check if we have a mut
+            if (lexeme.type == TOK_MUT) {
+                var->isMutable = 0;
+                ACCEPT;
+                CURRENT;
+            }
+            // assert ID
+            ASSERT(lexeme.type == TOK_IDENTIFIER,
+                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+            var->name = strdup(lexeme.string);
+            ACCEPT;
+            CURRENT;
+            // assert ":"
+            ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
+                   EXPAND_LEXEME);
+            ACCEPT;
+            // parse type
+            var->type = parser_parseTypePrimary(parser, node, NULL, currentScope);
+            // assert type is not null
+            ASSERT(var->type != NULL,
+                   "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
+                   EXPAND_LEXEME);
+            // add to args
+            map_set(&letDecl->variables, var->name, var);
+            vec_push(&letDecl->variableNames, var->name);
+
+            // check if we have a comma
+            lexeme = parser_peek(parser);
+            if (lexeme.type == TOK_COMMA) {
+                ACCEPT;
+                CURRENT;
+            } else {
+                parser_reject(parser);
+                loop = 0;
+            }
+        }
+        // if we expected something earlier, we must find it closed now
+        if (expect != NULL){
+            CURRENT;
+            // if we expected "]", we must find "]"
+            if (expect[0] == '[') {
+                // assert "]"
+                ASSERT(lexeme.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            }
+            else if (expect[0] == '{'){
+                // assert "]"
+                ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            }
+        }
+
+        CURRENT;
+        // assert "="
+        ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.",
+               EXPAND_LEXEME);
+        ACCEPT;
+
+        Expr *initializer = parser_parseExpr(parser, node, currentScope);
+        letDecl->initializer = initializer;
+        // assert initializer is not null
+        ASSERT(initializer != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.",
+               EXPAND_LEXEME);
+        // add the decl to the let expr
+        vec_push(&let->letList, letDecl);
+
+        CURRENT;
         // check if we have a comma
-        lexeme = parser_peek(parser);
-        if(lexeme.type == TOK_COMMA) {
+        if (lexeme.type == TOK_COMMA) {
             ACCEPT;
             CURRENT;
-        }
-        else {
+        } else {
             parser_reject(parser);
-            loop = 0;
+            loop_over_expr = 0;
         }
     }
-    CURRENT;
-    // assert "="
-    ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.", EXPAND_LEXEME);
-    ACCEPT;
-
-    Expr* initializer = parser_parseExpr(parser, node, currentScope);
-    let->initializer = initializer;
-    // assert initializer is not null
-    ASSERT(initializer != NULL, "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.", EXPAND_LEXEME);
 
 
     // assert "in"
