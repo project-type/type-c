@@ -87,7 +87,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope);
 // match z {cases}
 Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope);
 
-// +=, -=, *=, /=
+// =, +=, -=, *=, /=
 Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope currentScope);
 
 // ||
@@ -103,7 +103,7 @@ Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope currentScope);
 Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope currentScope);
 
 // &
-Expr* parser_parseOpBinAndOr(Parser* parser, ASTNode* node, ASTScope currentScope);
+Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope currentScope);
 
 // == !=
 Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope currentScope);
@@ -120,20 +120,18 @@ Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope currentScope);
 // * / %
 Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope currentScope);
 
-// ++ -- ! new sizeof
+// * ++ -- ! new sizeof
 Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope);
 
-// >> <<
-Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope currentScope);
 
 // a.b, a[b], a(b)
 Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope currentScope);
 
 // fn (args_list) -> return_type { body }
 // fn (args_list) { body }
-// fn (args_list) -> return_type = expr
+// fn (args_list) -> return_type = uhs
 Expr* parser_parseOpLambda(Parser* parser, ASTNode* node, ASTScope currentScope);
-
+Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope currentScope);
 Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope currentScope);
 
 

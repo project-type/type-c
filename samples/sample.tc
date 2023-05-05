@@ -34,7 +34,7 @@ type Operation = enum {
 }
 
 type Node<T> = data {
-    BinaryNode(op: Operation, left: Node<T>, right: Node<T>),
+    BinaryNode(op: Operation, lhs: Node<T>, rhs: Node<T>),
     Unary(op: Operation, uhs: Node<T>),
     Leaf(value: T)
 }

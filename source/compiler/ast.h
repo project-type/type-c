@@ -301,7 +301,9 @@ typedef enum BinaryExprType {
     BET_MOD,
     BET_AND,
     BET_OR,
-    BET_XOR,
+    BET_BIT_XOR,
+    BET_BIT_AND,
+    BET_BIT_OR,
     BET_LSHIFT,
     BET_RSHIFT,
     BET_EQ,
@@ -319,6 +321,7 @@ typedef enum BinaryExprType {
 
 typedef enum UnaryExprType {
     UET_NOT,
+    UET_BIT_NOT,
     UET_NEG,
     UET_PRE_INC,
     UET_PRE_DEC,
@@ -326,6 +329,7 @@ typedef enum UnaryExprType {
     UET_POST_DEC,
     UET_DEREF,
     UET_ADDRESS_OF,
+    UET_DENULL,
     UET_CAST,
 }UnaryExprType;
 
@@ -358,15 +362,15 @@ ElementExpr* ast_expr_makeElementExpr(char* name);
 // x++
 typedef struct UnaryExpr {
     UnaryExprType type;
-    struct Expr *expr;
+    struct Expr *uhs;
 }UnaryExpr;
 UnaryExpr* ast_expr_makeUnaryExpr(UnaryExprType type, struct Expr *expr);
 
 // x + y
 typedef struct BinaryExpr {
     BinaryExprType type;
-    struct Expr *left;
-    struct Expr *right;
+    struct Expr *lhs;
+    struct Expr *rhs;
 }BinaryExpr;
 BinaryExpr* ast_expr_makeBinaryExpr(BinaryExprType type, struct Expr *left, struct Expr *right);
 

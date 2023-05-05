@@ -31,7 +31,7 @@ type Serializable2<T: Iterable, U> = interface(Sortable<T, String>) {
 
 type Tree = variant {
     Leaf(val: u32),
-    Binary(left: Tree, right: Tree),
+    Binary(lhs: Tree, rhs: Tree),
     Unary(child: Tree)
 }
 

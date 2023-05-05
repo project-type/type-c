@@ -222,7 +222,7 @@ char* ast_stringifyType(DataType* type){
             strcat(str, "{");
             int i;
             char *val;
-            // we stringify left and right DataTypes of the union
+            // we stringify lhs and rhs DataTypes of the union
             char *left = ast_stringifyType(type->unionType->left);
             char *right = ast_stringifyType(type->unionType->right);
             // we concatenate them separate by ","
@@ -246,7 +246,7 @@ char* ast_stringifyType(DataType* type){
             strcat(str, "{");
             int i;
             char *val;
-            // we stringify left and right DataTypes of the union
+            // we stringify lhs and rhs DataTypes of the union
             char *left = ast_stringifyType(type->joinType->left);
             char *right = ast_stringifyType(type->joinType->right);
             // we concatenate them separate by "&"
@@ -535,7 +535,7 @@ char* ast_strigifyExpr(Expr* expr){
     // check if its a let
     if(expr->type == ET_LET){
         LetExpr * let = expr->letExpr;
-        // prepare let(<id>":"<type>, <id2>":"<type2>, ...) "=" <expr>
+        // prepare let(<id>":"<type>, <id2>":"<type2>, ...) "=" <uhs>
 
         str[0] = '\0';
         // add let
@@ -581,11 +581,11 @@ char* ast_strigifyExpr(Expr* expr){
             str = realloc(str, strlen(str) + strlen(")") + 1);
             strcat(str, ")");
         }
-        // we print in { <expr> }
+        // we print in { <uhs> }
         // add in {
         str = realloc(str, strlen(str) + strlen(" in {") + 1);
         strcat(str, " in {");
-        // add the expr
+        // add the uhs
         char * letExpr = ast_strigifyExpr(let->inExpr);
         str = realloc(str, strlen(str) + strlen(letExpr) + 1);
         strcat(str, letExpr);
@@ -597,9 +597,9 @@ char* ast_strigifyExpr(Expr* expr){
     }
     // match
     else if (expr->type == ET_MATCH){
-        // we print match(<expr>:(condition1 => expr1, condition2 => expr2, ...))
+        // we print match(<uhs>:(condition1 => expr1, condition2 => expr2, ...))
         MatchExpr * match = expr->matchExpr;
-        // prepare match(<expr>:(condition1 => expr1, condition2 => expr2, ...))
+        // prepare match(<uhs>:(condition1 => expr1, condition2 => expr2, ...))
         str[0] = '\0';
         // add match
         str = realloc(str, strlen(str) + strlen("match") + 1);
@@ -827,7 +827,7 @@ ElementExpr* ast_expr_makeElementExpr(char* name){
 UnaryExpr* ast_expr_makeUnaryExpr(UnaryExprType type, struct Expr *expr){
     ALLOC(unary, UnaryExpr);
     unary->type = type;
-    unary->expr = expr;
+    unary->uhs = expr;
 
     return unary;
 }
@@ -835,8 +835,8 @@ UnaryExpr* ast_expr_makeUnaryExpr(UnaryExprType type, struct Expr *expr){
 BinaryExpr* ast_expr_makeBinaryExpr(BinaryExprType type, struct Expr *left, struct Expr *right){
     ALLOC(binary, BinaryExpr);
     binary->type = type;
-    binary->left = left;
-    binary->right = right;
+    binary->lhs = left;
+    binary->rhs = right;
 
     return binary;
 }

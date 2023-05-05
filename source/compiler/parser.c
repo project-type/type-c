@@ -980,167 +980,162 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope currentScope
 /** Expressions **/
 Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
     Lexeme CURRENT;
-    Expr* expr = NULL;
-    if(lexeme.type == TOK_LET) {
-        parser_reject(parser);
-        expr = parser_parseLetExpr(parser, node, currentScope);
-    }
-    else if(lexeme.type == TOK_MATCH) {
-        parser_reject(parser);
-        expr = parser_parseMatchExpr(parser, node, currentScope);
-    }
-    else {
-        parser_reject(parser);
-        expr = parser_parseLiteral(parser, node, currentScope);
-    }
 
-    return expr;
+    return parser_parseLetExpr(parser, node, currentScope);
 }
 
 /*
- * let <id> (":" <type>)? "=" <expr> "in" <expr>
- * let "{"<id> (":" <type>)? (<id> (":" <type>)?)*"}" "=" <expr> "in" <expr>
- * let "["<id> (":" <type>)? (<id> (":" <type>)?)*"]" "=" <expr> "in" <expr>
+ * let <id> (":" <type>)? "=" <uhs> "in" <uhs>
+ * let "{"<id> (":" <type>)? (<id> (":" <type>)?)*"}" "=" <uhs> "in" <uhs>
+ * let "["<id> (":" <type>)? (<id> (":" <type>)?)*"]" "=" <uhs> "in" <uhs>
  */
 Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
-    Expr * expr = ast_expr_makeExpr(ET_LET);
-    LetExpr* let = ast_expr_makeLetExpr(currentScope);
-
-    expr->letExpr = let;
     Lexeme CURRENT;
-    // assert let
-    ASSERT(lexeme.type == TOK_LET, "Line: %"PRIu16", Col: %"PRIu16" `let` expected but %s was found.", EXPAND_LEXEME);
-    ACCEPT;
+    if(lexeme.type == TOK_LET)
+    {
+        Expr *expr = ast_expr_makeExpr(ET_LET);
+        LetExpr *let = ast_expr_makeLetExpr(currentScope);
 
-    CURRENT;
-    uint8_t loop_over_expr = 1;
-    while(loop_over_expr) {
-        LetExprDecl* letDecl = ast_expr_makeLetExprDecl();
-        char *expect = NULL;
+        expr->letExpr = let;
+        Lexeme CURRENT;
+        // assert let
+        ASSERT(lexeme.type == TOK_LET, "Line: %"PRIu16", Col: %"PRIu16" `let` expected but %s was found.",
+               EXPAND_LEXEME);
+        ACCEPT;
 
-        // check if we have id or { or [
-        if (lexeme.type == TOK_LBRACE) {
-            expect = "]";
-            letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
-            ACCEPT;
-            CURRENT;
-        } else if (lexeme.type == TOK_LBRACKET) {
-            expect = "]";
-            letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
-            ACCEPT;
-            CURRENT;
-        } else {
-            expect = NULL;
-            letDecl->initializerType = LIT_NONE;
-        }
+        CURRENT;
+        uint8_t loop_over_expr = 1;
+        while (loop_over_expr) {
+            LetExprDecl *letDecl = ast_expr_makeLetExprDecl();
+            char *expect = NULL;
 
-        uint8_t loop = 1;
-        while (loop) {
-            FnArgument *var = ast_type_makeFnArgument();
-            // check if we have a mut
-            if (lexeme.type == TOK_MUT) {
-                var->isMutable = 0;
+            // check if we have id or { or [
+            if (lexeme.type == TOK_LBRACE) {
+                expect = "]";
+                letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
                 ACCEPT;
                 CURRENT;
+            } else if (lexeme.type == TOK_LBRACKET) {
+                expect = "]";
+                letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
+                ACCEPT;
+                CURRENT;
+            } else {
+                expect = NULL;
+                letDecl->initializerType = LIT_NONE;
             }
-            // assert ID
-            ASSERT(lexeme.type == TOK_IDENTIFIER,
-                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
-            var->name = strdup(lexeme.string);
-            ACCEPT;
-            CURRENT;
-            // assert ":"
-            ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
-                   EXPAND_LEXEME);
-            ACCEPT;
-            // parse type
-            var->type = parser_parseTypePrimary(parser, node, NULL, currentScope);
-            // assert type is not null
-            ASSERT(var->type != NULL,
-                   "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
-                   EXPAND_LEXEME);
-            // add to args
-            map_set(&letDecl->variables, var->name, var);
-            vec_push(&letDecl->variableNames, var->name);
 
+            uint8_t loop = 1;
+            while (loop) {
+                FnArgument *var = ast_type_makeFnArgument();
+                // check if we have a mut
+                if (lexeme.type == TOK_MUT) {
+                    var->isMutable = 0;
+                    ACCEPT;
+                    CURRENT;
+                }
+                // assert ID
+                ASSERT(lexeme.type == TOK_IDENTIFIER,
+                       "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+                var->name = strdup(lexeme.string);
+                ACCEPT;
+                CURRENT;
+                // assert ":"
+                ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                // parse type
+                var->type = parser_parseTypePrimary(parser, node, NULL, currentScope);
+                // assert type is not null
+                ASSERT(var->type != NULL,
+                       "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
+                       EXPAND_LEXEME);
+                // add to args
+                map_set(&letDecl->variables, var->name, var);
+                vec_push(&letDecl->variableNames, var->name);
+
+                // check if we have a comma
+                lexeme = parser_peek(parser);
+                if (lexeme.type == TOK_COMMA) {
+                    ACCEPT;
+                    CURRENT;
+                } else {
+                    parser_reject(parser);
+                    loop = 0;
+                }
+            }
+            // if we expected something earlier, we must find it closed now
+            if (expect != NULL) {
+                CURRENT;
+                // if we expected "]", we must find "]"
+                if (expect[0] == '[') {
+                    // assert "]"
+                    ASSERT(lexeme.type == TOK_RBRACKET,
+                           "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
+                           EXPAND_LEXEME);
+                    ACCEPT;
+                    CURRENT;
+                } else if (expect[0] == '{') {
+                    // assert "]"
+                    ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
+                           EXPAND_LEXEME);
+                    ACCEPT;
+                    CURRENT;
+                }
+            }
+
+            CURRENT;
+            // assert "="
+            ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.",
+                   EXPAND_LEXEME);
+            ACCEPT;
+
+            Expr *initializer = parser_parseExpr(parser, node, currentScope);
+            letDecl->initializer = initializer;
+            // assert initializer is not null
+            ASSERT(initializer != NULL,
+                   "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.",
+                   EXPAND_LEXEME);
+            // add the decl to the let uhs
+            vec_push(&let->letList, letDecl);
+
+            CURRENT;
             // check if we have a comma
-            lexeme = parser_peek(parser);
             if (lexeme.type == TOK_COMMA) {
                 ACCEPT;
                 CURRENT;
             } else {
                 parser_reject(parser);
-                loop = 0;
-            }
-        }
-        // if we expected something earlier, we must find it closed now
-        if (expect != NULL){
-            CURRENT;
-            // if we expected "]", we must find "]"
-            if (expect[0] == '[') {
-                // assert "]"
-                ASSERT(lexeme.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
-                       EXPAND_LEXEME);
-                ACCEPT;
-                CURRENT;
-            }
-            else if (expect[0] == '{'){
-                // assert "]"
-                ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
-                       EXPAND_LEXEME);
-                ACCEPT;
-                CURRENT;
+                loop_over_expr = 0;
             }
         }
 
+
+        // assert "in"
         CURRENT;
-        // assert "="
-        ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.",
-               EXPAND_LEXEME);
+        ASSERT(lexeme.type == TOK_IN, "Line: %"PRIu16", Col: %"PRIu16" `in` expected but %s was found.", EXPAND_LEXEME);
         ACCEPT;
 
-        Expr *initializer = parser_parseExpr(parser, node, currentScope);
-        letDecl->initializer = initializer;
-        // assert initializer is not null
-        ASSERT(initializer != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.",
+        // parse in uhs
+        Expr *inExpr = parser_parseExpr(parser, node, currentScope);
+        let->inExpr = inExpr;
+        // assert in uhs is not null
+        ASSERT(inExpr != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.",
                EXPAND_LEXEME);
-        // add the decl to the let expr
-        vec_push(&let->letList, letDecl);
 
-        CURRENT;
-        // check if we have a comma
-        if (lexeme.type == TOK_COMMA) {
-            ACCEPT;
-            CURRENT;
-        } else {
-            parser_reject(parser);
-            loop_over_expr = 0;
-        }
+        return expr;
     }
-
-
-    // assert "in"
-    CURRENT;
-    ASSERT(lexeme.type == TOK_IN, "Line: %"PRIu16", Col: %"PRIu16" `in` expected but %s was found.", EXPAND_LEXEME);
-    ACCEPT;
-
-    // parse in expr
-    Expr* inExpr = parser_parseExpr(parser, node, currentScope);
-    let->inExpr = inExpr;
-    // assert in expr is not null
-    ASSERT(inExpr != NULL, "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.", EXPAND_LEXEME);
-
-    return expr;
+    parser_reject(parser);
+    return parser_parseMatchExpr(parser, node, currentScope);
 }
 
-// "match" expr "{" <cases> "}"
+// "match" uhs "{" <cases> "}"
 Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope){
     Lexeme CURRENT;
     if(lexeme.type != TOK_MATCH) {
-        //parser_reject(parser);
-        //return parser_parseOpAssign(parser, node);
-        ASSERT(1==0, "WRONG");
+        parser_reject(parser);
+        return parser_parseOpAssign(parser, node, currentScope);
     }
 
     ACCEPT;
@@ -1158,7 +1153,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope
 
         Expr* condition = parser_parseExpr(parser, node, currentScope);
         // assert condition is not null
-        ASSERT(condition != NULL, "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.", EXPAND_LEXEME);
+        ASSERT(condition != NULL, "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.", EXPAND_LEXEME);
 
         CURRENT;
         // assert "=>"
@@ -1166,7 +1161,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope
         ACCEPT;
         Expr* result = parser_parseExpr(parser, node, currentScope);
         // assert result is not null
-        ASSERT(result != NULL, "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.", EXPAND_LEXEME);
+        ASSERT(result != NULL, "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.", EXPAND_LEXEME);
         CaseExpr* case_ = ast_expr_makeCaseExpr(condition, result);
 
         CURRENT;
@@ -1186,7 +1181,367 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope
     return expr;
 }
 
+Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope currentScope){
+    Expr* lhs = parser_parseOpOr(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(
+            lexeme.type == TOK_EQUAL ||
+            lexeme.type == TOK_PLUS_EQUAL ||
+            lexeme.type == TOK_MINUS_EQUAL ||
+            lexeme.type == TOK_STAR_EQUAL ||
+            lexeme.type == TOK_DIV_EQUAL
+    ) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_ASSIGN, NULL, NULL);
 
+        if(lexeme.type == TOK_EQUAL)
+            binaryExpr->binaryExpr->type = BET_ASSIGN;
+        else if(lexeme.type == TOK_PLUS_EQUAL)
+            binaryExpr->binaryExpr->type = BET_ADD_ASSIGN;
+        else if(lexeme.type == TOK_MINUS_EQUAL)
+            binaryExpr->binaryExpr->type = BET_SUB_ASSIGN;
+        else if(lexeme.type == TOK_STAR_EQUAL)
+            binaryExpr->binaryExpr->type = BET_MUL_ASSIGN;
+        else if(lexeme.type == TOK_DIV_EQUAL)
+            binaryExpr->binaryExpr->type = BET_DIV_ASSIGN;
+        else
+            // assert 0==1
+            ASSERT(0==1, "Line: %"PRIu16", Col: %"PRIu16" This is a parser error", EXPAND_LEXEME);
+
+
+        Expr* rhs = parser_parseOpAssign(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope currentScope) {
+    Expr* lhs = parser_parseOpAnd(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_LOGICAL_OR) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_OR, NULL, NULL);
+
+        Expr* rhs = parser_parseOpOr(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope currentScope){
+    Expr* lhs = parser_parseOpBinOr(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_LOGICAL_AND) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_AND, NULL, NULL);
+
+        Expr* rhs = parser_parseOpAnd(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope currentScope){
+    Expr* lhs = parser_parseOpBinXor(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_BITWISE_OR) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_BIT_OR, NULL, NULL);
+
+        Expr* rhs = parser_parseOpBinOr(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope currentScope){
+    Expr* lhs =  parser_parseOpBinAnd(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_BITWISE_XOR) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr =ast_expr_makeBinaryExpr(BET_BIT_XOR, NULL, NULL);
+
+        Expr* rhs = parser_parseOpBinXor(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope currentScope){
+    Expr* lhs = parser_parseOpEq(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_BITWISE_AND) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_BIT_AND, NULL, NULL);
+
+        Expr* rhs = parser_parseOpBinAnd(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope currentScope){
+    Expr* lhs = parser_parseOpCompare(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_EQUAL_EQUAL || lexeme.type == TOK_NOT_EQUAL) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_EQUAL_EQUAL?BET_EQ:BET_NEQ, NULL, NULL);
+
+        Expr* rhs = parser_parseOpEq(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope currentScope) {
+    Expr* lhs = parser_parseOpShift(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_LESS || lexeme.type == TOK_GREATER ||
+    lexeme.type == TOK_LESS_EQUAL || lexeme.type == TOK_GREATER_EQUAL) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_LT, NULL, NULL);
+
+        if(lexeme.type == TOK_GREATER)
+            binaryExpr->binaryExpr->type = BET_GT;
+        else if(lexeme.type == TOK_LESS_EQUAL)
+            binaryExpr->binaryExpr->type = BET_LTE;
+        else if(lexeme.type == TOK_GREATER_EQUAL)
+            binaryExpr->binaryExpr->type = BET_GTE;
+
+
+        Expr* rhs = parser_parseOpCompare(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    else if (lexeme.type == TOK_IS) {
+        // TODO parse type
+        ASSERT(1==0, "`is` operation is not yet implemented");
+        return NULL;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope currentScope) {
+    Expr* lhs = parser_parseAdd(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_RIGHT_SHIFT || lexeme.type == TOK_LEFT_SHIFT) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_RIGHT_SHIFT?BET_RSHIFT:BET_LSHIFT, NULL, NULL);
+
+        Expr* rhs = parser_parseOpShift(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope currentScope){
+    Expr* lhs = parser_parseOpMult(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_PLUS || lexeme.type == TOK_MINUS) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_PLUS?BET_ADD:BET_SUB, NULL, NULL);
+
+        Expr* rhs = parser_parseAdd(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope currentScope) {
+    Expr* lhs = parser_parseOpUnary(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_STAR || lexeme.type == TOK_DIV || lexeme.type == TOK_PERCENT) {
+        ACCEPT;
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_STAR?BET_MUL:BET_DIV, NULL, NULL);
+        if(lexeme.type == TOK_PERCENT)
+            binaryExpr->binaryExpr->type = BET_MOD;
+
+        Expr* rhs = parser_parseOpMult(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+
+        // Todo: compute data type
+        //binaryExpr->dataType
+
+        return binaryExpr;
+    }
+
+    parser_reject(parser);
+    return lhs;
+}
+
+Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope) {
+    // check if we have prefix op
+    Lexeme CURRENT;
+    if (lexeme.type == TOK_STAR || lexeme.type == TOK_MINUS || lexeme.type == TOK_BITWISE_NOT ||
+        lexeme.type == TOK_NOT || lexeme.type == TOK_INCREMENT || lexeme.type == TOK_DECREMENT ||
+        lexeme.type == TOK_DENULL || lexeme.type == TOK_BITWISE_AND) {
+        ACCEPT;
+        Expr *unaryExpr = ast_expr_makeExpr(ET_UNARY);
+
+        unaryExpr->unaryExpr = ast_expr_makeUnaryExpr(UET_DEREF, NULL);
+        if(lexeme.type == TOK_MINUS)
+            unaryExpr->unaryExpr->type = UET_NEG;
+        else if(lexeme.type == TOK_BITWISE_NOT)
+            unaryExpr->unaryExpr->type = UET_BIT_NOT;
+        else if(lexeme.type == TOK_NOT)
+            unaryExpr->unaryExpr->type = UET_NOT;
+        else if(lexeme.type == TOK_INCREMENT)
+            unaryExpr->unaryExpr->type = UET_PRE_INC;
+        else if(lexeme.type == TOK_DECREMENT)
+            unaryExpr->unaryExpr->type = UET_PRE_DEC;
+        else if(lexeme.type == TOK_DENULL)
+            unaryExpr->unaryExpr->type = UET_DENULL;
+        else if(lexeme.type == TOK_BITWISE_AND)
+            unaryExpr->unaryExpr->type = UET_ADDRESS_OF;
+
+        Expr *uhs = parser_parseOpUnary(parser, node, currentScope);
+        unaryExpr->unaryExpr->uhs = uhs;
+
+        return unaryExpr;
+    }
+    else if (lexeme.type == TOK_NEW) {
+        // throw not implemented
+        ASSERT(1==0, "`new` operation is not yet implemented");
+    }
+
+    parser_reject(parser);
+    Expr* uhs = parser_parseOpPointer(parser, node, currentScope);
+    Expr *unaryExpr = ast_expr_makeExpr(ET_UNARY);
+    CURRENT;
+
+    if(lexeme.type == TOK_INCREMENT || lexeme.type == TOK_DECREMENT) {
+        ACCEPT;
+        unaryExpr->unaryExpr = ast_expr_makeUnaryExpr(lexeme.type == TOK_INCREMENT?UET_POST_INC:UET_POST_DEC, NULL);
+        unaryExpr->unaryExpr->uhs = uhs;
+
+        return unaryExpr;
+    }
+
+    if (lexeme.type == TOK_TYPE_CONVERSION) {
+        ACCEPT;
+        // TODO parse type
+        ASSERT(1==0, "`type conversion` operation is not yet implemented");
+        return NULL;
+    }
+
+    parser_reject(parser);
+    return uhs;
+}
+
+Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope currentScope){
+
+    Expr* lhs = parser_parseOpValue(parser, node, currentScope);
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_DOT) {
+        ACCEPT;
+        /*
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_DOT, NULL, NULL);
+
+        Expr* rhs = parser_parseOpPointer(parser, node, currentScope);
+        binaryExpr->binaryExpr->lhs = lhs;
+        binaryExpr->binaryExpr->rhs = rhs;
+         */
+
+    }
+
+    return parser_parseLiteral(parser, node, currentScope);
+}
+
+Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope currentScope) {
+    return parser_parseLiteral(parser, node, currentScope);
+}
 
 
 /*

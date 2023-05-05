@@ -77,7 +77,7 @@ MU_TEST(test_type_declaration_1){
     char* operation_null_dt = "?union{array[enum{ADD,SUB,MUL,DIV,ABS,LOG,EXP,NEG},22],?u32}";
     char* userinfo_dt = "array[ref(T)<u32>,255]";
     char* user_dt = "struct{name:string,age:u32,data:union{ref(std.ArrayBuffer),array[ref(std.BinaryBuffer)<ref(String)>,512]}}";
-    char* tree_dt = "variant{Leaf(val:u32),Binary(left:ref(Tree),right:ref(Tree)),Unary(child:ref(Tree))}";
+    char* tree_dt = "variant{Leaf(val:u32),Binary(lhs:ref(Tree),rhs:ref(Tree)),Unary(child:ref(Tree))}";
     char* serializable_dt = "interface{serialize)->array[u8,0],append(data:array[u8,0]),duplicate(data:ref(Serializable)<array[array[ref(Serializable)<u32>,0],0]>)->ref(Serializable)<u32>}";
     char* serializable2_dt = "interface:(ref(Sortable)<T,ref(String)>){Serialize)->array[ref(T),0],Deserialize(data:array[ref(T),0])}";
     char* fn_dt = "fn(x:ref(T),y:ref(T))->struct{x:ref(T),y:array[ref(T),0]}";
