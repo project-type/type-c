@@ -81,10 +81,11 @@ Reach out:
 
 ## Third party libraries:
 
-| Library | Usage | Source | Link | License |
-| :---: | :---: | :---: | :---: |:---:|
-| `vec` | Dynamic array | `src/vec.h` | [Link](https://github.com/rxi/vec)| MIT |
-| `map` | Hash map | `src/map.h` | [Link](https://github.com/rxi/map) | MIT |
-| `minunit` | Unit testing | `src/minunit.h` | [Link](https://github.com/siu/minunit) | MIT |
+|  Library  |     Usage     |        Source         | Link | License |
+|:---------:|:-------------:|:---------------------:| :---: |:-------:|
+|   `vec`   | Dynamic array |   `src/utils/vec.h`   | [Link](https://github.com/rxi/vec)|   MIT   |
+|   `map`   |   Hash map    |   `src/utils/map.h`   | [Link](https://github.com/rxi/map) |   MIT   |
+| `minunit` | Unit testing  | `src/utils/minunit.h` | [Link](https://github.com/siu/minunit) |   MIT   |
+|   `sds`   |    String     |   `src/utils/sds.h`   | [Link](https://github.com/antirez/sds) |   BSD   |
 
 
