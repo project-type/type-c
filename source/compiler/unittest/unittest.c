@@ -86,50 +86,50 @@ MU_TEST(test_type_declaration_1){
     char* ptr2_dt = "ptr<?struct{x:ref(T),y:ref(T)}>";
 
     // make sure we have 9 type declarations
-    mu_assert_int_eq(11, node->scope.dataTypes.base.nnodes);
+    mu_assert_int_eq(11, node->scope->dataTypes.base.nnodes);
 
     // extract the type called arr and make sure ist not null
-    DataType ** arr = map_get(&node->scope.dataTypes, "arr");
+    DataType ** arr = map_get(&node->scope->dataTypes, "arr");
     mu_assert(arr != NULL, "arr is null");
     mu_assert_string_eq(arr_dt, ast_stringifyType((*arr)->refType->ref));
 
-    DataType ** Operation = map_get(&node->scope.dataTypes, "Operation");
+    DataType ** Operation = map_get(&node->scope->dataTypes, "Operation");
     mu_assert(Operation != NULL, "Operation is null");
     mu_assert_string_eq(operation_dt, ast_stringifyType((*Operation)->refType->ref));
 
-    DataType ** OperationNullable = map_get(&node->scope.dataTypes, "OperationNullable");
+    DataType ** OperationNullable = map_get(&node->scope->dataTypes, "OperationNullable");
     mu_assert(OperationNullable != NULL, "OperationNullable is null");
     mu_assert_string_eq(operation_null_dt, ast_stringifyType((*OperationNullable)->refType->ref));
 
-    DataType ** UserInfo = map_get(&node->scope.dataTypes, "UserInfo");
+    DataType ** UserInfo = map_get(&node->scope->dataTypes, "UserInfo");
     mu_assert(UserInfo != NULL, "UserInfo is null");
     mu_assert_string_eq(userinfo_dt, ast_stringifyType((*UserInfo)->refType->ref));
 
-    DataType ** user = map_get(&node->scope.dataTypes, "User");
+    DataType ** user = map_get(&node->scope->dataTypes, "User");
     mu_assert(user != NULL, "User is null");
     mu_assert_string_eq(user_dt, ast_stringifyType((*user)->refType->ref));
 
-    DataType ** Tree = map_get(&node->scope.dataTypes, "Tree");
+    DataType ** Tree = map_get(&node->scope->dataTypes, "Tree");
     mu_assert(Tree != NULL, "Tree is null");
     mu_assert_string_eq(tree_dt, ast_stringifyType((*Tree)->refType->ref));
 
-    DataType ** Serializable = map_get(&node->scope.dataTypes, "Serializable");
+    DataType ** Serializable = map_get(&node->scope->dataTypes, "Serializable");
     mu_assert(Serializable != NULL, "Serializable is null");
     mu_assert_string_eq(serializable_dt, ast_stringifyType((*Serializable)->refType->ref));
 
-    DataType ** Serializable2 = map_get(&node->scope.dataTypes, "Serializable2");
+    DataType ** Serializable2 = map_get(&node->scope->dataTypes, "Serializable2");
     mu_assert(Serializable2 != NULL, "Serializable2 is null");
     mu_assert_string_eq(serializable2_dt, ast_stringifyType((*Serializable2)->refType->ref));
 
-    DataType ** Callable = map_get(&node->scope.dataTypes, "Callable");
+    DataType ** Callable = map_get(&node->scope->dataTypes, "Callable");
     mu_assert(Serializable2 != NULL, "Callable is null");
     mu_assert_string_eq(fn_dt, ast_stringifyType((*Callable)->refType->ref));
 
-    DataType ** Pointer = map_get(&node->scope.dataTypes, "Pointer");
+    DataType ** Pointer = map_get(&node->scope->dataTypes, "Pointer");
     mu_assert(Pointer != NULL, "Pointer is null");
     mu_assert_string_eq(ptr1_dt, ast_stringifyType((*Pointer)->refType->ref));
 
-    DataType ** Pointer2 = map_get(&node->scope.dataTypes, "Pointer2");
+    DataType ** Pointer2 = map_get(&node->scope->dataTypes, "Pointer2");
     mu_assert(Pointer2 != NULL, "Pointer2 is null");
     mu_assert_string_eq(ptr2_dt, ast_stringifyType((*Pointer2)->refType->ref));
 

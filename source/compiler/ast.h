@@ -273,12 +273,13 @@ typedef struct ASTScope {
     void* externDeclarations;
     struct ASTScope* parentScope;
 } ASTScope;
+ASTScope * ast_scope_makeScope(ASTScope* parentScope);
 
 // this is used to store unresolved types, meaning types whose dependencies hasn't been
 // found yet. A program will only run after all dependencies are resolved.
 typedef struct UnresolvedType{
     DataType* typeRef;
-    ASTScope scope;
+    ASTScope* scope;
 }UnresolvedType;
 
 typedef struct ASTProgramNode {
@@ -287,7 +288,7 @@ typedef struct ASTProgramNode {
 }ASTProgramNode;
 
 typedef struct ASTNode {
-    ASTScope scope;
+    ASTScope* scope;
     ASTNodeType type;
     union {
         ASTProgramNode* programNode;
@@ -456,7 +457,7 @@ LetExprDecl* ast_expr_makeLetExprDecl();
 typedef struct LetExpr {
     letexprlist_vec_t letList;
     struct Expr *inExpr;
-    ASTScope scope;
+    ASTScope* scope;
 }LetExpr;
 LetExpr* ast_expr_makeLetExpr(ASTScope* parentScope);
 
@@ -479,6 +480,23 @@ typedef struct UnnamedStructConstructionExpr {
 }UnnamedStructConstructionExpr;
 UnnamedStructConstructionExpr * ast_expr_makeUnnamedStructConstructionExpr();
 
+typedef enum FnBodyType {
+    FBT_EXPR,
+    FBT_BLOCK
+}FnBodyType;
+
+typedef struct LambdaExpr {
+    FnHeader * header;
+
+    ASTScope* scope;
+    FnBodyType bodyType;
+    union {
+        struct Expr *expr;
+        struct Block *block;
+    };
+}LambdaExpr;
+LambdaExpr* ast_expr_makeLambdaExpr(ASTScope* parentScope);
+
 typedef enum ExpressionType {
     ET_LITERAL,
     ET_ELEMENT,
@@ -496,6 +514,7 @@ typedef enum ExpressionType {
     ET_IF_ELSE,
     ET_MATCH,
     ET_LET,
+    ET_LAMBDA
 }ExpressionType;
 
 
@@ -519,16 +538,14 @@ typedef struct Expr {
         BinaryExpr* binaryExpr;
         IfElseExpr* ifElseExpr;
         MatchExpr* matchExpr;
+        LambdaExpr* lambdaExpr;
     };
 }Expr;
 Expr* ast_expr_makeExpr(ExpressionType type);
 
-
 typedef struct ExprStatement {
     void* expr;
 }ExprStatement;
-
-
 
 typedef enum StatmentType {
     ST_EXPR,
@@ -579,6 +596,9 @@ typedef struct Statement {
     };
 }Statement;
 
+typedef struct Block {
+    ASTScope* scope;
+}Block;
 
 ASTNode * ast_makeProgramNode();
 PackageID* ast_makePackageID();

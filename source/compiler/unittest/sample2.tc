@@ -1,13 +1,2 @@
 
-
-
-let
-    {t: Tree, matata: Operation} = {x: "hot", y: [1, 2, 3, "four"]},
-    [t2: Tree, tt23: Tree?] = 2 in
-        x*2*4 / x.y.z + new Tree[][](1, 2, 3, 4, 5, 6, 7, 8, 9, 10) + t2 + tt23
-
-let z: u32 = {name: "Soulaymen", age: 30} in
-    new Array<u32>()
-
-let y: u32 = {name: "Soulaymen", age: 30} in
-    new Array<u32>(new X(), new Y(), new Z())
+let F: fn(x: u32, y: u32) -> u32 = fn<T>(x: T, y: u32) -> u32 = x + y in z * 2 in true

@@ -120,7 +120,7 @@ We need to generate functions to parse each of the following:
                  | <reference_type>
 
 */
-void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope currentScope) {
+void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     DataType * type = ast_type_makeType();
     type->kind = DT_REFERENCE;
     ACCEPT;
@@ -193,11 +193,11 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope currentScope) 
     type->refType->ref = type_def;
     printf("%s\n", ast_stringifyType(type_def));
 
-    map_set(&node->scope.dataTypes, type->name, type);
+    map_set(&node->scope->dataTypes, type->name, type);
 }
 
 // <union_type> ::= <intersection_type> ( "|" <union_type> )*
-DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     // must parse union type
     DataType* type = parser_parseTypeIntersection(parser, node, parentReferee, currentScope);
     // check if we have intersection
@@ -225,7 +225,7 @@ DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentR
 }
 
 // <intersection_type> ::= <group_type> ( "&" <group_type> )*
-DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope){
+DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
     // must parse group type
     DataType* type = parser_parseTypeArray(parser, node, parentReferee, currentScope);
     // check if we have intersection
@@ -250,7 +250,7 @@ DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* 
 }
 
 // <group_type> ::= <primary_type>  | "(" <union_type> ")" "?"?
-DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     // check if we have group first
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_LPAREN) {
@@ -280,7 +280,7 @@ DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentR
 }
 
 // <array_type> ::= <primary_type> "[" "]" | <primary_type> "[" <integer_literal> "]"
-DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     // must parse primary type first
     DataType* primary = parser_parseTypeGroup(parser, node, parentReferee, currentScope);
     Lexeme lexeme = parser_peek(parser);
@@ -355,7 +355,7 @@ DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parent
                  | <class_type> "?"?
                  | <reference_type> "?"?
  */
-DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     // parse enum if current keyword is enum
     DataType * type = NULL;
     Lexeme lexeme = parser_peek(parser);
@@ -403,7 +403,7 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
     return type;
 }
 
-DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     // we create a reference refType
     DataType* refType = ast_type_makeType();
     refType->kind = DT_REFERENCE;
@@ -491,7 +491,7 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
 }
 
 // interface_tupe ::= "interface" "{" <interface_decl> (","? <interface_decl>)* "}"
-DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope){
+DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
     // create base type
     DataType* interfaceType = ast_type_makeType();
     interfaceType->kind = DT_INTERFACE;
@@ -553,7 +553,7 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* par
 }
 
 // variant_type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"
-DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     //create base type
     DataType * variantType = ast_type_makeType();
     variantType->kind = DT_VARIANT;
@@ -659,7 +659,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
 }
 
 // struct_type ::= "struct" "{" <struct_decl> ("," <struct_decl>)* "}"
-DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     DataType * structType = ast_type_makeType();
     structType->kind = DT_STRUCT;
     structType->structType = ast_type_makeStruct();
@@ -728,7 +728,7 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
 }
 
 // enum_type ::= "enum" "{" <enum_decl> ("," <enum_decl>)* "}"
-DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope currentScope) {
+DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     EnumType* enum_ = ast_type_makeEnum();
     // current position: enum
     ACCEPT;
@@ -777,7 +777,7 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope currentSc
 /*
  * "from" <package_id> "import" <package_id> ("as" <id>)? ("," <package_id> ("as" <id>)?)*
  */
-void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope currentScope){
+void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope){
     // from has already been accepted
     // we expect a namespace x.y.z
     PackageID* source = parser_parsePackage(parser, node, currentScope);
@@ -820,7 +820,7 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope currentScope){
 }
 
 // parses extends list, must start from first symbol after "("
-void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee, dtype_vec_t* extends, ASTScope currentScope){
+void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee, dtype_vec_t* extends, ASTScope* currentScope){
     Lexeme lexeme = parser_peek(parser);
     uint8_t can_loop = lexeme.type != TOK_RPAREN;
     while(can_loop) {
@@ -850,7 +850,7 @@ void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee,
     }
 }
 // "fn" "(" <param_list>? ")" ("->" <type>)? <block>
-DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope) {
+DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
     // current position: fn
     ACCEPT;
     Lexeme CURRENT;
@@ -881,7 +881,7 @@ DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentRefe
 }
 
 // "ptr" "<" <type> ">"
-DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope currentScope){
+DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
     // build type
     DataType* ptrType = ast_type_makeType();
     ptrType->kind = DT_PTR;
@@ -903,7 +903,7 @@ DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentRef
 }
 
 // starts from the first argument
-void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames, ASTScope currentScope){
+void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames, ASTScope* currentScope){
     Lexeme CURRENT;
     uint8_t loop = lexeme.type != TOK_RPAREN;
     while(loop) {
@@ -951,7 +951,7 @@ void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentT
 /*
  * "import" <package_id> ("as" <id>)?
  */
-void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope currentScope){
+void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope* currentScope){
     // from has already been accepted
     // we expect a namespace x.y.z
     PackageID* source = parser_parsePackage(parser, node, currentScope);
@@ -979,7 +979,7 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope currentScope
 
 
 /** Expressions **/
-Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     return parser_parseLetExpr(parser, node, currentScope);
 }
 
@@ -988,7 +988,7 @@ Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
  * let "{"<id> (":" <type>)? (<id> (":" <type>)?)*"}" "=" <uhs> "in" <uhs>
  * let "["<id> (":" <type>)? (<id> (":" <type>)?)*"]" "=" <uhs> "in" <uhs>
  */
-Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_LET)
     {
@@ -1130,7 +1130,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope) 
 }
 
 // "match" uhs "{" <cases> "}"
-Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type != TOK_MATCH) {
         parser_reject(parser);
@@ -1180,7 +1180,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope currentScope
     return expr;
 }
 
-Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpOr(parser, node, currentScope);
     Lexeme CURRENT;
     if(
@@ -1222,7 +1222,7 @@ Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope currentScope)
     return lhs;
 }
 
-Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseOpAnd(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_LOGICAL_OR) {
@@ -1244,7 +1244,7 @@ Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope currentScope) {
     return lhs;
 }
 
-Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpBinOr(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_LOGICAL_AND) {
@@ -1266,7 +1266,7 @@ Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope currentScope){
     return lhs;
 }
 
-Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpBinXor(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_OR) {
@@ -1288,7 +1288,7 @@ Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope currentScope){
     return lhs;
 }
 
-Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs =  parser_parseOpBinAnd(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_XOR) {
@@ -1310,7 +1310,7 @@ Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope currentScope)
     return lhs;
 }
 
-Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpEq(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_AND) {
@@ -1332,7 +1332,7 @@ Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope currentScope)
     return lhs;
 }
 
-Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpCompare(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_EQUAL_EQUAL || lexeme.type == TOK_NOT_EQUAL) {
@@ -1354,7 +1354,7 @@ Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope currentScope){
     return lhs;
 }
 
-Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseOpShift(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_LESS || lexeme.type == TOK_GREATER ||
@@ -1403,7 +1403,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope currentScope
     return lhs;
 }
 
-Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseAdd(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_RIGHT_SHIFT || lexeme.type == TOK_LEFT_SHIFT) {
@@ -1425,7 +1425,7 @@ Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope currentScope) 
     return lhs;
 }
 
-Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpMult(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_PLUS || lexeme.type == TOK_MINUS) {
@@ -1447,7 +1447,7 @@ Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope currentScope){
     return lhs;
 }
 
-Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseOpUnary(parser, node, currentScope);
     Lexeme CURRENT;
     if(lexeme.type == TOK_STAR || lexeme.type == TOK_DIV || lexeme.type == TOK_PERCENT) {
@@ -1471,7 +1471,7 @@ Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope currentScope) {
     return lhs;
 }
 
-Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     // check if we have prefix op
     Lexeme CURRENT;
     if (lexeme.type == TOK_STAR || lexeme.type == TOK_MINUS || lexeme.type == TOK_BITWISE_NOT ||
@@ -1567,7 +1567,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope) 
     return uhs;
 }
 
-Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope currentScope){
+Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScope){
 
     Expr* lhs = parser_parseOpValue(parser, node, currentScope);
     Lexeme CURRENT;
@@ -1638,7 +1638,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope currentScope
     return lhs;
 }
 
-Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_IDENTIFIER){
         Expr* expr = ast_expr_makeExpr(ET_ELEMENT);
@@ -1646,6 +1646,36 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope currentScope) 
         ACCEPT;
 
         return expr;
+    }
+    if(lexeme.type == TOK_FN){
+        // lambda expression
+        parser_reject(parser);
+        FnHeader * fnHeader= parser_parseLambdaFnHeader(parser, node, NULL, currentScope);
+
+        Expr* expr = ast_expr_makeExpr(ET_LAMBDA);
+        expr->lambdaExpr = ast_expr_makeLambdaExpr(currentScope);
+        expr->lambdaExpr->header = fnHeader;
+        /**
+         * TODO: add args to scope and detect closures
+         */
+
+        CURRENT;
+        if(lexeme.type == TOK_EQUAL){
+            expr->lambdaExpr->bodyType = FBT_EXPR;
+            ACCEPT;
+            expr->lambdaExpr->expr = parser_parseExpr(parser, node, expr->lambdaExpr->scope);
+
+            return expr;
+        }
+        else{
+            // assert {
+            ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` or `=` expected but %s was found.", EXPAND_LEXEME);
+            expr->lambdaExpr->bodyType = FBT_BLOCK;
+            // throw  not implemented
+            ASSERT(1==0, "Lambda block body is not yet implemented");
+            return NULL;
+        }
+
     }
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
@@ -1776,7 +1806,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope currentScope) 
     TOK_FLOAT,             //
     TOK_DOUBLE,
  */
-Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope currentScope) {
+Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* expr = ast_expr_makeExpr(ET_LITERAL);
     expr->dataType = ast_type_makeType();
 
@@ -1831,7 +1861,7 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope currentScope) 
  * Terminal parsers
 */
 
-PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope currentScope) {
+PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     PackageID * package = ast_makePackageID();
     Lexeme lexeme = parser_peek(parser);
     ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier/package` expected but %s was found.", EXPAND_LEXEME);
@@ -1858,7 +1888,7 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope currentSc
 
 // parses fn header for interfaces, interfaces cannot have mut arguments, they are not allowed
 // to mutate arguments given to them.
-FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope currentScope) {
+FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     // build header struct
     FnHeader* header = ast_makeFnHeader();
     header->type = ast_type_makeFn();
@@ -1873,7 +1903,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope currentSc
     // accept name
     ACCEPT;
 
-    // if we have "<" its a generic
+    // if we have "<" it's a generic
     CURRENT;
     if(lexeme.type == TOK_LESS) {
         header->isGeneric = 1;
@@ -1970,7 +2000,115 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope currentSc
     }
 
     return header;
+}
 
+FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+    // build header struct
+    FnHeader* header = ast_makeFnHeader();
+    header->type = ast_type_makeFn();
+    // assert we are at "fn"
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_FN, "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    // if we have "<" it's a generic
+    CURRENT;
+    if(lexeme.type == TOK_LESS) {
+        header->isGeneric = 1;
+        ACCEPT;
+        // get current lexeme
+        CURRENT;
+
+        // prepare to loop
+        uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
+        uint32_t idx = 0;
+        while(can_loop) {
+            // assert its an ID
+            ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected in function header but %s was found.", EXPAND_LEXEME);
+
+            // add it to our generic list
+            // make sure we do not have duplicates by getting the element of the map with the name and asserting it is null
+            ASSERT(map_get(&header->generics, lexeme.string) == NULL, "Line: %"PRIu16", Col: %"PRIu16" generic name `%s` already defined.", EXPAND_LEXEME);
+
+            vec_push(&header->genericNames, strdup(lexeme.string));
+            map_set(&header->generics, lexeme.string, idx++);
+
+            // get current lexeme
+            CURRENT;
+            // assert we got a name
+
+            // if we have a ">" we are done
+            if(lexeme.type == TOK_GREATER) {
+                can_loop = 0;
+                ACCEPT;
+            }
+            else {
+                ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `>` expected in generic list but %s was found.", EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            }
+        }
+    }
+    CURRENT;
+    // assert we have "("
+    ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected after function name but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    // we are going to parse the arguments
+    CURRENT;
+    uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
+    // create fnHeader object
+    while(can_loop) {
+        // ASSERT ID
+        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected for arg declaration but %s was found.", EXPAND_LEXEME);
+        // accept ID
+        char* name = strdup(lexeme.string);
+        ACCEPT;
+        CURRENT;
+        // assert ":"
+        ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected after arg name but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        CURRENT;
+        // assert type
+        DataType* type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+
+        // make sure arg doesn't already exist
+        ASSERT(map_get(&header->type->args, name) == NULL, "Line: %"PRIu16", Col: %"PRIu16" argument name `%s` already exists.", EXPAND_LEXEME);
+
+        // make FnArg
+        FnArgument * arg = ast_type_makeFnArgument();
+        arg->type = type;
+        arg->isMutable = 0;
+        arg->name = name;
+
+        // add arg to header
+        vec_push(&header->type->argNames, name);
+        map_set(&header->type->args, name, arg);
+
+        // check if we reached ")"
+        CURRENT;
+        if(lexeme.type == TOK_RPAREN) {
+            can_loop = 0;
+            ACCEPT;
+        }
+        else {
+            ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `)` expected after arg declaration but %s was found.", EXPAND_LEXEME);
+            ACCEPT;
+            CURRENT;
+        }
+    }
+
+    // do we have a return type?
+    CURRENT;
+    if(lexeme.type == TOK_FN_RETURN_TYPE) {
+        ACCEPT;
+        header->type->returnType = parser_parseTypeUnion(parser, node, NULL, currentScope);
+    }
+    else{
+        parser_reject(parser);
+    }
+
+    return header;
 }
 
 #undef CURRENT

@@ -993,6 +993,60 @@ char* ast_strigifyExpr(Expr* expr){
             strcat(str, "}");
         }
     }
+    else if (expr->type == ET_LAMBDA){
+        // we add "lambda" "(" <args> ")" "{" <body> "}"
+        LambdaExpr * lambda = expr->lambdaExpr;
+        // add lambda
+        str = realloc(str, strlen(str) + strlen("lambda") + 1);
+        strcat(str, "lambda");
+        // add (
+        str = realloc(str, strlen(str) + strlen("(") + 1);
+        strcat(str, "(");
+        // iterate through the args
+        int i; char* argName;
+        vec_foreach(&lambda->header->type->argNames, argName, i) {
+            // print arg name
+            str = realloc(str, strlen(str) + strlen(argName) + 1);
+            strcat(str, argName);
+            // followed by type
+            str = realloc(str, strlen(str) + strlen(":") + 1);
+            strcat(str, ":");
+            // print arg type
+            char * argTypeStr = ast_stringifyType((*map_get(&lambda->header->type->args, argName))->type);
+            // add arg type
+            str = realloc(str, strlen(str) + strlen(argTypeStr) + 1);
+            strcat(str, argTypeStr);
+            // followed by ,
+            str = realloc(str, strlen(str) + strlen(",") + 1);
+            strcat(str, ",");
+        }
+        // replace last , with ) if length > 1
+        if(lambda->header->type->argNames.length > 0){
+            str[strlen(str) - 1] = ')';
+        } else {
+            // if we didn't have args, we just add )
+            str = realloc(str, strlen(str) + strlen(")") + 1);
+            strcat(str, ")");
+        }
+
+        // check if its an expression or block
+        if(lambda->bodyType == FBT_BLOCK){
+            // add {
+            str = realloc(str, strlen(str) + strlen("{") + 1);
+            strcat(str, "{");
+
+            str = realloc(str, strlen(str) + strlen("}") + 1);
+            strcat(str, "}");
+        } else {
+            // add =
+            str = realloc(str, strlen(str) + strlen("=") + 1);
+            strcat(str, "=");
+            // print body
+            char * bodyStr = ast_strigifyExpr(lambda->expr);
+            str = realloc(str, strlen(str) + strlen(bodyStr) + 1);
+            strcat(str, bodyStr);
+        }
+    }
     // add )
     str = realloc(str, strlen(str) + strlen(")") + 1);
     strcat(str, ")");

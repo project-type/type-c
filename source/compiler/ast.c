@@ -18,8 +18,7 @@ ASTNode * ast_makeProgramNode() {
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = AST_PROGRAM;
     node->programNode = program;
-    map_init(&node->scope.dataTypes);
-    node->scope.parentScope = NULL;
+    node->scope = ast_scope_makeScope(NULL);
 
     return node;
 }
@@ -318,9 +317,7 @@ LetExpr* ast_expr_makeLetExpr(ASTScope* parentScope){
     ALLOC(let, LetExpr);
     vec_init(&let->letList);
     let->inExpr = NULL;
-    vec_init(&let->scope.dataTypes);
-    let->scope.parentScope = parentScope;
-
+    let->scope = ast_scope_makeScope(parentScope);
 
     return let;
 }
@@ -368,6 +365,16 @@ LiteralExpr* ast_expr_makeLiteralExpr(LiteralType type){
     return literal;
 }
 
+LambdaExpr* ast_expr_makeLambdaExpr(ASTScope* parentScope){
+    ALLOC(lambda, LambdaExpr);
+    lambda->scope = ast_scope_makeScope(parentScope);
+    lambda->header = NULL;
+    lambda->bodyType = FBT_EXPR;
+    lambda->expr = NULL;
+
+    return lambda;
+}
+
 Expr* ast_expr_makeExpr(ExpressionType type){
     ALLOC(expr, Expr);
     expr->type = type;
@@ -375,6 +382,14 @@ Expr* ast_expr_makeExpr(ExpressionType type){
     expr->dataType = NULL;
 
     return expr;
+}
+
+ASTScope * ast_scope_makeScope(ASTScope* parentScope){
+    ALLOC(scope, ASTScope);
+    scope->parentScope = parentScope;
+    vec_init(&scope->dataTypes);
+
+    return scope;
 }
 
 #undef ALLOC
