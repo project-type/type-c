@@ -1514,7 +1514,8 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope) 
         // check for "("
         if(lexeme.type == TOK_LPAREN) {
             ACCEPT;
-            uint8_t can_loop = lexeme.type != TOK_LPAREN;
+            CURRENT;
+            uint8_t can_loop = lexeme.type != TOK_RPAREN;
             while(can_loop){
                 Expr* arg = parser_parseExpr(parser, node, currentScope);
                 // assert arg not null
@@ -1527,13 +1528,13 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope) 
                     ACCEPT;
                 }
                 else {
-                    parser_reject(parser);
+                    // check for ")"
+                    ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but `%s` was found", lexeme.line, lexeme.col);
+                    ACCEPT;
                     can_loop = 0;
                 }
             }
-            // ASSERT ")"
-            ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but `%s` was found", lexeme.line, lexeme.col);
-            ACCEPT;
+
             return new;
         }
         else {
