@@ -11,6 +11,7 @@
 #include "ast.h"
 #include "error.h"
 #include "tokens.h"
+#include "ast_tools.h"
 
 #define TTTS(t) token_type_to_string(t)
 
@@ -85,16 +86,16 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
             parser_parseTypeDecl(parser, node, node->scope);
             CURRENT;
         }
-        else if(lexeme.type == TOK_LET){
+        if(lexeme.type == TOK_EOF) {
+            printf("EOF reached, gracefully stopping.\n");
+            return;
+        }
+        else {
             parser_reject(parser);
             Expr* expr = parser_parseExpr(parser, node, node->scope);
 
-            printf(ast_strigifyExpr(expr));
-            printf("\n");
+            printf("%s\n", ast_strigifyExpr(expr));
             CURRENT;
-        }
-        else {
-            can_loop = 0;
         }
     }
 }
@@ -979,8 +980,6 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope currentScope
 
 /** Expressions **/
 Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope currentScope) {
-    Lexeme CURRENT;
-
     return parser_parseLetExpr(parser, node, currentScope);
 }
 
@@ -994,10 +993,10 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope) 
     if(lexeme.type == TOK_LET)
     {
         Expr *expr = ast_expr_makeExpr(ET_LET);
-        LetExpr *let = ast_expr_makeLetExpr(currentScope);
+        LetExpr *let = ast_expr_makeLetExpr(&currentScope);
 
         expr->letExpr = let;
-        Lexeme CURRENT;
+
         // assert let
         ASSERT(lexeme.type == TOK_LET, "Line: %"PRIu16", Col: %"PRIu16" `let` expected but %s was found.",
                EXPAND_LEXEME);
@@ -1382,10 +1381,22 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope currentScope
         return binaryExpr;
     }
 
+    else if (lexeme.type == TOK_TYPE_CONVERSION) {
+        ACCEPT;
+        Expr* castExpr = ast_expr_makeExpr(ET_CAST);
+        castExpr->castExpr = ast_expr_makeCastExpr(NULL, NULL);
+        castExpr->castExpr->expr = lhs;
+        castExpr->castExpr->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        return castExpr;
+    }
+
     else if (lexeme.type == TOK_IS) {
-        // TODO parse type
-        ASSERT(1==0, "`is` operation is not yet implemented");
-        return NULL;
+        ACCEPT;
+        Expr* checkExpr = ast_expr_makeExpr(ET_INSTANCE_CHECK);
+        checkExpr->instanceCheckExpr = ast_expr_makeInstanceCheckExpr(NULL, NULL);
+        checkExpr->instanceCheckExpr->expr = lhs;
+        checkExpr->instanceCheckExpr->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        return  checkExpr;
     }
 
     parser_reject(parser);
@@ -1491,8 +1502,44 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope currentScope) 
         return unaryExpr;
     }
     else if (lexeme.type == TOK_NEW) {
-        // throw not implemented
-        ASSERT(1==0, "`new` operation is not yet implemented");
+        Expr* new = ast_expr_makeExpr(ET_NEW);
+        ACCEPT;
+        // parse type
+        DataType* dt = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        new->newExpr = ast_expr_makeNewExpr(dt);
+
+        // assert dt not NULL
+        ASSERT(dt != NULL, "Line: %"PRIu16", Col: %"PRIu16" `new` datatype returned NULL, this is a parser issue", lexeme.line, lexeme.col);
+        CURRENT;
+        // check for "("
+        if(lexeme.type == TOK_LPAREN) {
+            ACCEPT;
+            uint8_t can_loop = lexeme.type != TOK_LPAREN;
+            while(can_loop){
+                Expr* arg = parser_parseExpr(parser, node, currentScope);
+                // assert arg not null
+                ASSERT(arg != NULL, "Line: %"PRIu16", Col: %"PRIu16" `new` argument returned NULL, this is a parser issue", lexeme.line, lexeme.col);
+
+                vec_push(&new->newExpr->args, arg);
+
+                CURRENT;
+                if(lexeme.type == TOK_COMMA) {
+                    ACCEPT;
+                }
+                else {
+                    parser_reject(parser);
+                    can_loop = 0;
+                }
+            }
+            // ASSERT ")"
+            ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but `%s` was found", lexeme.line, lexeme.col);
+            ACCEPT;
+            return new;
+        }
+        else {
+            parser_reject(parser);
+            return NULL;
+        }
     }
 
     parser_reject(parser);
@@ -1525,20 +1572,195 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope currentScope
     Lexeme CURRENT;
     if(lexeme.type == TOK_DOT) {
         ACCEPT;
-        /*
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
-        binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_DOT, NULL, NULL);
-
         Expr* rhs = parser_parseOpPointer(parser, node, currentScope);
-        binaryExpr->binaryExpr->lhs = lhs;
-        binaryExpr->binaryExpr->rhs = rhs;
-         */
-    }
+        MemberAccessExpr *memberAccessExpr = ast_expr_makeMemberAccessExpr(lhs, rhs);
 
-    return parser_parseLiteral(parser, node, currentScope);
+        Expr* memberExpr = ast_expr_makeExpr(ET_MEMBER_ACCESS);
+        memberExpr->memberAccessExpr = memberAccessExpr;
+        return memberExpr;
+    }
+    if(lexeme.type == TOK_LBRACKET) {
+        ACCEPT;
+        IndexAccessExpr* idx = ast_expr_makeIndexAccessExpr(lhs);
+        uint8_t can_loop = 1;
+
+        while(can_loop) {
+            Expr* index = parser_parseExpr(parser, node, currentScope);
+            vec_push(&idx->indexes, index);
+            CURRENT;
+            if(lexeme.type == TOK_COMMA) {
+                ACCEPT;
+            }
+            else {
+                can_loop = 0;
+                parser_reject(parser);
+            }
+        }
+        // assert ]
+        CURRENT;
+        ASSERT(lexeme.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        Expr* expr = ast_expr_makeExpr(ET_INDEX_ACCESS);
+        expr->indexAccessExpr = idx;
+
+        // todo check datatype
+        return expr;
+    }
+    if(lexeme.type == TOK_LPAREN) {
+        ACCEPT;
+        CallExpr* call = ast_expr_makeCallExpr(lhs);
+        uint8_t can_loop = 1;
+
+        while(can_loop) {
+            Expr* index = parser_parseExpr(parser, node, currentScope);
+            vec_push(&call->args, index);
+            CURRENT;
+            if(lexeme.type == TOK_COMMA) {
+                ACCEPT;
+            }
+            else {
+                can_loop = 0;
+                parser_reject(parser);
+            }
+        }
+        // assert )
+        CURRENT;
+        ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        Expr* expr = ast_expr_makeExpr(ET_CALL);
+        expr->callExpr = call;
+
+        // todo check datatype
+        return expr;
+    }
+    parser_reject(parser);
+    return lhs;
 }
 
 Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope currentScope) {
+    Lexeme CURRENT;
+    if(lexeme.type == TOK_IDENTIFIER){
+        Expr* expr = ast_expr_makeExpr(ET_ELEMENT);
+        expr->elementExpr = ast_expr_makeElementExpr(lexeme.string);
+        ACCEPT;
+
+        return expr;
+    }
+    if(lexeme.type == TOK_LPAREN) {
+        ACCEPT;
+        Expr* expr = parser_parseExpr(parser, node, currentScope);
+        // assert )
+        CURRENT;
+        ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        return expr;
+    }
+    // check for array construction [
+    if(lexeme.type == TOK_LBRACKET) {
+        ACCEPT;
+        ArrayConstructionExpr* arrayConstructionExpr = ast_expr_makeArrayConstructionExpr();
+        uint8_t can_loop = 1;
+
+        while(can_loop) {
+            Expr* index = parser_parseExpr(parser, node, currentScope);
+            vec_push(&arrayConstructionExpr->args, index);
+            CURRENT;
+            if(lexeme.type == TOK_COMMA) {
+                ACCEPT;
+            }
+            else {
+                can_loop = 0;
+                parser_reject(parser);
+            }
+        }
+        // assert ]
+        CURRENT;
+        ASSERT(lexeme.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        Expr* expr = ast_expr_makeExpr(ET_ARRAY_CONSTRUCTION);
+        expr->arrayConstructionExpr = arrayConstructionExpr;
+
+        // todo check datatype
+        return expr;
+    }
+    // check if we have a "{"
+    if(lexeme.type == TOK_LBRACE) {
+        ACCEPT;
+        // we need to look a head find an ID and ":", then its named
+        // else its unnamed
+        CURRENT;
+        if(lexeme.type == TOK_IDENTIFIER){
+            CURRENT;
+            if(lexeme.type == TOK_COLON){
+                // build expressions
+                NamedStructConstructionExpr* namedStruct = ast_expr_makeNamedStructConstructionExpr();
+                Expr* expr = ast_expr_makeExpr(ET_NAMED_STRUCT_CONSTRUCTION);
+                expr->namedStructConstructionExpr = namedStruct;
+
+                parser_reject(parser);
+                // we are back at the identifier
+                uint8_t loop = 1;
+                while(loop) {
+                    CURRENT;
+                    // we make sure format is <id>":"<expr> (","<id>":"<expr>)*
+                    // we parse the id
+                    ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+                    char* argName = strdup(lexeme.string);
+                    ACCEPT;
+                    // we assert ":"
+                    CURRENT;
+                    ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+                    ACCEPT;
+
+                    Expr* value = parser_parseExpr(parser, node, currentScope);
+                    // we add the arg to the struct
+                    vec_push(&namedStruct->argNames, argName);
+                    map_set(&namedStruct->args, argName, value);
+                    // we check if we have a "," or a "}"
+                    CURRENT;
+                    if(lexeme.type == TOK_COMMA) {
+                        ACCEPT;
+                    }
+                    else if(lexeme.type == TOK_RBRACE) {
+                        ACCEPT;
+                        loop = 0;
+                    }
+                }
+
+                return expr;
+            }
+            else {
+                parser_reject(parser);
+            }
+        }
+        else{
+            parser_reject(parser);
+        }
+
+        // unnamed struct
+        UnnamedStructConstructionExpr* unnamedStruct = ast_expr_makeUnnamedStructConstructionExpr();
+        Expr* expr = ast_expr_makeExpr(ET_UNNAMED_STRUCT_CONSTRUCTION);
+        // prepare loop
+        uint8_t can_loop = 1;
+        while(can_loop) {
+            Expr* index = parser_parseExpr(parser, node, currentScope);
+            vec_push(&unnamedStruct->args, index);
+            CURRENT;
+            if(lexeme.type == TOK_COMMA) {
+                ACCEPT;
+            }
+            else {
+                // assert }
+                ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+                ACCEPT;
+                can_loop = 0;
+                parser_reject(parser);
+            }
+        }
+        expr->unnamedStructConstructionExpr = unnamedStruct;
+        return expr;
+    }
+    parser_reject(parser);
     return parser_parseLiteral(parser, node, currentScope);
 }
 

@@ -8,6 +8,7 @@
 #include "../../utils/vec.h"
 #include "../../utils/map.h"
 #include "../lexer.h"
+#include "../ast_tools.h"
 #include "../parser.h"
 #include "../ast.h"
 

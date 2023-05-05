@@ -29,7 +29,7 @@ struct StructAttribute;
 struct FnArgument;
 struct GenericParam;
 struct UnresolvedType;
-struct LetExprList;
+struct LetExprDecl;
 
 struct Expr;
 struct CaseExpr;
@@ -45,6 +45,7 @@ typedef map_t(struct StructAttribute*) structattribute_map_t;
 typedef map_t(struct FnArgument*) fnargument_map_t;
 typedef map_t(struct VariantConstructorArgument*) variantconstructorarg_map_t;
 typedef map_t(struct VariantConstructor*) variantconstructor_map_t;
+typedef map_t(struct Expr*) expr_mat_t;
 
 typedef vec_t(struct GenericParam*) genericparam_vec_t;
 typedef vec_t(struct DataType*) dtype_vec_t;
@@ -52,7 +53,7 @@ typedef vec_t(struct UnresolvedType) unresolvedtype_vec_t;
 
 /* Expressions */
 typedef vec_t(struct Expr*) expr_vec_t;
-typedef vec_t(struct LetExprList*) letexprlist_vec_t;
+typedef vec_t(struct LetExprDecl*) letexprlist_vec_t;
 typedef vec_t(struct CaseExpr*) caseexpr_vec_t;
 
 /**
@@ -330,7 +331,6 @@ typedef enum UnaryExprType {
     UET_DEREF,
     UET_ADDRESS_OF,
     UET_DENULL,
-    UET_CAST,
 }UnaryExprType;
 
 
@@ -379,35 +379,41 @@ typedef struct NewExpr {
     DataType *type;
     expr_vec_t args;
 }NewExpr;
-NewExpr* ast_expr_makeNewExpr(DataType *type, expr_vec_t args);
+NewExpr* ast_expr_makeNewExpr(DataType *type);
 
 // x()
 typedef struct CallExpr {
-    struct Expr *callee;
+    struct Expr *lhs;
     expr_vec_t args;
 }CallExpr;
-CallExpr* ast_expr_makeCallExpr(struct Expr *callee, expr_vec_t args);
+CallExpr* ast_expr_makeCallExpr(struct Expr *lhs);
 
 // x.y
 typedef struct MemberAccessExpr {
-    struct Expr *expr;
-    char *member;
+    struct Expr *lhs, *rhs;
 }MemberAccessExpr;
-MemberAccessExpr* ast_expr_makeMemberAccessExpr(struct Expr *expr, char *member);
+MemberAccessExpr* ast_expr_makeMemberAccessExpr(struct Expr *lhs, struct Expr *rhs);
 
 // x[10]
 typedef struct IndexAccessExpr {
     struct Expr *expr;
-    struct Expr *index;
+    expr_vec_t indexes;
 }IndexAccessExpr;
-IndexAccessExpr* ast_expr_makeIndexAccessExpr(struct Expr *expr, struct Expr *index);
+IndexAccessExpr* ast_expr_makeIndexAccessExpr(struct Expr *expr);
 
-// u32(10)
+// (10 as u32)
 typedef struct CastExpr {
     DataType *type;
     struct Expr *expr;
 }CastExpr;
 CastExpr* ast_expr_makeCastExpr(DataType *type, struct Expr *expr);
+
+typedef struct InstanceCheckExpr {
+    struct Expr *expr;
+    DataType *type;
+}InstanceCheckExpr;
+InstanceCheckExpr* ast_expr_makeInstanceCheckExpr(DataType *type, struct Expr *expr);
+
 
 // if condition else (if condition else ( ... ))
 typedef struct IfElseExpr {
@@ -452,17 +458,39 @@ typedef struct LetExpr {
     struct Expr *inExpr;
     ASTScope scope;
 }LetExpr;
-LetExpr* ast_expr_makeLetExpr();
+LetExpr* ast_expr_makeLetExpr(ASTScope* parentScope);
+
+typedef struct ArrayConstructionExpr {
+    DataType *type;
+    expr_vec_t args;
+}ArrayConstructionExpr;
+ArrayConstructionExpr * ast_expr_makeArrayConstructionExpr();
+
+typedef struct NamedStructConstructionExpr {
+    DataType *type;
+    expr_vec_t argNames;
+    expr_mat_t args;
+}NamedStructConstructionExpr;
+NamedStructConstructionExpr * ast_expr_makeNamedStructConstructionExpr();
+
+typedef struct UnnamedStructConstructionExpr {
+    DataType *type;
+    expr_vec_t args;
+}UnnamedStructConstructionExpr;
+UnnamedStructConstructionExpr * ast_expr_makeUnnamedStructConstructionExpr();
 
 typedef enum ExpressionType {
     ET_LITERAL,
     ET_ELEMENT,
-    //ET_PACKAGE,
+    ET_ARRAY_CONSTRUCTION,
+    ET_NAMED_STRUCT_CONSTRUCTION,
+    ET_UNNAMED_STRUCT_CONSTRUCTION,
     ET_NEW,
     ET_CALL,
     ET_MEMBER_ACCESS,
     ET_INDEX_ACCESS,
     ET_CAST,
+    ET_INSTANCE_CHECK,
     ET_UNARY,
     ET_BINARY,
     ET_IF_ELSE,
@@ -475,6 +503,9 @@ typedef struct Expr {
     ExpressionType type;
     DataType* dataType;
     union {
+        ArrayConstructionExpr * arrayConstructionExpr;
+        NamedStructConstructionExpr * namedStructConstructionExpr;
+        UnnamedStructConstructionExpr * unnamedStructConstructionExpr;
         LiteralExpr* literalExpr;
         ElementExpr* elementExpr;
         LetExpr * letExpr;
@@ -483,6 +514,7 @@ typedef struct Expr {
         MemberAccessExpr* memberAccessExpr;
         IndexAccessExpr* indexAccessExpr;
         CastExpr* castExpr;
+        InstanceCheckExpr * instanceCheckExpr;
         UnaryExpr* unaryExpr;
         BinaryExpr* binaryExpr;
         IfElseExpr* ifElseExpr;
@@ -553,7 +585,4 @@ PackageID* ast_makePackageID();
 ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias);
 
 // debugging
-char* ast_stringifyType(DataType* type);
-char* ast_stringifyImport(ASTProgramNode* node, uint32_t index);
-char* ast_strigifyExpr(Expr* expr);
 #endif //TYPE_C_AST_H
