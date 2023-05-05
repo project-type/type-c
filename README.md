@@ -87,5 +87,5 @@ Reach out:
 |   `map`   |   Hash map    |   `src/utils/map.h`   | [Link](https://github.com/rxi/map) |   MIT   |
 | `minunit` | Unit testing  | `src/utils/minunit.h` | [Link](https://github.com/siu/minunit) |   MIT   |
 |   `sds`   |    String     |   `src/utils/sds.h`   | [Link](https://github.com/antirez/sds) |   BSD   |
-
+| `parson`  |     JSON      | `src/utils/parson.h`  | [Link](https://github.com/kgabis/parson) | MIT|   
 

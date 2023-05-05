@@ -1,14 +1,64 @@
+from std.io import lib.console
+from matplotlib import pyplot.plot as pt, cool
+import pandas.pandas_api as pd
+import pandas.pp
+from x.y.z import cool.z.y as haha, cool.z, cool as yeet
 
 
 
+type arr = ((u32[0xff]) | (u32 | f8.cool[255]))[][]
+
+type Operation = enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}[22] | u32
+
+type OperationNullable = (enum {
+    ADD, SUB, MUL, DIV, ABS, LOG, EXP, NEG
+}[22] | u32?)?
+
+type UserInfo<T>  = T<u32>[0xff]
+
+type User = struct {
+    name: string
+    age: u32
+    data: (std.ArrayBuffer | std.BinaryBuffer<String>[512])
+}
+
+type Serializable = interface {
+    fn serialize() -> u8[]
+    fn append(data: u8[])
+    fn duplicate(data: Serializable<Serializable<u32>[][]>) -> Serializable<u32>
+}
+
+
+type Serializable2<T: Iterable, U> = interface(Sortable<T, String>) {
+    fn Serialize() -> T[]
+    fn Deserialize(data: T[])
+}
+
+type Tree = variant {
+    Leaf(val: u32),
+    Binary(lhs: Tree, rhs: Tree),
+    Unary(child: Tree)
+}
+
+type Callable<T> = fn(x: T, y: T) -> struct {x: T, y: T[]}
+
+
+
+type Pointer = ptr<struct {x: u32, y: u32}>
+type Pointer2<T> = ptr<struct {x: T, y: T}?>
+
+/*
 let
     {t: Tree, matata: Operation} = {x: "hot", y: [1, 2, 3, "four"]},
     [t2: Tree, tt23: Tree?] = 2 in
         x*2*4 / x.y.z + new Tree[][](1, 2, 3, 4, 5, 6, 7, 8, 9, 10) + t2 + tt23
 
 let z: u32 = {name: "Soulaymen", age: 30} in
-    new Array<u32>()
+    new Array()
 
 
 
 let F: fn(x: u32, y: u32) -> u32 = fn<T>(x: T, y: u32) -> u32 = x + y in z * 2 * F(2)
+*/

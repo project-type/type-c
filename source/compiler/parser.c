@@ -12,6 +12,7 @@
 #include "error.h"
 #include "tokens.h"
 #include "ast_tools.h"
+#include "ast_json.h"
 
 #define TTTS(t) token_type_to_string(t)
 
@@ -71,7 +72,8 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
             ACCEPT;
             parser_parseImportStmt(parser, node, node->scope);
         }
-
+        char* imports = ast_json_serializeImports(node->programNode);
+        printf("%s\n", imports);
         lexeme = parser_peek(parser);
         can_loop = lexeme.type == TOK_FROM || lexeme.type == TOK_IMPORT;
     }
@@ -86,7 +88,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
             parser_parseTypeDecl(parser, node, node->scope);
             CURRENT;
         }
-        if(lexeme.type == TOK_EOF) {
+        else if(lexeme.type == TOK_EOF) {
             printf("EOF reached, gracefully stopping.\n");
             return;
         }
@@ -191,7 +193,8 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
     DataType* type_def = parser_parseTypeUnion(parser, node, type, currentScope);
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
-    printf("%s\n", ast_stringifyType(type_def));
+    //printf("%s\n", ast_stringifyType(type_def));
+    printf("%s\n", ast_json_serializeDataType(type_def));
 
     map_set(&node->scope->dataTypes, type->name, type);
 }
