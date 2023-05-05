@@ -1533,7 +1533,6 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope currentScope
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
          */
-
     }
 
     return parser_parseLiteral(parser, node, currentScope);
