@@ -1012,7 +1012,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope currentScope) 
             // check if we have id or { or [
             if (lexeme.type == TOK_LBRACE) {
                 expect = "]";
-                letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
+                letDecl->initializerType = LIT_STRUCT_DECONSTRUCTION;
                 ACCEPT;
                 CURRENT;
             } else if (lexeme.type == TOK_LBRACKET) {
