@@ -53,6 +53,8 @@ fn main() {
 - When will the project be finished? Never. It will always be a work in progress.
 
 ## TODO:
+- [ ] Finish parsing expressions and statements
+- [ ] Fully unittest the AST
 - [ ] Think about decorators, especially to preserve struct layout, useful for ffi
 - [ ] Think about mutability
 - [ ] Think about partial function applications
@@ -60,7 +62,7 @@ fn main() {
 - [ ] Improve error handling
 - [ ] Improve memory management
 
-## Roadmap:
+## Global Roadmap:
 1. `type-c`: A compiler for the `type-c` language, with full type checking and solid optimizations.
 2. `type-v`: The virtual machine for `type-c`, a register based VM able to fully run `type-c` programs.
 3. Improve `ffi`
