@@ -31,3 +31,13 @@ type Window = struct {
 fn printWin(w: struct {height: u32, width: u32}) {
     println("Window: " + w.title)
 }
+
+type Array = class {
+    len: u32 = 0
+
+    fn init(len: u32) {
+        self.len = len
+    }
+
+    fn __match__(
+}
