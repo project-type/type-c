@@ -68,10 +68,7 @@ fn main() {
 5. VSCode plugin
 6. Improving `type-v`: JIT, GC, etc.
 7. More `type-v` optimizations.
-8. Game engine
-9. OS
-10. Big Brain AI
-
+8. Package Manager
 ## How to contribute
 Well, not much you can do now in terms of code, but you can try lifting my spirit by giving me a star and maybe sharing your thoughts.
 I would rather keep working on this project alone for now as its a learning experience, but if you want to help me
