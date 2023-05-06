@@ -469,7 +469,7 @@ ArrayConstructionExpr * ast_expr_makeArrayConstructionExpr();
 
 typedef struct NamedStructConstructionExpr {
     DataType *type;
-    expr_vec_t argNames;
+    vec_str_t argNames;
     expr_mat_t args;
 }NamedStructConstructionExpr;
 NamedStructConstructionExpr * ast_expr_makeNamedStructConstructionExpr();

@@ -515,7 +515,322 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
 
 }
 
+char* literalTypeToString(LiteralType lt){
+    switch(lt){
+        case LT_FLOAT:
+            return "float";
+        case LT_STRING:
+            return "string";
+        case LT_INTEGER:
+            return "int";
+        case LT_BINARY_INT:
+            return "binaryInt";
+        case LT_OCTAL_INT:
+            return "octalInt";
+        case LT_HEX_INT:
+            return "hexInt";
+        case LT_DOUBLE:
+            return "double";
+        case LT_BOOLEAN:
+            return "boolean";
+        case LT_CHARACTER:
+            return "character";
+    }
+}
+
+JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
+    // create the root object
+    JSON_Value * root_value = json_value_init_object();
+    JSON_Object * root_object = json_value_get_object(root_value);
+
+    switch(expr->type){
+        case ET_LITERAL: {
+            // category = literal
+            json_object_set_string(root_object, "category", "literal");
+            json_object_set_string(root_object, "strValue", expr->literalExpr->value);
+            json_object_set_string(root_object, "literalType", literalTypeToString(expr->literalExpr->type));
+
+            break;
+        }
+        case ET_ELEMENT: {
+            // category = element
+            json_object_set_string(root_object, "category", "element");
+            // add the name
+            json_object_set_string(root_object, "name", expr->elementExpr->name);
+            break;
+        }
+        case ET_ARRAY_CONSTRUCTION: {
+            // category = arrayConstruction
+            json_object_set_string(root_object, "category", "arrayConstruction");
+            // add the values
+            JSON_Value * values_value = json_value_init_array();
+            JSON_Array * values_array = json_value_get_array(values_value);
+            // iterate over the values
+            int i; Expr * arg;
+            ArrayConstructionExpr * arrayConstruction = expr->arrayConstructionExpr;
+            vec_foreach(&arrayConstruction->args, arg, i) {
+                JSON_Value * v = ast_json_serializeExprRecursive(arg);
+                json_array_append_value(values_array, v);
+            }
+            // add the values
+            json_object_set_value(root_object, "values", values_value);
+
+            break;
+        }
+        case ET_NAMED_STRUCT_CONSTRUCTION: {
+            // category = namedStructConstruction
+            json_object_set_string(root_object, "category", "namedStructConstruction");
+            // create fields array
+            JSON_Value *fields_value = json_value_init_array();
+            JSON_Array *fields_array = json_value_get_array(fields_value);
+            // iterate over the fields
+            int i;
+            char *argName;
+            NamedStructConstructionExpr *namedStructConstruction = expr->namedStructConstructionExpr;
+            vec_foreach(&namedStructConstruction->argNames, argName, i) {
+                Expr** arg = map_get(&namedStructConstruction->args, argName);
+
+                // for each arg, serialize it and add it to the fields object
+                JSON_Value *arg_value = json_value_init_object();
+                JSON_Object *arg_object = json_value_get_object(arg_value);
+
+                // set the name
+                json_object_set_string(arg_object, "name", argName);
+                // set the value
+                json_object_set_value(arg_object, "value", ast_json_serializeExprRecursive(*arg));
+                // add to the array of fields
+                json_array_append_value(fields_array, arg_value);
+            }
+            // add the fields
+            json_object_set_value(root_object, "fields", fields_value);
+
+            break;
+        }
+        case ET_UNNAMED_STRUCT_CONSTRUCTION: {
+            // category = unnamedStructConstruction
+            json_object_set_string(root_object, "category", "unnamedStructConstruction");
+            // create an array to store values
+            JSON_Value *values_value = json_value_init_array();
+            JSON_Array *values_array = json_value_get_array(values_value);
+            // iterate over the values
+            int i;
+            Expr *arg;
+            UnnamedStructConstructionExpr *unnamedStructConstruction = expr->unnamedStructConstructionExpr;
+            vec_foreach(&unnamedStructConstruction->args, arg, i) {
+                    JSON_Value *v = ast_json_serializeExprRecursive(arg);
+                    json_array_append_value(values_array, v);
+                }
+            // add the values
+            json_object_set_value(root_object, "values", values_value);
+
+            break;
+        }
+        case ET_NEW: {
+            // category = new
+            json_object_set_string(root_object, "category", "new");
+            // add the type
+            json_object_set_value(root_object, "type", ast_json_serializeDataTypeRecursive(expr->newExpr->type));
+            // add the args
+            JSON_Value *args_value = json_value_init_array();
+            JSON_Array *args_array = json_value_get_array(args_value);
+            // iterate over the args
+            int i;
+            Expr *arg;
+            vec_foreach(&expr->newExpr->args, arg, i) {
+                    JSON_Value *v = ast_json_serializeExprRecursive(arg);
+                    json_array_append_value(args_array, v);
+                }
+            // add the args
+            json_object_set_value(root_object, "args", args_value);
+
+            break;
+        }
+        case ET_CALL: {
+            // category = call
+            json_object_set_string(root_object, "category", "call");
+            // add the lhs
+            json_object_set_value(root_object, "lhs", ast_json_serializeExprRecursive(expr->callExpr->lhs));
+            // add the args
+            JSON_Value * args_value = json_value_init_array();
+            JSON_Array * args_array = json_value_get_array(args_value);
+            // iterate over the args
+            int i; Expr * arg;
+            vec_foreach(&expr->callExpr->args, arg, i) {
+                JSON_Value * v = ast_json_serializeExprRecursive(arg);
+                json_array_append_value(args_array, v);
+            }
+            // add the args
+            json_object_set_value(root_object, "args", args_value);
+
+            break;
+        }
+        case ET_MEMBER_ACCESS: {
+            // category = memberAccess
+            json_object_set_string(root_object, "category", "memberAccess");
+            // add the lhs
+            json_object_set_value(root_object, "lhs", ast_json_serializeExprRecursive(expr->memberAccessExpr->lhs));
+            // add the rhs
+            json_object_set_value(root_object, "rhs", ast_json_serializeExprRecursive(expr->memberAccessExpr->rhs));
+
+            break;
+        }
+        case ET_INDEX_ACCESS: {
+            // category = indexAccess
+            json_object_set_string(root_object, "category", "indexAccess");
+            // add the lhs
+            json_object_set_value(root_object, "lhs", ast_json_serializeExprRecursive(expr->indexAccessExpr->expr));
+            // add the indexes
+            JSON_Value * indexes_value = json_value_init_array();
+            JSON_Array * indexes_array = json_value_get_array(indexes_value);
+            // iterate over the indexes
+            int i; Expr * index;
+            vec_foreach(&expr->indexAccessExpr->indexes, index, i) {
+                JSON_Value * v = ast_json_serializeExprRecursive(index);
+                json_array_append_value(indexes_array, v);
+            }
+            // add the indexes
+            json_object_set_value(root_object, "indexes", indexes_value);
+
+            break;
+        }
+        case ET_CAST: {
+            // category = cast
+            json_object_set_string(root_object, "category", "cast");
+            // add the type
+            json_object_set_value(root_object, "type", ast_json_serializeDataTypeRecursive(expr->castExpr->type));
+            // add the expr
+            json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(expr->castExpr->expr));
+
+            break;
+        }
+        case ET_INSTANCE_CHECK: {
+            // category = instanceCheck
+            json_object_set_string(root_object, "category", "instanceCheck");
+            // add the type
+            json_object_set_value(root_object, "type", ast_json_serializeDataTypeRecursive(expr->instanceCheckExpr->type));
+            // add the expr
+            json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(expr->instanceCheckExpr->expr));
+
+            break;
+        }
+        case ET_UNARY: {
+            // category = unary
+            json_object_set_string(root_object, "category", "unary");
+            // add the op
+            json_object_set_string(root_object, "op", ast_stringifyUnaryExprType(expr->unaryExpr->type));
+            // add the expr
+            json_object_set_value(root_object, "uhs", ast_json_serializeExprRecursive(expr->unaryExpr->uhs));
+
+            break;
+        }
+        case ET_BINARY: {
+            // category = binary
+            json_object_set_string(root_object, "category", "binary");
+            // add the op
+            json_object_set_string(root_object, "op", ast_stringifyBinaryExprType(expr->binaryExpr->type));
+            // add the lhs
+            json_object_set_value(root_object, "lhs", ast_json_serializeExprRecursive(expr->binaryExpr->lhs));
+            // add the rhs
+            json_object_set_value(root_object, "rhs", ast_json_serializeExprRecursive(expr->binaryExpr->rhs));
+            break;
+        }
+        case ET_IF_ELSE: {
+            break;
+        }
+        case ET_MATCH: {
+            // category = match
+            json_object_set_string(root_object, "category", "match");
+            // add the expr
+            json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(expr->matchExpr->expr));
+            // add the cases
+            JSON_Value * cases_value = json_value_init_array();
+            JSON_Array * cases_array = json_value_get_array(cases_value);
+            // iterate over the cases
+            int i; CaseExpr * matchCase;
+            vec_foreach(&expr->matchExpr->cases, matchCase, i) {
+                // we create a new object which will contain condition and action
+                JSON_Value * case_value = json_value_init_object();
+                JSON_Object * case_object = json_value_get_object(case_value);
+                // add the condition
+                JSON_Value * v = ast_json_serializeExprRecursive(matchCase->condition);
+                json_object_set_value(case_object, "condition", v);
+                // add the action
+                v = ast_json_serializeExprRecursive(matchCase->expr);
+                json_object_set_value(case_object, "expr", v);
+                // add the case to the cases array
+                json_array_append_value(cases_array, case_value);
+
+            }
+            // add the cases
+            json_object_set_value(root_object, "cases", cases_value);
+
+            break;
+        }
+        case ET_LET: {
+            LetExpr * let = expr->letExpr;
+            // category = let
+            json_object_set_string(root_object, "category", "let");
+            // a let is composed of assignment groups
+            // for example let {a, b} = c, d = e, here a,b are one group who is equal to c, while d is another
+            // so we create an array of assignment groups
+            JSON_Value * assignmentGroups_value = json_value_init_array();
+            JSON_Array * assignmentGroups_array = json_value_get_array(assignmentGroups_value);
+            // iterate over the assignment groups
+            uint32_t i; LetExprDecl * letDecl;
+            vec_foreach(&let->letList, letDecl, i) {
+                // create a group
+                JSON_Value * assignmentGroup_value = json_value_init_object();
+                JSON_Object * assignmentGroup_object = json_value_get_object(assignmentGroup_value);
+
+                // each group object will contain an array of variables
+                JSON_Value * variables_value = json_value_init_array();
+                JSON_Array * variables_array = json_value_get_array(variables_value);
+
+                // iterate over the variables
+                int j; char * var;
+                vec_foreach(&letDecl->variableNames, var, j) {
+                    // get the variable var from the map
+                    FnArgument **varDecl = map_get(&letDecl->variables, var);
+                    // create a variable object
+                    JSON_Value * variable_value = json_value_init_object();
+                    JSON_Object * variable_object = json_value_get_object(variable_value);
+                    // add the name
+                    json_object_set_string(variable_object, "name", var);
+                    // add the type if it's not null, otherwise write null
+                    if ((*varDecl)->type != NULL)
+                        json_object_set_value(variable_object, "type", ast_json_serializeDataTypeRecursive((*varDecl)->type));
+                    else
+                        json_object_set_string(variable_object, "type", "null");
+                    // add the variable to the variables array
+                    json_array_append_value(variables_array, variable_value);
+                }
+                // add the variables array to the group object
+                json_object_set_value(assignmentGroup_object, "variables", variables_value);
+                // add the assigned value of that group
+                json_object_set_string(assignmentGroup_object, "initializerType", letDecl->initializerType==LIT_STRUCT_DECONSTRUCTION?"structDeconstruction":(letDecl->initializerType==LIT_NONE?"none":"arrayDestruction"));
+                json_object_set_value(assignmentGroup_object, "initializer", ast_json_serializeExprRecursive(letDecl->initializer));
+                // add the group to the groups array
+                json_array_append_value(assignmentGroups_array, assignmentGroup_value);
+            }
+            // add the groups array to the root object
+            json_object_set_value(root_object, "assignmentGroups", assignmentGroups_value);
+            // add "in" expression
+            json_object_set_value(root_object, "in", ast_json_serializeExprRecursive(let->inExpr));
+
+            break;
+        }
+        case ET_LAMBDA:
+            break;
+    }
+    return root_value;
+}
+
 char* ast_json_serializeDataType(DataType* type) {
     JSON_Value * root_val = ast_json_serializeDataTypeRecursive(type);
+    return json_serialize_to_string(root_val);
+}
+
+char* ast_json_serializeExpr(Expr* expr) {
+    JSON_Value * root_val = ast_json_serializeExprRecursive(expr);
     return json_serialize_to_string(root_val);
 }

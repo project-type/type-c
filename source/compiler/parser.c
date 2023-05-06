@@ -96,7 +96,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
             parser_reject(parser);
             Expr* expr = parser_parseExpr(parser, node, node->scope);
 
-            printf("%s\n", ast_strigifyExpr(expr));
+            printf("%s\n", ast_json_serializeExpr(expr));
             CURRENT;
         }
     }
@@ -1533,10 +1533,10 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 else {
                     // check for ")"
                     ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but `%s` was found", lexeme.line, lexeme.col);
-                    ACCEPT;
                     can_loop = 0;
                 }
             }
+            ACCEPT;
 
             return new;
         }
@@ -1612,8 +1612,9 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
     }
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
+        CURRENT;
         CallExpr* call = ast_expr_makeCallExpr(lhs);
-        uint8_t can_loop = 1;
+        uint8_t can_loop = lexeme.type != TOK_RPAREN;
 
         while(can_loop) {
             Expr* index = parser_parseExpr(parser, node, currentScope);
@@ -1623,13 +1624,11 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
                 ACCEPT;
             }
             else {
+                ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+                ACCEPT;
                 can_loop = 0;
-                parser_reject(parser);
             }
         }
-        // assert )
-        CURRENT;
-        ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
         ACCEPT;
         Expr* expr = ast_expr_makeExpr(ET_CALL);
         expr->callExpr = call;
