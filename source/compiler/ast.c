@@ -375,6 +375,15 @@ LambdaExpr* ast_expr_makeLambdaExpr(ASTScope* parentScope){
     return lambda;
 }
 
+UnsafeExpr* ast_expr_makeUnsafeExpr(ASTScope* parentScope){
+    ALLOC(unsafe, UnsafeExpr);
+    unsafe->expr = NULL;
+    unsafe->scope = ast_scope_makeScope(parentScope);
+    unsafe->scope->isSafe = 0;
+
+    return unsafe;
+}
+
 Expr* ast_expr_makeExpr(ExpressionType type){
     ALLOC(expr, Expr);
     expr->type = type;
@@ -386,10 +395,131 @@ Expr* ast_expr_makeExpr(ExpressionType type){
 
 ASTScope * ast_scope_makeScope(ASTScope* parentScope){
     ALLOC(scope, ASTScope);
+    scope->isSafe = (parentScope == NULL) ? 1 : parentScope->isSafe;
     scope->parentScope = parentScope;
     vec_init(&scope->dataTypes);
 
     return scope;
+}
+
+BlockStatement* ast_stmt_makeBlockStatement(ASTScope* parentScope){
+    ALLOC(block, BlockStatement);
+    block->scope = ast_scope_makeScope(parentScope);
+    vec_init(&block->stmts);
+
+    return block;
+}
+
+VarDeclStatement* ast_stmt_makeVarDeclStatement(ASTScope* parentScope) {
+    ALLOC(varDecl, VarDeclStatement);
+    varDecl->scope = ast_scope_makeScope(parentScope);
+    // init the vector
+    vec_init(&varDecl->letList);
+
+    return varDecl;
+}
+
+FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope, FnBodyType bodyType){
+    ALLOC(fnDecl, FnDeclStatement);
+    fnDecl->scope = ast_scope_makeScope(parentScope);
+    fnDecl->bodyType = bodyType;
+    fnDecl->expr = NULL;
+
+    return fnDecl;
+}
+
+IfChainStatement* ast_stmt_makeIfChainStatement(){
+    ALLOC(ifChain, IfChainStatement);
+    vec_init(&ifChain->conditions);
+    vec_init(&ifChain->blocks);
+    ifChain->elseBlock = NULL;
+
+    return ifChain;
+}
+
+CaseStatement* ast_stmt_makeCaseStatement(){
+    ALLOC(caseStmt, CaseStatement);
+    caseStmt->condition = NULL;
+    caseStmt->block = NULL;
+
+    return caseStmt;
+}
+
+MatchStatement* ast_stmt_makeMatchStatement(){
+    ALLOC(match, MatchStatement);
+    match->expr = NULL;
+    vec_init(&match->cases);
+    match->elseBlock = NULL;
+
+    return match;
+}
+
+WhileStatement* ast_stmt_makeWhileStatement(){
+    ALLOC(whileStmt, WhileStatement);
+    whileStmt->condition = NULL;
+    whileStmt->block = NULL;
+    whileStmt->label = NULL;
+
+    return whileStmt;
+}
+
+DoWhileStatement* ast_stmt_makeDoWhileStatement(){
+    ALLOC(doWhileStmt, DoWhileStatement);
+    doWhileStmt->condition = NULL;
+    doWhileStmt->block = NULL;
+    doWhileStmt->label = NULL;
+    return doWhileStmt;
+}
+
+ForStatement* ast_stmt_makeForStatement(ASTScope* parentScope){
+    ALLOC(forStmt, ForStatement);
+    forStmt->scope = ast_scope_makeScope(parentScope);
+    vec_init(&forStmt->letList);
+    forStmt->condition = NULL;
+    forStmt->block = NULL;
+    // init increments
+    vec_init(&forStmt->increments);
+    forStmt->label = NULL;
+
+    return forStmt;
+}
+
+ForEachStatement* ast_stmt_makeForEachStatement(ASTScope* parentScope){
+    ALLOC(forEachStmt, ForEachStatement);
+    forEachStmt->scope = ast_scope_makeScope(parentScope);
+    forEachStmt->block = NULL;
+    forEachStmt->iterable = NULL;
+    forEachStmt->variableName = NULL;
+
+    return forEachStmt;
+}
+
+ContinueStatement* ast_stmt_makeContinueStatement(){
+    ALLOC(continueStmt, ContinueStatement);
+    continueStmt->label = NULL;
+
+    return continueStmt;
+}
+
+BreakStatement* ast_stmt_makeBreakStatement() {
+    ALLOC(breakStmt, BreakStatement);
+    breakStmt->label = NULL;
+
+    return breakStmt;
+}
+
+ReturnStatement* ast_stmt_makeReturnStatement(){
+    ALLOC(returnStmt, ReturnStatement);
+    returnStmt->expr = NULL;
+
+    return returnStmt;
+}
+
+UnsafeStatement* ast_stmt_makeUnsafeStatement(){
+    ALLOC(unsafeStmt, UnsafeStatement);
+    unsafeStmt->block = NULL;
+
+    return unsafeStmt;
 }
 
 #undef ALLOC

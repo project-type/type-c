@@ -823,7 +823,7 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope)
 }
 
 // parses extends list, must start from first symbol after "("
-void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee, dtype_vec_t* extends, ASTScope* currentScope){
+void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee, vec_dtype_t* extends, ASTScope* currentScope){
     Lexeme lexeme = parser_peek(parser);
     uint8_t can_loop = lexeme.type != TOK_RPAREN;
     while(can_loop) {
@@ -906,7 +906,7 @@ DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentRef
 }
 
 // starts from the first argument
-void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames, ASTScope* currentScope){
+void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, map_fnargument_t* args, vec_str_t* argsNames, ASTScope* currentScope){
     Lexeme CURRENT;
     uint8_t loop = lexeme.type != TOK_RPAREN;
     while(loop) {
@@ -1180,6 +1180,10 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
             ACCEPT;
         }
     }
+    // assert "}"
+    CURRENT;
+    ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
     return expr;
 }
 
@@ -1610,6 +1614,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
         // todo check datatype
         return expr;
     }
+
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
         CURRENT;
@@ -1791,6 +1796,25 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
             }
         }
         expr->unnamedStructConstructionExpr = unnamedStruct;
+        return expr;
+    }
+    if(lexeme.type == TOK_UNSAFE){
+        // build unsafe expr
+        UnsafeExpr* unsafeExpr = ast_expr_makeUnsafeExpr(currentScope);
+        Expr* expr = ast_expr_makeExpr(ET_UNSAFE);
+        expr->unsafeExpr = unsafeExpr;
+
+        ACCEPT;
+        // assert "("
+        CURRENT;
+        ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        expr->unsafeExpr->expr = parser_parseExpr(parser, node, currentScope);
+        // assert ")"
+        CURRENT;
+        ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+
         return expr;
     }
     parser_reject(parser);

@@ -157,8 +157,12 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             if (val->isGeneric){
                 // set the name
                 json_object_set_string(generic_object, "name", val->name);
-                // set the constraint
-                json_object_set_value(generic_object, "constraint", ast_json_serializeDataTypeRecursive(val->constraint));
+                // set the constraint if its not null
+                if (val->constraint != NULL)
+                    json_object_set_value(generic_object, "constraint", ast_json_serializeDataTypeRecursive(val->constraint));
+                else
+                    // set constraint to null
+                    json_object_set_null(generic_object, "constraint");
             } else {
                 // set the type
                 json_object_set_value(generic_object, "type", ast_json_serializeDataTypeRecursive(val->type));
@@ -861,6 +865,13 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
 
         // TODO: print lambda body
         break;
+        }
+        case ET_UNSAFE: {
+            // category = unsafe
+            json_object_set_string(root_object, "category", "unsafe");
+            // add the unsafe expression
+            json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(expr->unsafeExpr->expr));
+            break;
         }
     }
     return root_value;

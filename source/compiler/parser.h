@@ -74,8 +74,8 @@ DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, ASTScope* current
 
 void parser_parseTypeTemplate(Parser* parser, ASTNode* node, DataType* parentType, ASTScope* currentScope);
 
-void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentType, dtype_vec_t* extends, ASTScope* currentScope);
-void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, fnargument_map_t* args, vec_str_t* argsNames, ASTScope* currentScope);
+void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentType, vec_dtype_t* extends, ASTScope* currentScope);
+void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, map_fnargument_t* args, vec_str_t* argsNames, ASTScope* currentScope);
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope* currentScope);
 FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentScope);
 FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);

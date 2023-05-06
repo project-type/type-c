@@ -34,27 +34,34 @@ struct LetExprDecl;
 struct Expr;
 struct CaseExpr;
 
+struct Statement;
+struct BlockStatement;
+struct CaseStatement;
+
 /* Data types */
 typedef map_t(uint32_t) u32_map_t;
-typedef map_t(struct DataType*) dtype_map_t;
-typedef map_t(struct DataConstructor*) dataconstructor_map_t;
-typedef map_t(struct FnHeader*) interfacemethod_map_t;
-typedef map_t(struct ClassMethod*) classmethod_map_t;
-typedef map_t(struct ClassAttribute*) classattribute_map_t;
-typedef map_t(struct StructAttribute*) structattribute_map_t;
-typedef map_t(struct FnArgument*) fnargument_map_t;
-typedef map_t(struct VariantConstructorArgument*) variantconstructorarg_map_t;
-typedef map_t(struct VariantConstructor*) variantconstructor_map_t;
-typedef map_t(struct Expr*) expr_mat_t;
+typedef map_t(struct DataType*) map_dtype_t;
+typedef map_t(struct DataConstructor*) map_dataconstructor_t;
+typedef map_t(struct FnHeader*) map_interfacemethod_t;
+typedef map_t(struct ClassMethod*) map_classmethod_t;
+typedef map_t(struct ClassAttribute*) map_classattribute_t;
+typedef map_t(struct StructAttribute*) map_structattribute_t;
+typedef map_t(struct FnArgument*) map_fnargument_t;
+typedef map_t(struct VariantConstructorArgument*) map_variantconstructorarg_t;
+typedef map_t(struct VariantConstructor*) map_variantconstructor_t;
+typedef map_t(struct Expr*) mat_expr_t;
 
-typedef vec_t(struct GenericParam*) genericparam_vec_t;
-typedef vec_t(struct DataType*) dtype_vec_t;
-typedef vec_t(struct UnresolvedType) unresolvedtype_vec_t;
+typedef vec_t(struct GenericParam*) vec_genericparam_t;
+typedef vec_t(struct DataType*) vec_dtype_t;
+typedef vec_t(struct UnresolvedType) vec_unresolvedtype_t;
 
 /* Expressions */
-typedef vec_t(struct Expr*) expr_vec_t;
-typedef vec_t(struct LetExprDecl*) letexprlist_vec_t;
-typedef vec_t(struct CaseExpr*) caseexpr_vec_t;
+typedef vec_t(struct Expr*) vec_expr_t;
+typedef vec_t(struct LetExprDecl*) vec_letexprlist_t;
+typedef vec_t(struct CaseExpr*) vec_caseexpr_t;
+typedef vec_t(struct Statement*) vec_statement_t;
+typedef vec_t(struct BlockStatement*) vec_blockstatement_t;
+typedef vec_t(struct CaseStatement*) vec_casestatement_t;
 
 /**
  * Enums of all possible type categories
@@ -116,21 +123,21 @@ typedef struct UnionType {
 UnionType* ast_type_makeUnion();
 
 typedef struct VariantType {
-    variantconstructor_map_t constructors;
+    map_variantconstructor_t constructors;
     vec_str_t  constructorNames;
 }VariantType;
 VariantType* ast_type_makeVariant();
 
 typedef struct InterfaceType {
-    interfacemethod_map_t methods;
+    map_interfacemethod_t methods;
     vec_str_t  methodNames;
-    dtype_vec_t extends;
+    vec_dtype_t extends;
 }InterfaceType;
 InterfaceType* ast_type_makeInterface();
 
 typedef struct ClassType {
-    classattribute_map_t attributes;
-    classmethod_map_t methods;
+    map_classattribute_t attributes;
+    map_classmethod_t methods;
 
     // important for layout management
     vec_str_t attributeNames;
@@ -139,17 +146,17 @@ typedef struct ClassType {
 ClassType* ast_type_makeClass();
 
 typedef struct FnType {
-    fnargument_map_t args;
+    map_fnargument_t args;
     vec_str_t argNames;
     struct DataType* returnType;
 }FnType;
 FnType* ast_type_makeFn();
 
 typedef struct StructType {
-    structattribute_map_t attributes;
+    map_structattribute_t attributes;
     // important for layout management
     vec_str_t attributeNames;
-    dtype_vec_t extends;
+    vec_dtype_t extends;
 }StructType;
 StructType* ast_type_makeStruct();
 
@@ -170,7 +177,7 @@ typedef struct DataType {
     uint8_t hasGeneric;
     uint8_t isNullable;
 
-    genericparam_vec_t genericParams;
+    vec_genericparam_t genericParams;
 
     union {
         ClassType * classType;
@@ -197,7 +204,7 @@ VariantConstructorArgument * ast_type_makeVariantConstructorArgument();
 typedef struct VariantConstructor {
     char* name;
     vec_str_t argNames;
-    variantconstructorarg_map_t args;
+    map_variantconstructorarg_t args;
 }VariantConstructor;
 VariantConstructor* ast_type_makeVariantConstructor();
 
@@ -225,8 +232,6 @@ FnHeader*  ast_makeFnHeader();
 typedef struct  ClassMethod {
     struct FnHeader* header;
 } ClassMethod;
-
-
 
 /**
  * A generic descriptors
@@ -266,9 +271,10 @@ typedef enum ASTNodeType{
 }ASTNodeType;
 
 typedef struct ASTScope {
+    uint8_t isSafe;
     void* variables;
     void* functions;
-    dtype_map_t dataTypes;
+    map_dtype_t dataTypes;
     void* statements;
     void* externDeclarations;
     struct ASTScope* parentScope;
@@ -284,7 +290,7 @@ typedef struct UnresolvedType{
 
 typedef struct ASTProgramNode {
     import_stmt_vec importStatements;
-    unresolvedtype_vec_t unresolvedTypes;
+    vec_unresolvedtype_t unresolvedTypes;
 }ASTProgramNode;
 
 typedef struct ASTNode {
@@ -378,14 +384,14 @@ BinaryExpr* ast_expr_makeBinaryExpr(BinaryExprType type, struct Expr *left, stru
 // new x()
 typedef struct NewExpr {
     DataType *type;
-    expr_vec_t args;
+    vec_expr_t args;
 }NewExpr;
 NewExpr* ast_expr_makeNewExpr(DataType *type);
 
 // x()
 typedef struct CallExpr {
     struct Expr *lhs;
-    expr_vec_t args;
+    vec_expr_t args;
 }CallExpr;
 CallExpr* ast_expr_makeCallExpr(struct Expr *lhs);
 
@@ -398,7 +404,7 @@ MemberAccessExpr* ast_expr_makeMemberAccessExpr(struct Expr *lhs, struct Expr *r
 // x[10]
 typedef struct IndexAccessExpr {
     struct Expr *expr;
-    expr_vec_t indexes;
+    vec_expr_t indexes;
 }IndexAccessExpr;
 IndexAccessExpr* ast_expr_makeIndexAccessExpr(struct Expr *expr);
 
@@ -434,7 +440,7 @@ CaseExpr * ast_expr_makeCaseExpr(struct Expr *condition, struct Expr *expr);
 // match x { 1 => 1, 2 => 2, _ => 3 }
 typedef struct MatchExpr {
     struct Expr *expr;
-    caseexpr_vec_t cases;
+    vec_caseexpr_t cases;
     CaseExpr* elseCase;
 }MatchExpr;
 MatchExpr* ast_expr_makeMatchExpr(struct Expr *expr);
@@ -448,14 +454,14 @@ typedef enum LetInitializerType {
 typedef struct LetExprDecl {
     LetInitializerType initializerType;
     vec_str_t variableNames;
-    fnargument_map_t variables;
+    map_fnargument_t variables;
     struct Expr *initializer;
 }LetExprDecl;
 LetExprDecl* ast_expr_makeLetExprDecl();
 
 // let x = 10, y = 3 in x + 10
 typedef struct LetExpr {
-    letexprlist_vec_t letList;
+    vec_letexprlist_t letList;
     struct Expr *inExpr;
     ASTScope* scope;
 }LetExpr;
@@ -463,20 +469,20 @@ LetExpr* ast_expr_makeLetExpr(ASTScope* parentScope);
 
 typedef struct ArrayConstructionExpr {
     DataType *type;
-    expr_vec_t args;
+    vec_expr_t args;
 }ArrayConstructionExpr;
 ArrayConstructionExpr * ast_expr_makeArrayConstructionExpr();
 
 typedef struct NamedStructConstructionExpr {
     DataType *type;
     vec_str_t argNames;
-    expr_mat_t args;
+    mat_expr_t args;
 }NamedStructConstructionExpr;
 NamedStructConstructionExpr * ast_expr_makeNamedStructConstructionExpr();
 
 typedef struct UnnamedStructConstructionExpr {
     DataType *type;
-    expr_vec_t args;
+    vec_expr_t args;
 }UnnamedStructConstructionExpr;
 UnnamedStructConstructionExpr * ast_expr_makeUnnamedStructConstructionExpr();
 
@@ -497,6 +503,12 @@ typedef struct LambdaExpr {
 }LambdaExpr;
 LambdaExpr* ast_expr_makeLambdaExpr(ASTScope* parentScope);
 
+typedef struct UnsafeExpr {
+    struct Expr *expr;
+    ASTScope *scope;
+}UnsafeExpr;
+UnsafeExpr* ast_expr_makeUnsafeExpr(ASTScope* parentScope);
+
 typedef enum ExpressionType {
     ET_LITERAL,
     ET_ELEMENT,
@@ -514,9 +526,9 @@ typedef enum ExpressionType {
     ET_IF_ELSE,
     ET_MATCH,
     ET_LET,
-    ET_LAMBDA
+    ET_LAMBDA,
+    ET_UNSAFE
 }ExpressionType;
-
 
 typedef struct Expr {
     ExpressionType type;
@@ -539,18 +551,111 @@ typedef struct Expr {
         IfElseExpr* ifElseExpr;
         MatchExpr* matchExpr;
         LambdaExpr* lambdaExpr;
+        UnsafeExpr* unsafeExpr;
     };
 }Expr;
 Expr* ast_expr_makeExpr(ExpressionType type);
 
-typedef struct ExprStatement {
-    void* expr;
-}ExprStatement;
+typedef struct BlockStatement {
+    vec_statement_t stmts;
+    ASTScope *scope;
+}BlockStatement;
+BlockStatement* ast_stmt_makeBlockStatement(ASTScope* parentScope);
 
-typedef enum StatmentType {
+typedef struct VarDeclStatement {
+    vec_letexprlist_t letList;
+    ASTScope* scope;
+}VarDeclStatement;
+VarDeclStatement* ast_stmt_makeVarDeclStatement(ASTScope* parentScope);
+
+typedef struct FnDeclStatement {
+    FnBodyType bodyType;
+    union {
+        struct Expr *expr;
+        struct BlockStatement *block;
+    };
+    ASTScope * scope;
+}FnDeclStatement;
+FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope, FnBodyType bodyType);
+
+typedef struct IfChainStatement {
+    vec_expr_t conditions;
+    vec_blockstatement_t blocks;
+    struct BlockStatement *elseBlock;
+}IfChainStatement;
+IfChainStatement* ast_stmt_makeIfChainStatement();
+
+typedef struct CaseStatement {
+    struct Expr *condition;
+    struct BlockStatement *block;
+}CaseStatement;
+CaseStatement* ast_stmt_makeCaseStatement();
+
+typedef struct MatchStatement {
+    struct Expr *expr;
+    vec_casestatement_t cases;
+    BlockStatement * elseBlock;
+}MatchStatement;
+MatchStatement* ast_stmt_makeMatchStatement();
+
+typedef struct WhileStatement {
+    char* label;
+    struct Expr *condition;
+    struct BlockStatement *block;
+}WhileStatement;
+WhileStatement* ast_stmt_makeWhileStatement();
+
+typedef struct DoWhileStatement {
+    char* label;
+    struct Expr *condition;
+    struct BlockStatement *block;
+}DoWhileStatement;
+DoWhileStatement* ast_stmt_makeDoWhileStatement();
+
+typedef struct ForStatement {
+    char* label;
+    vec_letexprlist_t letList;
+    struct Expr *condition;
+    vec_expr_t increments;
+    struct BlockStatement *block;
+    ASTScope * scope;
+}ForStatement;
+ForStatement* ast_stmt_makeForStatement(ASTScope* parentScope);
+
+typedef struct ForEachStatement{
+    char* variableName;
+    struct Expr *iterable;
+    struct BlockStatement *block;
+    ASTScope * scope;
+}ForEachStatement;
+ForEachStatement* ast_stmt_makeForEachStatement(ASTScope* parentScope);
+
+typedef struct ContinueStatement {
+    char *label;
+}ContinueStatement;
+ContinueStatement* ast_stmt_makeContinueStatement();
+
+typedef struct BreakStatement {
+    char *label;
+}BreakStatement;
+BreakStatement* ast_stmt_makeBreakStatement();
+
+typedef struct ReturnStatement {
+    struct Expr *expr;
+}ReturnStatement;
+ReturnStatement* ast_stmt_makeReturnStatement();
+
+typedef struct UnsafeStatement {
+    struct BlockStatement *block;
+}UnsafeStatement;
+UnsafeStatement* ast_stmt_makeUnsafeStatement();
+
+
+typedef enum StatementType {
     ST_EXPR,
     ST_VAR_DECL,
     ST_FN_DECL,
+    ST_BLOCK,
 
     // conditional
     ST_IF_CHAIN,
@@ -558,24 +663,22 @@ typedef enum StatmentType {
 
     // iterative
     ST_WHILE,
+    ST_DO_WHILE,
     ST_FOR,
     ST_FOREACH,
-    T_DO_WHILE,
 
     // keywords
     ST_CONTINUE,
     ST_RETURN,
-    ST_DELETE,
+    //ST_DELETE,
     ST_BREAK,
 
     // BLOCK
-    ST_BLOCK,
     ST_UNSAFE,
-    ST_WITH
-}StatmentType;
+}StatementType;
 
 typedef struct Statement {
-    StatmentType type;
+    StatementType type;
     union {
         void* expr;
         void* varDecl;
