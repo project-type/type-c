@@ -819,8 +819,49 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
 
             break;
         }
-        case ET_LAMBDA:
-            break;
+        case ET_LAMBDA: {
+            LambdaExpr *lambda = expr->lambdaExpr;
+            // category = lambda
+            json_object_set_string(root_object, "category", "lambda");
+            // add args
+            JSON_Value *args_value = json_value_init_array();
+            JSON_Array *args_array = json_value_get_array(args_value);
+
+            json_object_set_string(root_object, "bodyType",lambda->bodyType == FBT_BLOCK?"block":"expr");
+
+            // iterate over the args
+            int i;
+            char *argName;
+            vec_foreach(&lambda->header->type->argNames, argName, i) {
+                FnArgument ** arg = map_get(&lambda->header->type->args, argName);
+                // create new obj to hold arg name and type
+                JSON_Value *arg_value = json_value_init_object();
+                JSON_Object *arg_object = json_value_get_object(arg_value);
+                // add the name
+                json_object_set_string(arg_object, "name", argName);
+                // add isMutable
+                json_object_set_boolean(arg_object, "isMutable", (*arg)->isMutable);
+                // add the type
+                json_object_set_value(arg_object, "type", ast_json_serializeDataTypeRecursive((*arg)->type));
+
+                // add the arg to the args array
+                json_array_append_value(args_array, arg_value);
+
+            }
+            // add the args array to the root object
+            json_object_set_value(root_object, "args", args_value);
+            // add the body
+            if(lambda->bodyType == FBT_EXPR){
+                json_object_set_value(root_object, "body", ast_json_serializeExprRecursive(lambda->expr));
+            }
+            else {
+                // throw not implemented
+                ASSERT(1==0, "not implemented");
+            }
+
+        // TODO: print lambda body
+        break;
+        }
     }
     return root_value;
 }
