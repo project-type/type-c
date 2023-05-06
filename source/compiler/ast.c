@@ -288,11 +288,11 @@ InstanceCheckExpr* ast_expr_makeInstanceCheckExpr(DataType *type, struct Expr *e
     return instanceCheck;
 }
 
-IfElseExpr* ast_expr_makeIfElseExpr(struct Expr *condition, struct Expr *ifExpr, struct Expr *elseExpr) {
+IfElseExpr* ast_expr_makeIfElseExpr() {
     ALLOC(ifElse, IfElseExpr);
-    ifElse->condition = condition;
-    ifElse->ifExpr = ifExpr;
-    ifElse->elseExpr = elseExpr;
+    ifElse->condition = NULL;
+    ifElse->ifExpr = NULL;
+    ifElse->elseExpr = NULL;
 
     return ifElse;
 }

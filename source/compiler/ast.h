@@ -428,7 +428,7 @@ typedef struct IfElseExpr {
     struct Expr *ifExpr;
     struct Expr *elseExpr;
 }IfElseExpr;
-IfElseExpr* ast_expr_makeIfElseExpr(struct Expr *condition, struct Expr *ifExpr, struct Expr *elseExpr);
+IfElseExpr* ast_expr_makeIfElseExpr();
 
 // case 1 => 1
 typedef struct CaseExpr {

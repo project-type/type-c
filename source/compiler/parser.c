@@ -1817,6 +1817,38 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
         return expr;
     }
+    if(lexeme.type == TOK_IF) {
+        // create IfElseExpr
+        IfElseExpr* ifElseExpr = ast_expr_makeIfElseExpr();
+        ACCEPT;
+        ifElseExpr->condition = parser_parseExpr(parser, node, currentScope);
+        // assert {
+        CURRENT;
+        ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        ifElseExpr->ifExpr = parser_parseExpr(parser, node, currentScope);
+        // assert }
+        CURRENT;
+        ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        CURRENT;
+        // assert else
+        ASSERT(lexeme.type == TOK_ELSE, "Line: %"PRIu16", Col: %"PRIu16" `else` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        // assert {
+        CURRENT;
+        ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        ifElseExpr->elseExpr = parser_parseExpr(parser, node, currentScope);
+        CURRENT;
+        // assert }
+        ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        // build expr
+        Expr* expr = ast_expr_makeExpr(ET_IF_ELSE);
+        expr->ifElseExpr = ifElseExpr;
+        return expr;
+    }
     parser_reject(parser);
     return parser_parseLiteral(parser, node, currentScope);
 }

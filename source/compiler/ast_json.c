@@ -739,6 +739,15 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
             break;
         }
         case ET_IF_ELSE: {
+            // category = ifElse
+            json_object_set_string(root_object, "category", "ifElse");
+            // add the condition
+            json_object_set_value(root_object, "condition", ast_json_serializeExprRecursive(expr->ifElseExpr->condition));
+            // add the thenExpr
+            json_object_set_value(root_object, "ifExpr", ast_json_serializeExprRecursive(expr->ifElseExpr->ifExpr));
+            // add the elseExpr
+            json_object_set_value(root_object, "elseExpr", ast_json_serializeExprRecursive(expr->ifElseExpr->elseExpr));
+
             break;
         }
         case ET_MATCH: {

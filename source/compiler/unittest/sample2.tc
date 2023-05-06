@@ -26,4 +26,4 @@ let t : Tree<u32> = Node(Leaf(1), Node(Leaf(2), Leaf(3))) in
 
 
 
-let F: fn(x: u32, y: u32) -> u32 = fn<T>(x: T, y: u32) -> u32 = x + y in z * 2 * F(2)
+let F: fn(x: u32, y: u32) -> u32 = fn<T>(x: T, y: u32) -> u32 = x + y in z * 2 * F(2) * if x == 1 {1} else{2}
