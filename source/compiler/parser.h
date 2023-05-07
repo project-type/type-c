@@ -126,14 +126,13 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
 // a.b, a[b], a(b)
 Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScope);
-
 // fn (args_list) -> return_type { body }
 // fn (args_list) { body }
 // fn (args_list) -> return_type = uhs
 Expr* parser_parseOpLambda(Parser* parser, ASTNode* node, ASTScope* currentScope);
 Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope);
 Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope);
-
+Expr* parser_parseGenericFnCall(Parser* parser, ASTNode* node, ASTScope* currentScope);
 
 Statement* parser_parseStmt(Parser* parser, ASTNode* node, ASTScope* currentScope);
 Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentScope);

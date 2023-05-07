@@ -1,14 +1,13 @@
 
-fn fib(n: u32) -> u32 = match n {
+fn fib<T: Number>(n: T) -> T = match n {
     0 => 0,
     1 => 1,
     n => fib(n - 1) + fib(n - 2)
 }
 
 fn main(args: string[]) -> u8 {
-    let fib20: u32 = fib(20)
-    if fib20 == 20 {
+    let fib20: u32 = fib<T, E, G<u32, u64> >(20)
+    if 1 + print("Hello") {
         return
     }
-    print("Hello")
 }

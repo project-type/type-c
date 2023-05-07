@@ -652,6 +652,20 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
         case ET_CALL: {
             // category = call
             json_object_set_string(root_object, "category", "call");
+            // add if it has generics
+            json_object_set_boolean(root_object, "hasGenerics", expr->callExpr->hasGenerics);
+            // add the generics or empty array
+            JSON_Value * generics_value = json_value_init_array();
+            JSON_Array * generics_array = json_value_get_array(generics_value);
+            // iterate over the generics
+            int j; DataType * generic;
+            vec_foreach(&expr->callExpr->generics, generic, j) {
+                JSON_Value * v = ast_json_serializeDataTypeRecursive(generic);
+                json_array_append_value(generics_array, v);
+            }
+            // add the generics
+            json_object_set_value(root_object, "generics", generics_value);
+
             // add the lhs
             json_object_set_value(root_object, "lhs", ast_json_serializeExprRecursive(expr->callExpr->lhs));
             // add the args
@@ -950,11 +964,37 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
             json_object_set_string(root_object, "category", "fnDecl");
             // add body type
             json_object_set_string(root_object, "bodyType", stmt->fnDecl->bodyType==FBT_EXPR?"expr":"block");
-
             // add the name
             json_object_set_string(root_object, "name", stmt->fnDecl->header->name);
             // add the return type
             json_object_set_value(root_object, "returnType", ast_json_serializeDataTypeRecursive(stmt->fnDecl->header->type->returnType));
+            // add function isGeneric
+            json_object_set_boolean(root_object, "hasGeneric", stmt->fnDecl->hasGeneric);
+            // add generic params in an array
+            JSON_Value * genericParams_value = json_value_init_array();
+            JSON_Array * genericParams_array = json_value_get_array(genericParams_value);
+            // iterate over the generic params
+            uint32_t j = 0; GenericParam * genericParam;
+            vec_foreach(&stmt->fnDecl->genericParams, genericParam, j) {
+                // create a generic param object
+                JSON_Value * genericParam_value = json_value_init_object();
+                JSON_Object * genericParam_object = json_value_get_object(genericParam_value);
+                // add the name
+                json_object_set_string(genericParam_object, "name", genericParam->name);
+                // add the requirements or null if it's null
+                if (genericParam->constraint != NULL)
+                    json_object_set_value(genericParam_object, "supertype", ast_json_serializeDataTypeRecursive(genericParam->constraint));
+                else
+                    json_object_set_null(genericParam_object, "requirements");
+
+
+                // add the generic param to the generic params array
+                json_array_append_value(genericParams_array, genericParam_value);
+            }
+            // add the generic params array to the root object
+            json_object_set_value(root_object, "genericParams", genericParams_value);
+
+
             // add the args
             // create an array of args
             JSON_Value * args_value = json_value_init_array();

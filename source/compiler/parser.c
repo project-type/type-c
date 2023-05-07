@@ -1392,6 +1392,43 @@ Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope* currentScope){
     return lhs;
 }
 
+uint8_t lookUpGenericFunctionCall(Parser* parser){
+    // will look into the next elements, it skips nested <>, (), [], {}.
+    // It will return 1 if it finds a consecutive ">" "(" within the same scope
+    vec_char_t stack;
+    vec_init(&stack);
+    vec_push(&stack, TOK_LESS);
+    uint8_t prevWasGreater = 0;
+    while(1){
+        Lexeme CURRENT;
+        if(lexeme.type == TOK_LESS ||
+            lexeme.type == TOK_LBRACE ||
+            lexeme.type == TOK_LPAREN ||
+            lexeme.type == TOK_LBRACKET){
+
+            if(prevWasGreater && lexeme.type == TOK_LPAREN && stack.length == 0){
+                return 1;
+            }
+            vec_push(&stack, lexeme.type);
+        }
+        else if (lexeme.type == TOK_GREATER || lexeme.type == TOK_RBRACE ||
+                 lexeme.type == TOK_RPAREN ||  lexeme.type == TOK_RBRACKET){
+            if(lexeme.type == TOK_GREATER){
+                prevWasGreater = 1;
+            }
+            vec_pop(&stack);
+
+        }else if(lexeme.type == TOK_EOF){
+            parser_reject(parser);
+            return 0;
+        }
+        else {
+            prevWasGreater = 0;
+        }
+    }
+    return 0;
+}
+
 Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseOpShift(parser, node, currentScope);
     if(lhs == NULL){
@@ -1401,6 +1438,61 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
     if(lexeme.type == TOK_LESS || lexeme.type == TOK_GREATER ||
     lexeme.type == TOK_LESS_EQUAL || lexeme.type == TOK_GREATER_EQUAL) {
         ACCEPT;
+        if(lexeme.type == TOK_LESS && lookUpGenericFunctionCall(parser)) {
+            parser_reject(parser);
+            CURRENT; // <
+            //ACCEPT;
+
+            // make call expression
+            Expr* callExpr = ast_expr_makeExpr(ET_CALL);
+            callExpr->callExpr = ast_expr_makeCallExpr(lhs);
+            callExpr->callExpr->hasGenerics = 1;
+
+            // parse generic arguments
+            uint8_t can_loop = lexeme.type != TOK_GREATER;
+            while(can_loop) {
+                DataType * type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                vec_push(&callExpr->callExpr->generics, type);
+
+                CURRENT;
+                if(lexeme.type == TOK_COMMA) {
+                    ACCEPT;
+                }
+                else {
+                    ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
+                    ACCEPT;
+                    can_loop = 0;
+                }
+            }
+
+            // assert that the next token is a (
+            CURRENT;
+            ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+
+            ACCEPT;
+            CURRENT;
+            can_loop = lexeme.type != TOK_RPAREN;
+
+            while(can_loop) {
+                Expr* index = parser_parseExpr(parser, node, currentScope);
+                vec_push(&callExpr->callExpr->args, index);
+                CURRENT;
+                if(lexeme.type == TOK_COMMA) {
+                    ACCEPT;
+                }
+                else {
+                    ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+                    ACCEPT;
+                    can_loop = 0;
+                }
+            }
+            ACCEPT;
+
+            // todo check datatype
+            return callExpr;
+        }
+
+
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_LT, NULL, NULL);
 

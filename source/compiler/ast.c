@@ -252,6 +252,8 @@ CallExpr* ast_expr_makeCallExpr(struct Expr *lhs){
     ALLOC(call, CallExpr);
     call->lhs = lhs;
     vec_init(&call->args);
+    call->hasGenerics = 0;
+    vec_init(&call->generics);
 
     return call;
 }

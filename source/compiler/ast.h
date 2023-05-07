@@ -392,6 +392,8 @@ NewExpr* ast_expr_makeNewExpr(DataType *type);
 typedef struct CallExpr {
     struct Expr *lhs;
     vec_expr_t args;
+    uint8_t hasGenerics;
+    vec_dtype_t generics;
 }CallExpr;
 CallExpr* ast_expr_makeCallExpr(struct Expr *lhs);
 
