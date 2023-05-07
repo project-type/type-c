@@ -278,6 +278,7 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     if(match_keyword(lexerState, "type")) return makeLexemLineCol(TOK_TYPE, NULL, line, col);
     if(match_keyword(lexerState, "void")) return makeLexemLineCol(TOK_VOID, NULL, line, col);
     if(match(lexerState, "while")) return makeLexemLineCol(TOK_WHILE, NULL, line, col);
+    if(match(lexerState, "_")) return makeLexemLineCol(TOK_WILDCARD, NULL, line, col);
 
     while(isalnum(getCurrentChar(lexerState)) || getCurrentChar(lexerState)=='_') {
         incLexer(lexerState);

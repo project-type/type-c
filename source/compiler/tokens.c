@@ -196,7 +196,8 @@ const char* token_type_to_string(TokenType type) {
             return "--";         // --
         case TOK_FN_RETURN_TYPE:
             return "->";    // ->
-
+        case TOK_WILDCARD:
+            return "_";          // _
             // Literals.
         case TOK_IDENTIFIER:
             return "Identifier";        // variable or function name

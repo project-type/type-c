@@ -109,6 +109,7 @@ typedef enum {
     TOK_FN_RETURN_TYPE,    // ->
 
     // Literals.
+    TOK_WILDCARD,          // _
     TOK_IDENTIFIER,        // variable or function name
     TOK_STRING_VAL,            // string literal  (double quotes)
     TOK_CHAR_VAL,              // single character (single quote)
