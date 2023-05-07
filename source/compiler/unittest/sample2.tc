@@ -1,29 +1,34 @@
 
-let z: u32 = {name: "Soulaymen", age: 30} in
-    new Array<u32>() + Array() * Array(1,23)
 
-
-let
-    {t: Tree, matata: Operation} = {x: "hot", y: [1, 2, 3, "four"]},
-    [t2: Tree, tt23: Tree?] = 2 in
-        x*2*4 / x.y.z + new Tree[][](1, 2, 3, 4, 5, 6, 7, 8, 9, 10) + t2 + tt23
-
-let z: u32 = {name: "Soulaymen", age: 30} in
-    new Array()
-
-
-type Tree<T> = variant {
-    Leaf(value:T),
-    Node(lhs: Tree<T>, rhs: Tree<T>)
+fn main(args: string[]) -> u8 {
+    let x: u32 = 1
+    match x {
+        1 {
+            let z: u32 = 2
+        }
+        3 {
+            let z: u32 = 4
+        }
+        _ {
+            let z: u32 = 5
+        }
+    }
 }
 
-let t : Tree<u32> = Node(Leaf(1), Node(Leaf(2), Leaf(3))) in
-    match t {
-        Leaf(x) => x,
-        Node(lhs, rhs) => unsafe(0)
+
+/*
+type GenericArray<T> = f32
+
+fn main(args: string[]) -> u8 {
+    let x: u32 = 1
+    if x == 1 {
+        let z: u32 = 2
     }
-
-
-
-
-let F: fn(x: u32, y: u32) -> u32 = fn<T>(x: T, y: u32) -> u32 = x + y in z * 2 * F(2) * if x == 1 {1} else{2}
+    else if x == 3 {
+        let z: u32 = 4
+    }
+    else {
+        let z: u32 = 5
+    }
+}
+*/

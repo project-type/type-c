@@ -498,7 +498,7 @@ typedef struct LambdaExpr {
     FnBodyType bodyType;
     union {
         struct Expr *expr;
-        struct Block *block;
+        struct BlockStatement *block;
     };
 }LambdaExpr;
 LambdaExpr* ast_expr_makeLambdaExpr(ASTScope* parentScope);
@@ -569,32 +569,36 @@ typedef struct VarDeclStatement {
 VarDeclStatement* ast_stmt_makeVarDeclStatement(ASTScope* parentScope);
 
 typedef struct FnDeclStatement {
+    FnHeader * header;
     FnBodyType bodyType;
     union {
         struct Expr *expr;
-        struct BlockStatement *block;
+        struct Statement *block;
     };
     ASTScope * scope;
+
+    uint8_t hasGeneric;
+    vec_genericparam_t genericParams;
 }FnDeclStatement;
-FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope, FnBodyType bodyType);
+FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope);
 
 typedef struct IfChainStatement {
     vec_expr_t conditions;
-    vec_blockstatement_t blocks;
-    struct BlockStatement *elseBlock;
+    vec_statement_t blocks;
+    struct Statement *elseBlock;
 }IfChainStatement;
 IfChainStatement* ast_stmt_makeIfChainStatement();
 
 typedef struct CaseStatement {
     struct Expr *condition;
-    struct BlockStatement *block;
+    struct Statement *block;
 }CaseStatement;
 CaseStatement* ast_stmt_makeCaseStatement();
 
 typedef struct MatchStatement {
     struct Expr *expr;
     vec_casestatement_t cases;
-    BlockStatement * elseBlock;
+    struct Statement * elseBlock;
 }MatchStatement;
 MatchStatement* ast_stmt_makeMatchStatement();
 
@@ -650,6 +654,10 @@ typedef struct UnsafeStatement {
 }UnsafeStatement;
 UnsafeStatement* ast_stmt_makeUnsafeStatement();
 
+typedef struct ExprStatement {
+    struct Expr *expr;
+}ExprStatement;
+ExprStatement* ast_stmt_makeExprStatement();
 
 typedef enum StatementType {
     ST_EXPR,
@@ -680,28 +688,25 @@ typedef enum StatementType {
 typedef struct Statement {
     StatementType type;
     union {
-        void* expr;
-        void* varDecl;
-        void* fnDecl;
-        void* ifChain;
-        void* match;
-        void* whileLoop;
-        void* forLoop;
-        void* foreachLoop;
-        void* doWhileLoop;
-        void* continueStmt;
-        void* returnStmt;
-        void* deleteStmt;
-        void* breakStmt;
-        void* blockStmt;
-        void* unsafeStmt;
-        void* withStmt;
+        ExprStatement * expr;
+        VarDeclStatement * varDecl;
+        FnDeclStatement * fnDecl;
+        IfChainStatement * ifChain;
+        MatchStatement * match;
+        WhileStatement * whileLoop;
+        ForStatement * forLoop;
+        ForEachStatement * foreachLoop;
+        DoWhileStatement * doWhileLoop;
+        ContinueStatement * continueStmt;
+        ReturnStatement * returnStmt;
+        //DeleteStatement* deleteStmt;
+        BreakStatement * breakStmt;
+        BlockStatement * blockStmt;
+        UnsafeStatement * unsafeStmt;
+        //void* withStmt;
     };
 }Statement;
-
-typedef struct Block {
-    ASTScope* scope;
-}Block;
+Statement* ast_stmt_makeStatement(StatementType type);
 
 ASTNode * ast_makeProgramNode();
 PackageID* ast_makePackageID();

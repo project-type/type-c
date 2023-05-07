@@ -188,7 +188,7 @@ VariantConstructor* ast_type_makeVariantConstructor(){
 FnHeader*  ast_makeFnHeader(){
     ALLOC(header, FnHeader);
     header->name = NULL;
-    header->type = NULL;
+    header->type = ast_type_makeFn();
     header->isGeneric = 0;
     // init vec and map
     vec_init(&header->genericNames);
@@ -419,11 +419,14 @@ VarDeclStatement* ast_stmt_makeVarDeclStatement(ASTScope* parentScope) {
     return varDecl;
 }
 
-FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope, FnBodyType bodyType){
+FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope){
     ALLOC(fnDecl, FnDeclStatement);
+    fnDecl->header = NULL;
     fnDecl->scope = ast_scope_makeScope(parentScope);
-    fnDecl->bodyType = bodyType;
+    fnDecl->bodyType = FBT_BLOCK;
     fnDecl->expr = NULL;
+
+    vec_init(&fnDecl->genericParams);
 
     return fnDecl;
 }
@@ -520,6 +523,20 @@ UnsafeStatement* ast_stmt_makeUnsafeStatement(){
     unsafeStmt->block = NULL;
 
     return unsafeStmt;
+}
+
+ExprStatement* ast_stmt_makeExprStatement(){
+    ALLOC(exprStmt, ExprStatement);
+    exprStmt->expr = NULL;
+
+    return exprStmt;
+}
+
+Statement* ast_stmt_makeStatement(StatementType type){
+    ALLOC(stmt, Statement);
+    stmt->type = type;
+
+    return stmt;
 }
 
 #undef ALLOC

@@ -94,10 +94,16 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
         }
         else {
             parser_reject(parser);
+
+            Statement * stmt = parser_parseStmt(parser, node, node->scope);
+            printf("%s\n", ast_json_serializeStatement(stmt));
+            CURRENT;
+            /*
             Expr* expr = parser_parseExpr(parser, node, node->scope);
 
             printf("%s\n", ast_json_serializeExpr(expr));
             CURRENT;
+             */
         }
     }
 }
@@ -1032,7 +1038,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 FnArgument *var = ast_type_makeFnArgument();
                 // check if we have a mut
                 if (lexeme.type == TOK_MUT) {
-                    var->isMutable = 0;
+                    var->isMutable = 1;
                     ACCEPT;
                     CURRENT;
                 }
@@ -2168,6 +2174,512 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
 
     return header;
 }
+
+Statement* parser_parseStmt(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+    // we check all the options. if no option is chosen, we parse expressions as a statement
+    // if we have a return statement
+    Lexeme CURRENT;
+    // if we have a let statement
+    if(lexeme.type == TOK_LET) {
+        parser_reject(parser);
+        return parser_parseStmtLet(parser, node, currentScope);
+    }
+    // if we have a function declaration
+    else if(lexeme.type == TOK_FN) {
+        parser_reject(parser);
+        return parser_parseStmtFn(parser, node, currentScope);
+    }
+    // if we have an if statement
+    else if(lexeme.type == TOK_IF) {
+        parser_reject(parser);
+        return parser_parseStmtIf(parser, node, currentScope);
+    }
+    // if we have a while statement
+    else if(lexeme.type == TOK_WHILE) {
+        parser_reject(parser);
+        return parser_parseStmtWhile(parser, node, currentScope);
+    }
+    // check if we have do
+    else if(lexeme.type == TOK_DO) {
+        parser_reject(parser);
+        return parser_parseStmtDoWhile(parser, node, currentScope);
+    }
+    // if we have a for statement
+    else if(lexeme.type == TOK_FOR) {
+        parser_reject(parser);
+        return parser_parseStmtFor(parser, node, currentScope);
+    }
+    // if we have foreach
+    else if(lexeme.type == TOK_FOREACH) {
+        parser_reject(parser);
+        return parser_parseStmtForEach(parser, node, currentScope);
+    }
+    // if we have a break statement
+    else if(lexeme.type == TOK_BREAK) {
+        parser_reject(parser);
+        return parser_parseStmtBreak(parser, node, currentScope);
+    }
+    // if we have a continue statement
+    else if(lexeme.type == TOK_CONTINUE) {
+        parser_reject(parser);
+        return parser_parseStmtContinue(parser, node, currentScope);
+    }
+    // if we have a return statement
+    else if(lexeme.type == TOK_RETURN) {
+        parser_reject(parser);
+        return parser_parseStmtReturn(parser, node, currentScope);
+    }
+    // if we have a block statement
+    else if(lexeme.type == TOK_LBRACE) {
+        parser_reject(parser);
+        return parser_parseStmtBlock(parser, node, currentScope);
+    }
+    // if we have a match
+    else if(lexeme.type == TOK_MATCH) {
+        parser_reject(parser);
+        return parser_parseStmtMatch(parser, node, currentScope);
+    }
+    // if we have unsafe
+    else if(lexeme.type == TOK_UNSAFE) {
+        parser_reject(parser);
+        return parser_parseStmtUnsafe(parser, node, currentScope);
+    }
+    // otherwise, we expect expr
+
+    parser_reject(parser);
+    return parser_parseStmtExpr(parser, node, currentScope);
+}
+
+Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    Statement* stmt = ast_stmt_makeStatement(ST_VAR_DECL);
+    stmt->varDecl = ast_stmt_makeVarDeclStatement(currentScope);
+    Lexeme CURRENT;
+    // assert let
+    ASSERT(lexeme.type == TOK_LET, "Line: %"PRIu16", Col: %"PRIu16" `let` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    CURRENT;
+    uint8_t loop_over_expr = 1;
+    while (loop_over_expr) {
+        LetExprDecl *letDecl = ast_expr_makeLetExprDecl();
+        char *expect = NULL;
+
+        // check if we have id or { or [
+        if (lexeme.type == TOK_LBRACE) {
+            expect = "]";
+            letDecl->initializerType = LIT_STRUCT_DECONSTRUCTION;
+            ACCEPT;
+            CURRENT;
+        } else if (lexeme.type == TOK_LBRACKET) {
+            expect = "]";
+            letDecl->initializerType = LIT_ARRAY_DECONSTRUCTION;
+            ACCEPT;
+            CURRENT;
+        } else {
+            expect = NULL;
+            letDecl->initializerType = LIT_NONE;
+        }
+
+        uint8_t loop = 1;
+        while (loop) {
+            FnArgument *var = ast_type_makeFnArgument();
+            // check if we have a mut
+            if (lexeme.type == TOK_MUT) {
+                var->isMutable = 1;
+                ACCEPT;
+                CURRENT;
+            }
+            // assert ID
+            ASSERT(lexeme.type == TOK_IDENTIFIER,
+                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+            var->name = strdup(lexeme.string);
+            ACCEPT;
+            CURRENT;
+            // assert ":"
+            ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
+                   EXPAND_LEXEME);
+            ACCEPT;
+            // parse type
+            var->type = parser_parseTypePrimary(parser, node, NULL, currentScope);
+            // assert type is not null
+            ASSERT(var->type != NULL,
+                   "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
+                   EXPAND_LEXEME);
+            // add to args
+            map_set(&letDecl->variables, var->name, var);
+            vec_push(&letDecl->variableNames, var->name);
+
+            // check if we have a comma
+            lexeme = parser_peek(parser);
+            if (lexeme.type == TOK_COMMA) {
+                ACCEPT;
+                CURRENT;
+            } else {
+                parser_reject(parser);
+                loop = 0;
+            }
+        }
+        // if we expected something earlier, we must find it closed now
+        if (expect != NULL) {
+            CURRENT;
+            // if we expected "]", we must find "]"
+            if (expect[0] == '[') {
+                // assert "]"
+                ASSERT(lexeme.type == TOK_RBRACKET,
+                       "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            } else if (expect[0] == '{') {
+                // assert "]"
+                ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            }
+        }
+
+        CURRENT;
+        // assert "="
+        ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.",
+               EXPAND_LEXEME);
+        ACCEPT;
+
+        Expr *initializer = parser_parseExpr(parser, node, currentScope);
+        letDecl->initializer = initializer;
+        // assert initializer is not null
+        ASSERT(initializer != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.",
+               EXPAND_LEXEME);
+        // add the decl to the let uhs
+        vec_push(&stmt->varDecl->letList, letDecl);
+
+        CURRENT;
+        // check if we have a comma
+        if (lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        } else {
+            parser_reject(parser);
+            loop_over_expr = 0;
+        }
+    }
+    return stmt;
+}
+
+Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+    Statement* stmt = ast_stmt_makeStatement(ST_FN_DECL);
+    stmt->fnDecl = ast_stmt_makeFnDeclStatement(currentScope);
+    // create the header
+    stmt->fnDecl->header = ast_makeFnHeader();
+
+    Lexeme CURRENT;
+    // assert fn
+    ASSERT(lexeme.type == TOK_FN, "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    CURRENT;
+    // assert ID
+    ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
+           EXPAND_LEXEME);
+    stmt->fnDecl->header->name = strdup(lexeme.string);
+    ACCEPT;
+    CURRENT;
+
+
+    if(lexeme.type == TOK_LESS) {
+        // GENERICS!
+        stmt->fnDecl->hasGeneric = 1;
+        ACCEPT;
+        CURRENT;
+        uint8_t can_loop = 1;
+        ASSERT(lexeme.type == TOK_IDENTIFIER,
+               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+
+        while(can_loop) {
+            // init generic param
+            GenericParam * genericParam = ast_make_genericParam();
+            genericParam->isGeneric = 1;
+
+            // in a type declaration, all given templates in the referee are generic and not concrete.
+            ASSERT(lexeme.type == TOK_IDENTIFIER,
+                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
+                   EXPAND_LEXEME);
+
+            // get generic name
+            genericParam->name = strdup(lexeme.string);
+            ACCEPT;
+            CURRENT;
+            // check if have ":"
+            if(lexeme.type == TOK_COLON) {
+                ACCEPT;
+                CURRENT;
+                // get generic type
+                genericParam->constraint = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                CURRENT;
+            }
+            else {
+                // if not, set to any
+                genericParam->constraint = NULL;
+            }
+
+            // add generic param
+            vec_push(&stmt->fnDecl->genericParams, genericParam);
+            if(lexeme.type == TOK_GREATER){
+                can_loop = 0;
+                ACCEPT;
+                CURRENT;
+            }
+
+            else {
+                ASSERT(lexeme.type == TOK_COMMA,
+                       "Line: %"PRIu16", Col: %"PRIu16" `,` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                CURRENT;
+            }
+        }
+    }
+
+    // assert "("
+    ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    CURRENT;
+    uint8_t loop = 1;
+    while (loop) {
+        FnArgument *arg = ast_type_makeFnArgument();
+        // check if we have a mut
+        if (lexeme.type == TOK_MUT) {
+            arg->isMutable = 1;
+            ACCEPT;
+            CURRENT;
+        }
+        // assert ID
+        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
+               EXPAND_LEXEME);
+        arg->name = strdup(lexeme.string);
+        ACCEPT;
+        CURRENT;
+        // assert ":"
+        ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
+               EXPAND_LEXEME);
+        ACCEPT;
+        // parse type
+        arg->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        // assert type is not null
+        ASSERT(arg->type != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
+               EXPAND_LEXEME);
+        // add to args
+        map_set(&stmt->fnDecl->header->type->args, arg->name, arg);
+        vec_push(&stmt->fnDecl->header->type->argNames, arg->name);
+
+        // check if we have a comma
+        lexeme = parser_peek(parser);
+        if (lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        } else {
+            parser_reject(parser);
+            loop = 0;
+        }
+    }
+    CURRENT;
+    // assert )
+    ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // check if we have ->
+    lexeme = parser_peek(parser);
+    if (lexeme.type == TOK_FN_RETURN_TYPE) {
+        ACCEPT;
+        // parse the return type
+        // TODO: add generics to scope if they exist?
+        stmt->fnDecl->header->type->returnType = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        // assert type is not null
+        ASSERT(stmt->fnDecl->header->type->returnType != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
+               EXPAND_LEXEME);
+
+    }
+
+    // check if we have `=` or `{`
+    lexeme = parser_peek(parser);
+    if (lexeme.type == TOK_EQUAL) {
+        stmt->fnDecl->bodyType = FBT_EXPR;
+        ACCEPT;
+        CURRENT;
+        // parse the body
+        // TODO: update current
+        stmt->fnDecl->expr = parser_parseExpr(parser, node, stmt->fnDecl->scope);
+        // assert body is not null
+        ASSERT(stmt->fnDecl->expr != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `body` near %s, generated a NULL body. This is a parser issue.",
+               EXPAND_LEXEME);
+        ACCEPT;
+        CURRENT;
+    } else if (lexeme.type == TOK_LBRACE) {
+        stmt->fnDecl->bodyType = FBT_BLOCK;
+        parser_reject(parser);
+        stmt->fnDecl->block = parser_parseStmtBlock(parser, node, stmt->fnDecl->scope);
+    } else {
+        parser_reject(parser);
+        // assert false
+        ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" `=` or `{` expected but %s was found.", EXPAND_LEXEME);
+    }
+    return stmt;
+}
+
+Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // create statement instance
+    Statement* stmt = ast_stmt_makeStatement(ST_BLOCK);
+    stmt->blockStmt = ast_stmt_makeBlockStatement(currentScope);
+    // assert {
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+
+    uint8_t loop = 1;
+
+    while(loop) {
+        Statement * s = parser_parseStmt(parser, node, stmt->blockStmt->scope);
+        vec_push(&stmt->blockStmt->stmts, s);
+        // TODO: free s
+
+        CURRENT;
+        if(lexeme.type == TOK_RBRACE){
+            ACCEPT;
+            loop = 0;
+        }
+        else
+            parser_reject(parser);
+    }
+
+    return stmt;
+}
+
+Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // create statement instance
+    Statement* stmt = ast_stmt_makeStatement(ST_IF_CHAIN);
+    stmt->ifChain = ast_stmt_makeIfChainStatement();
+    // assert if
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_IF, "Line: %"PRIu16", Col: %"PRIu16" `if` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+    // prepare to loop
+    uint8_t loop = 1;
+    /*
+     * if true {} else if true {} else {}
+     * we parse it as 2 conditions and 2 blocks, final else is separate
+     */
+    while (loop) {
+        Expr* condition = parser_parseExpr(parser, node, currentScope);
+        // assert condition is not null
+        ASSERT(condition != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
+               EXPAND_LEXEME);
+        // next token
+
+
+        Statement* block = parser_parseStmtBlock(parser, node, currentScope);
+
+        vec_push(&stmt->ifChain->conditions, condition);
+        vec_push(&stmt->ifChain->blocks, block);
+
+        CURRENT;
+
+        if(lexeme.type == TOK_ELSE){
+            ACCEPT;
+            CURRENT;
+            if(lexeme.type == TOK_IF){
+                ACCEPT;
+                CURRENT;
+            }
+            else{
+                parser_reject(parser);
+                stmt->ifChain->elseBlock = parser_parseStmtBlock(parser, node, currentScope);
+                loop = 0;
+            }
+        }
+    }
+
+    return stmt;
+}
+Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // get current token
+    Lexeme CURRENT;
+    // assert match
+    ASSERT(lexeme.type == TOK_MATCH, "Line: %"PRIu16", Col: %"PRIu16" `match` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // create statement instance
+    Statement* stmt = ast_stmt_makeStatement(ST_MATCH);
+    stmt->match = ast_stmt_makeMatchStatement();
+    // parse the main expression to be matched
+    stmt->match->expr = parser_parseExpr(parser, node, currentScope);
+    // assert expr is not null
+    ASSERT(stmt->match->expr != NULL,
+           "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.",
+           EXPAND_LEXEME);
+    // assert {
+    CURRENT;
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // prepare to loop
+    uint8_t loop = 1;
+    while(loop) {
+        CURRENT;
+        // do we have a wildcard
+        if (lexeme.type == TOK_WILDCARD){
+            ACCEPT;
+            stmt->match->elseBlock = parser_parseStmtBlock(parser, node, currentScope);
+            loop = 0;
+        }
+        else {
+            parser_reject(parser);
+            // create CaseStatement
+            CaseStatement *caseStmt = ast_stmt_makeCaseStatement();
+            // parse the condition
+            caseStmt->condition = parser_parseExpr(parser, node, currentScope);
+            ASSERT(caseStmt->condition != NULL,
+                   "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
+                   EXPAND_LEXEME);
+            // next token
+            CURRENT;
+            // assert {
+            ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.",
+                   EXPAND_LEXEME);
+            parser_reject(parser);
+            // parse the block
+            caseStmt->block = parser_parseStmtBlock(parser, node, currentScope);
+            // assert block is not null
+            ASSERT(caseStmt->block != NULL,
+                   "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
+                   EXPAND_LEXEME);
+            vec_push(&stmt->match->cases, caseStmt);
+        }
+
+        CURRENT;
+        if(lexeme.type == TOK_RBRACE){
+            ACCEPT;
+            loop = 0;
+        }
+        else
+            parser_reject(parser);
+    }
+
+    return stmt;
+}
+
+Statement* parser_parseStmtWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtForEach(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
 
 #undef CURRENT
 #undef ACCEPT

@@ -135,6 +135,24 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
 Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope);
 
 
+Statement* parser_parseStmt(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtWhile(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtForEach(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope);
+
+
+
 #endif //TYPE_C_PARSER_H
 
 /*
