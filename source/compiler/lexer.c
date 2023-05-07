@@ -665,7 +665,7 @@ Lexeme lexer_lexCurrent(LexerState* lex) {
             if(getCurrentChar(lex) == '\0'){
                 return makeLexemLineCol(TOK_EOF, NULL, line, col);
             }
-            if(isalpha(c)){
+            if(isalpha(c) || c == '_'){
                 return lexIdOrKeyword(lex);
             }
             if(match(lex, "0b")) {
