@@ -605,31 +605,32 @@ MatchStatement* ast_stmt_makeMatchStatement();
 typedef struct WhileStatement {
     char* label;
     struct Expr *condition;
-    struct BlockStatement *block;
+    struct Statement *block;
 }WhileStatement;
 WhileStatement* ast_stmt_makeWhileStatement();
 
 typedef struct DoWhileStatement {
     char* label;
     struct Expr *condition;
-    struct BlockStatement *block;
+    struct Statement *block;
 }DoWhileStatement;
 DoWhileStatement* ast_stmt_makeDoWhileStatement();
 
 typedef struct ForStatement {
     char* label;
-    vec_letexprlist_t letList;
+    struct Statement *initializer;
     struct Expr *condition;
     vec_expr_t increments;
-    struct BlockStatement *block;
+    struct Statement *block;
     ASTScope * scope;
 }ForStatement;
 ForStatement* ast_stmt_makeForStatement(ASTScope* parentScope);
 
 typedef struct ForEachStatement{
-    char* variableName;
+    char* variableContentName;
+    char* variableIndexName;
     struct Expr *iterable;
-    struct BlockStatement *block;
+    struct Statement *block;
     ASTScope * scope;
 }ForEachStatement;
 ForEachStatement* ast_stmt_makeForEachStatement(ASTScope* parentScope);
@@ -650,7 +651,7 @@ typedef struct ReturnStatement {
 ReturnStatement* ast_stmt_makeReturnStatement();
 
 typedef struct UnsafeStatement {
-    struct BlockStatement *block;
+    struct Statement *block;
 }UnsafeStatement;
 UnsafeStatement* ast_stmt_makeUnsafeStatement();
 

@@ -1057,22 +1057,78 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
 
             break;
         }
-        case ST_WHILE:
+
+        case ST_WHILE: {
+            // category = while
+            json_object_set_string(root_object, "category", "while");
+            // add the condition
+            json_object_set_value(root_object, "condition", ast_json_serializeExprRecursive(stmt->whileLoop->condition));
+            // add the body
+            json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(stmt->whileLoop->block));
+
             break;
-        case ST_DO_WHILE:
+        }
+        case ST_DO_WHILE: {
+            // category = doWhile
+            json_object_set_string(root_object, "category", "doWhile");
+            // add the condition
+            json_object_set_value(root_object, "condition", ast_json_serializeExprRecursive(stmt->doWhileLoop->condition));
+            // add the body
+            json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(stmt->doWhileLoop->block));
+
             break;
-        case ST_FOR:
+        }
+        case ST_FOR: {
+            // category = for
+            json_object_set_string(root_object, "category", "for");
+            // add the init
+            json_object_set_value(root_object, "init", ast_json_serializeStatementRecursive(stmt->forLoop->initializer));
+            // add the condition
+            json_object_set_value(root_object, "condition", ast_json_serializeExprRecursive(stmt->forLoop->condition));
+            // add the increment as an array
+            JSON_Value * increments_value = json_value_init_array();
+            JSON_Array * increments_array = json_value_get_array(increments_value);
+            // iterate over the increments
+            uint32_t i; Expr * increment;
+            vec_foreach(&stmt->forLoop->increments, increment, i) {
+                // add the increment to the increments array
+                json_array_append_value(increments_array, ast_json_serializeExprRecursive(increment));
+            }
+            // add the increments array to the root object
+            json_object_set_value(root_object, "increments", increments_value);
+            // add the body
+            json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(stmt->forLoop->block));
+
             break;
+        }
         case ST_FOREACH:
+            // throw not implemented error
+            ASSERT(0, "Foreach not implemented yet");
             break;
-        case ST_CONTINUE:
+        case ST_CONTINUE: {
+            // category = continue
+            json_object_set_string(root_object, "category", "continue");
             break;
-        case ST_RETURN:
+        }
+        case ST_RETURN: {
+            // category = return
+            json_object_set_string(root_object, "category", "return");
+            // add the return value if it exists else set it to null
+            json_object_set_value(root_object, "value", stmt->returnStmt->expr==NULL?json_value_init_null():ast_json_serializeExprRecursive(stmt->returnStmt->expr));
             break;
-        case ST_BREAK:
+        }
+        case ST_BREAK: {
+            // category = break
+            json_object_set_string(root_object, "category", "break");
             break;
-        case ST_UNSAFE:
+        }
+        case ST_UNSAFE: {
+            // category = unsafe
+            json_object_set_string(root_object, "category", "unsafe");
+            // add the unsafe block
+            json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(stmt->unsafeStmt->block));
             break;
+        }
     }
     return root_value;
 }

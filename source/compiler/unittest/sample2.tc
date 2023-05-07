@@ -1,34 +1,14 @@
 
-
-fn main(args: string[]) -> u8 {
-    let x: u32 = 1
-    match x {
-        1 {
-            let z: u32 = 2
-        }
-        3 {
-            let z: u32 = 4
-        }
-        _ {
-            let z: u32 = 5
-        }
-    }
+fn fib(n: u32) -> u32 = match n {
+    0 => 0,
+    1 => 1,
+    n => fib(n - 1) + fib(n - 2)
 }
 
-
-/*
-type GenericArray<T> = f32
-
 fn main(args: string[]) -> u8 {
-    let x: u32 = 1
-    if x == 1 {
-        let z: u32 = 2
+    let fib20: u32 = fib(20)
+    if fib20 == 20 {
+        return
     }
-    else if x == 3 {
-        let z: u32 = 4
-    }
-    else {
-        let z: u32 = 5
-    }
+    print("Hello")
 }
-*/

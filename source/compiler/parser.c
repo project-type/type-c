@@ -96,8 +96,12 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
             parser_reject(parser);
 
             Statement * stmt = parser_parseStmt(parser, node, node->scope);
-            printf("%s\n", ast_json_serializeStatement(stmt));
             CURRENT;
+            if (stmt == NULL) {
+                ASSERT(0, "Line %" PRIu32 ":%" PRIu32 ": Invalid token %s", EXPAND_LEXEME);
+            }
+            printf("%s\n", ast_json_serializeStatement(stmt));
+
             /*
             Expr* expr = parser_parseExpr(parser, node, node->scope);
 
@@ -1002,7 +1006,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
     if(lexeme.type == TOK_LET)
     {
         Expr *expr = ast_expr_makeExpr(ET_LET);
-        LetExpr *let = ast_expr_makeLetExpr(&currentScope);
+        LetExpr *let = ast_expr_makeLetExpr(currentScope);
 
         expr->letExpr = let;
 
@@ -1195,6 +1199,9 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
 
 Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpOr(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(
             lexeme.type == TOK_EQUAL ||
@@ -1237,6 +1244,9 @@ Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope* currentScope
 
 Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseOpAnd(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_LOGICAL_OR) {
         ACCEPT;
@@ -1259,6 +1269,9 @@ Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
 
 Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpBinOr(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_LOGICAL_AND) {
         ACCEPT;
@@ -1281,6 +1294,9 @@ Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
 
 Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpBinXor(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_OR) {
         ACCEPT;
@@ -1303,6 +1319,9 @@ Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
 Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs =  parser_parseOpBinAnd(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_XOR) {
         ACCEPT;
@@ -1325,6 +1344,9 @@ Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope* currentScope
 
 Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpEq(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_AND) {
         ACCEPT;
@@ -1347,6 +1369,9 @@ Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope* currentScope
 
 Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpCompare(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_EQUAL_EQUAL || lexeme.type == TOK_NOT_EQUAL) {
         ACCEPT;
@@ -1369,6 +1394,9 @@ Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope* currentScope){
 
 Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseOpShift(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_LESS || lexeme.type == TOK_GREATER ||
     lexeme.type == TOK_LESS_EQUAL || lexeme.type == TOK_GREATER_EQUAL) {
@@ -1418,6 +1446,9 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
 
 Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseAdd(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_RIGHT_SHIFT || lexeme.type == TOK_LEFT_SHIFT) {
         ACCEPT;
@@ -1440,6 +1471,9 @@ Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
 Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     Expr* lhs = parser_parseOpMult(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_PLUS || lexeme.type == TOK_MINUS) {
         ACCEPT;
@@ -1462,6 +1496,9 @@ Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope* currentScope){
 
 Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     Expr* lhs = parser_parseOpUnary(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_STAR || lexeme.type == TOK_DIV || lexeme.type == TOK_PERCENT) {
         ACCEPT;
@@ -1583,6 +1620,9 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
 Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScope){
 
     Expr* lhs = parser_parseOpValue(parser, node, currentScope);
+    if(lhs == NULL){
+        return NULL;
+    }
     Lexeme CURRENT;
     if(lexeme.type == TOK_DOT) {
         ACCEPT;
@@ -1876,7 +1916,7 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
     expr->literalExpr = ast_expr_makeLiteralExpr(0);
     Lexeme lexeme = parser_peek(parser);
-    expr->literalExpr->value = strdup(lexeme.string);
+
     ACCEPT;
     switch(lexeme.type){
         case TOK_STRING_VAL:
@@ -1916,8 +1956,10 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope)
             expr->literalExpr->type = LT_BOOLEAN;
             expr->dataType->kind = DT_BOOL;
         default:
-            ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" `literal` expected but %s was found.", EXPAND_LEXEME);
+            // TODO: free memory
+            return NULL;
     }
+    expr->literalExpr->value = strdup(lexeme.string);
     return expr;
 }
 
@@ -2547,7 +2589,7 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* curren
         // TODO: free s
 
         CURRENT;
-        if(lexeme.type == TOK_RBRACE){
+        if(lexeme.type == TOK_RBRACE || lexeme.type == TOK_EOF){
             ACCEPT;
             loop = 0;
         }
@@ -2601,6 +2643,11 @@ Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentSc
                 stmt->ifChain->elseBlock = parser_parseStmtBlock(parser, node, currentScope);
                 loop = 0;
             }
+        }
+        else {
+            parser_reject(parser);
+            stmt->ifChain->elseBlock = NULL;
+            loop = 0;
         }
     }
 
@@ -2671,15 +2718,215 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
     return stmt;
 }
 
-Statement* parser_parseStmtWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtForEach(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
-Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){return NULL;}
+Statement* parser_parseStmtWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_WHILE);
+    stmt->whileLoop = ast_stmt_makeWhileStatement();
+    // assert while
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_WHILE, "Line: %"PRIu16", Col: %"PRIu16" `while` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // parse condition
+    stmt->whileLoop->condition = parser_parseExpr(parser, node, currentScope);
+    // assert condition is not null
+    ASSERT(stmt->whileLoop->condition != NULL,
+           "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
+           EXPAND_LEXEME);
+    // parse block
+    stmt->whileLoop->block = parser_parseStmtBlock(parser, node, currentScope);
+    // assert block is not null
+    ASSERT(stmt->whileLoop->block != NULL,
+           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
+           EXPAND_LEXEME);
+
+    return stmt;
+}
+
+Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_DO_WHILE);
+    stmt->doWhileLoop = ast_stmt_makeDoWhileStatement();
+    // assert do
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_DO, "Line: %"PRIu16", Col: %"PRIu16" `do` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // parse block
+    stmt->doWhileLoop->block = parser_parseStmtBlock(parser, node, currentScope);
+    // assert block is not null
+    ASSERT(stmt->doWhileLoop->block != NULL,
+           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
+           EXPAND_LEXEME);
+    // assert while
+    CURRENT;
+    ASSERT(lexeme.type == TOK_WHILE, "Line: %"PRIu16", Col: %"PRIu16" `while` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // parse condition
+    stmt->doWhileLoop->condition = parser_parseExpr(parser, node, currentScope);
+    // assert condition is not null
+    ASSERT(stmt->doWhileLoop->condition != NULL,
+           "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
+           EXPAND_LEXEME);
+
+    return stmt;
+}
+
+Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_FOR);
+    stmt->forLoop = ast_stmt_makeForStatement(currentScope);
+    // assert for
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_FOR, "Line: %"PRIu16", Col: %"PRIu16" `for` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // make sure we have initializer, i.e token is not ";"
+    CURRENT;
+    if(lexeme.type != TOK_SEMICOLON){
+        // parse initializer
+        stmt->forLoop->initializer = parser_parseStmtLet(parser, node, currentScope);
+
+        // assert initializer is not null
+        ASSERT(stmt->forLoop->initializer != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `initializer` near %s, generated a NULL initializer. This is a parser issue.",
+               EXPAND_LEXEME);
+        // assert token is ";"
+        CURRENT;
+        ASSERT(lexeme.type == TOK_SEMICOLON, "Line: %"PRIu16", Col: %"PRIu16" `;` expected but %s was found.",
+               EXPAND_LEXEME);
+        ACCEPT;
+    }
+    else
+        ACCEPT;
+
+    // now we parse the condition
+    if(lexeme.type != TOK_SEMICOLON){
+        // parse condition
+        stmt->forLoop->condition = parser_parseExpr(parser, node, currentScope);
+        // assert condition is not null
+        ASSERT(stmt->forLoop->condition != NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
+               EXPAND_LEXEME);
+        // assert token is ";"
+        CURRENT;
+        ASSERT(lexeme.type == TOK_SEMICOLON, "Line: %"PRIu16", Col: %"PRIu16" `;` expected but %s was found.",
+               EXPAND_LEXEME);
+        ACCEPT;
+    }
+    else
+        ACCEPT;
+
+    // check if we have {
+    CURRENT;
+    if(lexeme.type != TOK_LBRACE) {
+        parser_reject(parser);
+        // now we parse increments as <expr>(","<expr>)*
+        // prepare to loop
+        uint8_t loop = 1;
+        while(loop) {
+            // parse one increment
+            Expr* increment = parser_parseExpr(parser, node, currentScope);
+            // assert increment is not null
+            ASSERT(increment != NULL,
+                   "Line: %"PRIu16", Col: %"PRIu16" `increment` near %s, generated a NULL increment. This is a parser issue.",
+                   EXPAND_LEXEME);
+            // add increment to list
+            vec_push(&stmt->forLoop->increments, increment);
+            // check if we have a comma
+            CURRENT;
+            if(lexeme.type == TOK_COMMA)
+                ACCEPT;
+            else
+                loop = 0;
+        }
+    }
+
+    // current
+    stmt->forLoop->block = parser_parseStmtBlock(parser, node, currentScope);
+    // assert block is not null
+    ASSERT(stmt->forLoop->block != NULL,
+           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
+           EXPAND_LEXEME);
+    return stmt;
+}
+
+Statement* parser_parseStmtForEach(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // throw not implemented error
+    ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" `foreach` is not implemented yet.");
+}
+
+Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_CONTINUE);
+    stmt->continueStmt = ast_stmt_makeContinueStatement();
+    // assert continue
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_CONTINUE, "Line: %"PRIu16", Col: %"PRIu16" `continue` expected but %s was found.",
+           EXPAND_LEXEME);
+    ACCEPT;
+    return stmt;
+}
+
+Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_RETURN);
+    stmt->returnStmt = ast_stmt_makeReturnStatement();
+    // assert return
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_RETURN, "Line: %"PRIu16", Col: %"PRIu16" `return` expected but %s was found.",
+           EXPAND_LEXEME);
+    ACCEPT;
+    // parse expression
+    stmt->returnStmt->expr = parser_parseExpr(parser, node, currentScope);
+    // return can be NULL.
+
+    return stmt;
+}
+
+Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_BREAK);
+    stmt->breakStmt = ast_stmt_makeBreakStatement();
+    // assert break
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_BREAK, "Line: %"PRIu16", Col: %"PRIu16" `break` expected but %s was found.",
+           EXPAND_LEXEME);
+    ACCEPT;
+    return stmt;
+}
+
+Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_UNSAFE);
+    stmt->unsafeStmt = ast_stmt_makeUnsafeStatement();
+    // assert unsafe
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_UNSAFE, "Line: %"PRIu16", Col: %"PRIu16" `unsafe` expected but %s was found.",
+           EXPAND_LEXEME);
+    ACCEPT;
+    // parse block
+    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, node, currentScope);
+    // assert block is not null
+    ASSERT(stmt->unsafeStmt->block != NULL,
+           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
+           EXPAND_LEXEME);
+    return stmt;
+}
+Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_EXPR);
+    stmt->expr = ast_stmt_makeExprStatement();
+    // parse expression
+    stmt->expr->expr = parser_parseExpr(parser, node, currentScope);
+    // expr can be null
+
+    if(stmt->expr->expr == NULL){
+        // TODO free memory
+        free(stmt->expr);
+        free(stmt);
+        return NULL;
+    }
+
+    return stmt;
+}
 
 #undef CURRENT
 #undef ACCEPT

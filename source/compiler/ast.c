@@ -477,7 +477,7 @@ DoWhileStatement* ast_stmt_makeDoWhileStatement(){
 ForStatement* ast_stmt_makeForStatement(ASTScope* parentScope){
     ALLOC(forStmt, ForStatement);
     forStmt->scope = ast_scope_makeScope(parentScope);
-    vec_init(&forStmt->letList);
+    forStmt->initializer = NULL;
     forStmt->condition = NULL;
     forStmt->block = NULL;
     // init increments
@@ -492,7 +492,8 @@ ForEachStatement* ast_stmt_makeForEachStatement(ASTScope* parentScope){
     forEachStmt->scope = ast_scope_makeScope(parentScope);
     forEachStmt->block = NULL;
     forEachStmt->iterable = NULL;
-    forEachStmt->variableName = NULL;
+    forEachStmt->variableContentName = NULL;
+    forEachStmt->variableIndexName = NULL;
 
     return forEachStmt;
 }
