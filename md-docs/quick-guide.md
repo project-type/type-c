@@ -231,13 +231,13 @@ let x: i32 = get_some_int_value()
 let mut y: i32 = 1;
 
 match x {
-    case 0 {
+    0 {
         y = -1
     }
-    case 1 {
+    1 {
         y = 1
     }
-    else {
+    _ {
         y = -x
     }
 }
