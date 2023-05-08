@@ -312,6 +312,11 @@ typedef struct ASTNode {
     };
 }ASTNode;
 
+typedef struct FFIDecl {
+    char* name;
+
+}FFIDecl;
+
 typedef enum BinaryExprType {
     BET_ADD,
     BET_SUB,
@@ -738,6 +743,7 @@ typedef struct Statement {
         BreakStatement * breakStmt;
         BlockStatement * blockStmt;
         UnsafeStatement * unsafeStmt;
+
         //void* withStmt;
     };
 }Statement;

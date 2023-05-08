@@ -1,0 +1,38 @@
+
+extern "C" craylibWindow {
+    fn InitWindow(width: u32, height: u32, title: char[])
+    fn WindowShouldClose() -> bool
+    fn CloseWindow()
+    fn IsWindowReady() -> bool
+    fn IsWindowFullscreen -> bool
+}
+
+fn initWindow(width: u32, height: u32, title: char[]){
+    unsafe {
+        InitWindow(width, height, title);
+    }
+}
+
+fn windowShouldClose() -> bool {
+    return unsafe {
+        WindowShouldClose()
+    }
+}
+
+fn closeWindow() {
+    unsafe {
+        CloseWindow()
+    }
+}
+
+fn isWindowReady() -> bool {
+    return unsafe {
+        IsWindowReady()
+    }
+}
+
+fn isWindowFullscreen() -> bool {
+    return unsafe {
+        IsWindowFullscreen()
+    }
+}
