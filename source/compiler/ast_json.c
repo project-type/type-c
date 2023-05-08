@@ -243,6 +243,22 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             // add primitive type = bool
             json_object_set_string(root_object, "primitiveType", "bool");
             break;
+        case DT_VOID: {
+            // add category=primitive
+            json_object_set_string(root_object, "category", "primitive");
+            // add primitive type = void
+            json_object_set_string(root_object, "primitiveType", "void");
+            break;
+        }
+        case DT_VEC: {
+            /*
+            // add category=primitive
+            json_object_set_string(root_object, "category", "primitive");
+            // add primitive type = vec
+            json_object_set_string(root_object, "primitiveType", "vec");
+            break;
+             */
+        }
         case DT_STRING:
             // add category=primitive
             json_object_set_string(root_object, "category", "primitive");
@@ -507,6 +523,41 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             json_object_set_value(root_object, "left", ast_json_serializeDataTypeRecursive(type->unionType->left));
             // add the right type as right: <type>
             json_object_set_value(root_object, "right", ast_json_serializeDataTypeRecursive(type->unionType->right));
+            break;
+        }
+        case DT_PROCESS: {
+            // category = process
+            json_object_set_string(root_object, "category", "process");
+            ProcessType * pt = type->processType;
+
+            // add input type
+            json_object_set_value(root_object, "input", ast_json_serializeDataTypeRecursive(pt->inputType));
+            // add output type
+            json_object_set_value(root_object, "output", ast_json_serializeDataTypeRecursive(pt->outputType));
+
+            // add constructor args as constructor: [args]
+            JSON_Value *args_value = json_value_init_array();
+            JSON_Array *args_array = json_value_get_array(args_value);
+            // iterate over the args
+            char *argName;
+            uint32_t i;
+            vec_foreach(&pt->argNames, argName, i) {
+                FnArgument ** arg = map_get(&pt->args, argName);
+                // we want to create an object {"name": <name>, "type": <type>}
+                JSON_Value *arg_value = json_value_init_object();
+                JSON_Object *arg_object = json_value_get_object(arg_value);
+                // add the name
+                json_object_set_string(arg_object, "name", argName);
+                // add the type
+                json_object_set_value(arg_object, "type",
+                                      ast_json_serializeDataTypeRecursive((*arg)->type));
+
+                // add the arg
+                json_array_append_value(args_array, arg_value);
+            }
+            // add the args
+            json_object_set_value(root_object, "constructor", args_value);
+
             break;
         }
         case DT_UNRESOLVED:
@@ -895,6 +946,17 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
             // add the unsafe expression
             json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(expr->unsafeExpr->expr));
             break;
+        }
+        case ET_SPAWN: {
+            // category = spawn
+            json_object_set_string(root_object, "category", "spawn");
+            // add the callback expr if exists else null
+            if(expr->spawnExpr->callback != NULL)
+                json_object_set_value(root_object, "callback", ast_json_serializeExprRecursive(expr->spawnExpr->callback));
+            else
+                json_object_set_null(root_object, "callback");
+            // add the process
+            json_object_set_value(root_object, "process", ast_json_serializeExprRecursive(expr->spawnExpr->expr));
         }
     }
     return root_value;

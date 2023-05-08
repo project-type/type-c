@@ -69,7 +69,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
 DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);
 DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);
 DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);
-
+DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);
 DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, ASTScope* currentScope);
 
 void parser_parseTypeTemplate(Parser* parser, ASTNode* node, DataType* parentType, ASTScope* currentScope);

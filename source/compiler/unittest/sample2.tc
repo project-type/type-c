@@ -1,13 +1,41 @@
-
-fn fib<T: Number>(n: T) -> T = match n {
-    0 => 0,
-    1 => 1,
-    n => fib(n - 1) + fib(n - 2)
+type WorkerInput = variant {
+    DownloadFile(url: string),
+    Exit()
 }
 
-fn main(args: string[]) -> u8 {
-    let fib20: u32 = fib<T, E, G<u32, u64> >(20)
-    if 1 + print("Hello") {
-        return
+type WorkerOutput = variant {
+    Ok(tmpPath: string),
+    Error(code: u32)
+}
+
+type Worker = process<WorkerInput, WorkerOutput>(num: u32, renderingProcess: NotificationWorker) {
+    print("hi")
+}
+
+type NotificationWorker = process<WorkerOutput, u32>(x: i32, y: i32) {
+    print("hello")
+}
+
+fn main() {
+    let okResults: {worker: Worker, response: ProcessResponse}[] = []
+    let errorResults: {worker: Worker, response: ProcessResponse}[] = []
+    let notificationGUI = spawn NotificationWorker()
+
+    let processes: Worker[] = []
+    for (i = 0; i < 1000; i = i + 1) {
+        let listener =
+            fn(input: WorkerOutput) {
+                 match input {
+                    WorkerOutput.Ok(tmpPath) {
+                        okResults.push({worker: processes[i], response: input})
+                    }
+                    WorkerOutput.Error(code) {
+                        errorResults.push({worker: processes[i], response: input})
+                    }
+            }
+        }
+        processes.push(spawn listener::Worker(i, notificationGUI))
+        emit processes[i]::DownloadFile("https://www.google.com")
+        emit processes[i]::Exit()
     }
 }

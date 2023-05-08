@@ -489,7 +489,7 @@ char* ast_stringifyType(DataType* type){
     return str;
 }
 
-char* ast_strigifyExpr(Expr* expr){
+char* ast_stringifyExpr(Expr* expr){
     char * str = malloc(2);
     strcat(str, "(");
     str[1] = '\0';
@@ -542,7 +542,7 @@ char* ast_strigifyExpr(Expr* expr){
             str = realloc(str, strlen(str) + strlen("=") + 1);
             strcat(str, "=");
             // add the expression
-            char * declExpr = ast_strigifyExpr(letDecl->initializer);
+            char * declExpr = ast_stringifyExpr(letDecl->initializer);
             str = realloc(str, strlen(str) + strlen(declExpr) + 1);
             strcat(str, declExpr);
         }
@@ -560,7 +560,7 @@ char* ast_strigifyExpr(Expr* expr){
         str = realloc(str, strlen(str) + strlen(" in {") + 1);
         strcat(str, " in {");
         // add the uhs
-        char * letExpr = ast_strigifyExpr(let->inExpr);
+        char * letExpr = ast_stringifyExpr(let->inExpr);
         str = realloc(str, strlen(str) + strlen(letExpr) + 1);
         strcat(str, letExpr);
         // add in }
@@ -585,14 +585,14 @@ char* ast_strigifyExpr(Expr* expr){
         int i; CaseExpr * matchCase;
         vec_foreach(&match->cases, matchCase, i) {
             // add the condition
-            char * conditionStr = ast_strigifyExpr(matchCase->condition);
+            char * conditionStr = ast_stringifyExpr(matchCase->condition);
             str = realloc(str, strlen(str) + strlen(conditionStr) + 1);
             strcat(str, conditionStr);
             // followed by =>
             str = realloc(str, strlen(str) + strlen("=>") + 1);
             strcat(str, "=>");
             // followed by the expression
-            char * exprStr = ast_strigifyExpr(matchCase->expr);
+            char * exprStr = ast_stringifyExpr(matchCase->expr);
             str = realloc(str, strlen(str) + strlen(exprStr) + 1);
             strcat(str, exprStr);
             // followed by ,
@@ -646,7 +646,7 @@ char* ast_strigifyExpr(Expr* expr){
         // followed by the args
         int i; Expr * arg;
         vec_foreach(&new->args, arg, i) {
-            char * argStr = ast_strigifyExpr(arg);
+            char * argStr = ast_stringifyExpr(arg);
             str = realloc(str, strlen(str) + strlen(argStr) + 1);
             strcat(str, argStr);
             // followed by ,
@@ -669,14 +669,14 @@ char* ast_strigifyExpr(Expr* expr){
         // prepare <lhs>.<rhs>
         
         // add the lhs
-        char * lhsStr = ast_strigifyExpr(memberAccess->lhs);
+        char * lhsStr = ast_stringifyExpr(memberAccess->lhs);
         str = realloc(str, strlen(str) + strlen(lhsStr) + 1);
         strcat(str, lhsStr);
         // followed by .
         str = realloc(str, strlen(str) + strlen(".") + 1);
         strcat(str, ".");
         // followed by the rhs string
-        char * rhsStr = ast_strigifyExpr(memberAccess->rhs);
+        char * rhsStr = ast_stringifyExpr(memberAccess->rhs);
         str = realloc(str, strlen(str) + strlen(rhsStr) + 1);
         strcat(str, rhsStr);
     }
@@ -686,7 +686,7 @@ char* ast_strigifyExpr(Expr* expr){
         // prepare <lhs>(<args>)
         
         // add the lhs
-        char * lhsStr = ast_strigifyExpr(call->lhs);
+        char * lhsStr = ast_stringifyExpr(call->lhs);
         str = realloc(str, strlen(str) + strlen(lhsStr) + 1);
         strcat(str, lhsStr);
         // followed by (
@@ -695,7 +695,7 @@ char* ast_strigifyExpr(Expr* expr){
         // followed by the args
         int i; Expr * arg;
         vec_foreach(&call->args, arg, i) {
-            char * argStr = ast_strigifyExpr(arg);
+            char * argStr = ast_stringifyExpr(arg);
             str = realloc(str, strlen(str) + strlen(argStr) + 1);
             strcat(str, argStr);
             // followed by ,
@@ -717,7 +717,7 @@ char* ast_strigifyExpr(Expr* expr){
         // prepare <lhs>[<index>]
         
         // add the lhs
-        char * lhsStr = ast_strigifyExpr(indexAccess->expr);
+        char * lhsStr = ast_stringifyExpr(indexAccess->expr);
         str = realloc(str, strlen(str) + strlen(lhsStr) + 1);
         strcat(str, lhsStr);
         // followed by [
@@ -726,7 +726,7 @@ char* ast_strigifyExpr(Expr* expr){
         // iterate through the indexes
         int i; Expr * index;
         vec_foreach(&indexAccess->indexes, index, i) {
-            char * indexStr = ast_strigifyExpr(index);
+            char * indexStr = ast_stringifyExpr(index);
             str = realloc(str, strlen(str) + strlen(indexStr) + 1);
             strcat(str, indexStr);
             // followed by ,
@@ -749,7 +749,7 @@ char* ast_strigifyExpr(Expr* expr){
         // prepare <expr> as <type>
         
         // add the expr
-        char * exprStr = ast_strigifyExpr(cast->expr);
+        char * exprStr = ast_stringifyExpr(cast->expr);
         str = realloc(str, strlen(str) + strlen(exprStr) + 1);
         strcat(str, exprStr);
         // followed by as
@@ -766,7 +766,7 @@ char* ast_strigifyExpr(Expr* expr){
         // prepare <expr> is <type>
         
         // add the expr
-        char *exprStr = ast_strigifyExpr(instanceCheck->expr);
+        char *exprStr = ast_stringifyExpr(instanceCheck->expr);
         str = realloc(str, strlen(str) + strlen(exprStr) + 1);
         strcat(str, exprStr);
         // followed by is
@@ -794,7 +794,7 @@ char* ast_strigifyExpr(Expr* expr){
             strcat(str, opStr);
         }
         // add the expr
-        char * exprStr = ast_strigifyExpr(unary->uhs);
+        char * exprStr = ast_stringifyExpr(unary->uhs);
         str = realloc(str, strlen(str) + strlen(exprStr) + 1);
         strcat(str, exprStr);
         if(!isPrefix){
@@ -811,7 +811,7 @@ char* ast_strigifyExpr(Expr* expr){
         // prepare <lhs> <op> <rhs>
         
         // add the lhs
-        char * lhsStr = ast_strigifyExpr(binary->lhs);
+        char * lhsStr = ast_stringifyExpr(binary->lhs);
         str = realloc(str, strlen(str) + strlen(lhsStr) + 1);
         strcat(str, lhsStr);
         // add the op
@@ -819,7 +819,7 @@ char* ast_strigifyExpr(Expr* expr){
         str = realloc(str, strlen(str) + strlen(opStr) + 1);
         strcat(str, opStr);
         // add the rhs
-        char * rhsStr = ast_strigifyExpr(binary->rhs);
+        char * rhsStr = ast_stringifyExpr(binary->rhs);
         str = realloc(str, strlen(str) + strlen(rhsStr) + 1);
         strcat(str, rhsStr);
     }
@@ -832,7 +832,7 @@ char* ast_strigifyExpr(Expr* expr){
         // iterate through the args
         int i; Expr * arg;
         vec_foreach(&arrayConstruction->args, arg, i) {
-            char * argStr = ast_strigifyExpr(arg);
+            char * argStr = ast_stringifyExpr(arg);
             str = realloc(str, strlen(str) + strlen(argStr) + 1);
             strcat(str, argStr);
             // followed by ,
@@ -860,7 +860,7 @@ char* ast_strigifyExpr(Expr* expr){
         // iterate through the args
         int i; Expr * arg;
         vec_foreach(&unnamedStructConstruction->args, arg, i) {
-            char * argStr = ast_strigifyExpr(arg);
+            char * argStr = ast_stringifyExpr(arg);
             str = realloc(str, strlen(str) + strlen(argStr) + 1);
             strcat(str, argStr);
             // followed by ,
@@ -896,7 +896,7 @@ char* ast_strigifyExpr(Expr* expr){
             strcat(str, ":");
             // print arg
             Expr ** arg = map_get(&namedStructConstruction->args, argName);
-            char * argStr = ast_strigifyExpr(*arg);
+            char * argStr = ast_stringifyExpr(*arg);
             str = realloc(str, strlen(str) + strlen(argStr) + 1);
             strcat(str, argStr);
             // followed by ,
@@ -961,7 +961,7 @@ char* ast_strigifyExpr(Expr* expr){
             str = realloc(str, strlen(str) + strlen("=") + 1);
             strcat(str, "=");
             // print body
-            char * bodyStr = ast_strigifyExpr(lambda->expr);
+            char * bodyStr = ast_stringifyExpr(lambda->expr);
             str = realloc(str, strlen(str) + strlen(bodyStr) + 1);
             strcat(str, bodyStr);
         }

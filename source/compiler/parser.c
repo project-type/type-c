@@ -383,6 +383,10 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
     }
     // check if current keyword is a basic type
     else if((lexeme.type >= TOK_I8) && (lexeme.type <= TOK_CHAR)) {
+        if(lexeme.type == TOK_VOID){
+            DataTypeKind t = lexeme.type - TOK_I8;
+            DataTypeKind t2 = lexeme.type - TOK_I8;
+        }
         // create new type assign basic to it
         DataType* basicType = ast_type_makeType();
         basicType->kind = lexeme.type - TOK_I8;
@@ -397,6 +401,9 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
     }
     else if (lexeme.type == TOK_PTR) {
         type = parser_parseTypePtr(parser, node, parentReferee, currentScope);
+    }
+    else if (lexeme.type == TOK_PROCESS) {
+        type = parser_parseTypeProcess(parser, node, parentReferee, currentScope);
     }
     // check if we have an ID, we parse package then
     else if(lexeme.type == TOK_IDENTIFIER) {
@@ -913,6 +920,70 @@ DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentRef
     ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
     ACCEPT;
     return ptrType;
+}
+
+DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
+    DataType * processType = ast_type_makeType();
+    processType->kind = DT_PROCESS;
+    processType->processType = ast_type_makeProcess();
+    ACCEPT;
+    // assert we have a "<"
+    Lexeme CURRENT;
+    ASSERT(lexeme.type == TOK_LESS, "Line: %"PRIu16", Col: %"PRIu16" `<` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // parse type
+    processType->processType->inputType = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+    CURRENT;
+    // assert we have a ","
+    ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    processType->processType->outputType = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+    CURRENT;
+    // assert we have a ">"
+    ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // assert "("
+    CURRENT;
+    ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+    uint8_t loop = lexeme.type != TOK_RPAREN;
+    while(loop){
+        // create argument
+        FnArgument* fnarg = ast_type_makeFnArgument();
+        // assert ID
+        ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        fnarg->name = strdup(lexeme.string);
+        ACCEPT;
+        CURRENT;
+        // assert ":"
+        ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+        ACCEPT;
+        // parse type
+        fnarg->type = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+        CURRENT;
+        // check if we have "," else assert ) and stop
+        if(lexeme.type == TOK_COMMA){
+            ACCEPT;
+            CURRENT;
+        }
+        else {
+            ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+
+            loop = 0;
+        }
+        // add argument
+        vec_push(&processType->processType->argNames, fnarg->name);
+        map_set(&processType->processType->args, fnarg->name, fnarg);
+    }
+    ACCEPT;
+    CURRENT;
+    // assert "{"
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    parser_reject(parser);
+    // parse block
+    processType->processType->body = parser_parseStmtBlock(parser, node, currentScope);
+    return processType;
 }
 
 // starts from the first argument
@@ -1684,6 +1755,49 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
             return NULL;
         }
     }
+    else if (lexeme.type == TOK_SPAWN){
+        // prepare expr
+        Expr* spawn = ast_expr_makeExpr(ET_SPAWN);
+        ACCEPT;
+        // prepare spawn struct
+        spawn->spawnExpr = ast_expr_makeSpawnExpr(NULL);
+        CURRENT;
+        if(lexeme.type == TOK_PROCESS_LINK){
+            ACCEPT;
+            spawn->spawnExpr->expr = parser_parseExpr(parser, node, currentScope);
+            return spawn;
+        }
+        else {
+            parser_reject(parser);
+            spawn->spawnExpr->callback = parser_parseExpr(parser, node, currentScope);
+            CURRENT;
+            ASSERT(lexeme.type == TOK_PROCESS_LINK, "Line: %"PRIu16", Col: %"PRIu16" `->` expected but `%s` was found", lexeme.line, lexeme.col);
+            ACCEPT;
+            spawn->spawnExpr->expr = parser_parseExpr(parser, node, currentScope);
+            // TODO: assert callback is valid and expr is of type process
+
+            return spawn;
+        }
+    }
+    else if (lexeme.type == TOK_EMIT){
+        Expr* emit = ast_expr_makeExpr(ET_EMIT);
+        ACCEPT;
+        emit->emitExpr = ast_expr_makeEmitExpr(NULL);
+        CURRENT;
+        if(lexeme.type == TOK_PROCESS_LINK){
+            ACCEPT;
+            emit->emitExpr->msg = parser_parseExpr(parser, node, currentScope);
+            return emit;
+        }
+        else {
+            parser_reject(parser);
+            emit->emitExpr->process = parser_parseExpr(parser, node, currentScope);
+            CURRENT;
+            ASSERT(lexeme.type == TOK_PROCESS_LINK, "Line: %"PRIu16", Col: %"PRIu16" `->` expected but `%s` was found", lexeme.line, lexeme.col);
+            ACCEPT;
+            emit->emitExpr->msg = parser_parseExpr(parser, node, currentScope);
+        }
+    }
 
     parser_reject(parser);
     Expr* uhs = parser_parseOpPointer(parser, node, currentScope);
@@ -1824,6 +1938,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
     }
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
+
         Expr* expr = parser_parseExpr(parser, node, currentScope);
         // assert )
         CURRENT;
@@ -2634,11 +2749,12 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         ASSERT(stmt->fnDecl->header->type->returnType != NULL,
                "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
                EXPAND_LEXEME);
+        CURRENT;
 
     }
 
     // check if we have `=` or `{`
-    lexeme = parser_peek(parser);
+    //lexeme = parser_peek(parser);
     if (lexeme.type == TOK_EQUAL) {
         stmt->fnDecl->bodyType = FBT_EXPR;
         ACCEPT;
@@ -2685,8 +2801,10 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* curren
             ACCEPT;
             loop = 0;
         }
-        else
+        else {
+            loop++;
             parser_reject(parser);
+        }
     }
 
     return stmt;

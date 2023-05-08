@@ -70,7 +70,7 @@ typedef enum DataTypeKind {
     DT_I8, DT_I16, DT_I32, DT_I64,
     DT_U8, DT_U16, DT_U32, DT_U64,
     DT_F32, DT_F64,
-    DT_BOOL,
+    DT_BOOL,DT_VOID,
     DT_STRING,
     DT_CHAR,
     DT_CLASS, DT_INTERFACE,
@@ -78,10 +78,11 @@ typedef enum DataTypeKind {
     DT_ENUM, DT_VARIANT,
     DT_ARRAY,
     DT_FN,
-    DT_PTR,
+    DT_PTR, DT_VEC,
     DT_REFERENCE,
     DT_TYPE_JOIN,
     DT_TYPE_UNION,
+    DT_PROCESS,
     DT_UNRESOLVED // means parser didn't see this type yet so its on hold.
 }DataTypeKind;
 
@@ -171,6 +172,15 @@ typedef struct GenericParam {
 }GenericParam;
 GenericParam* ast_make_genericParam();
 
+typedef struct ProcessType {
+    vec_str_t argNames;
+    map_fnargument_t args;
+    struct DataType* inputType;
+    struct DataType* outputType;
+    struct Statement* body;
+}ProcessType;
+ProcessType* ast_type_makeProcess();
+
 typedef struct DataType {
     char* name;
     DataTypeKind kind;
@@ -191,6 +201,7 @@ typedef struct DataType {
         FnType * fnType;
         PtrType* ptrType;
         ReferenceType* refType;
+        ProcessType* processType;
     };
 }DataType;
 DataType* ast_type_makeType();
@@ -511,6 +522,19 @@ typedef struct UnsafeExpr {
 }UnsafeExpr;
 UnsafeExpr* ast_expr_makeUnsafeExpr(ASTScope* parentScope);
 
+typedef struct SpawnExpr {
+    struct Expr *callback;
+    struct Expr *expr;
+}SpawnExpr;
+SpawnExpr* ast_expr_makeSpawnExpr();
+
+typedef struct EmitExpr {
+    struct Expr *process;
+    struct Expr* msg;
+}EmitExpr;
+EmitExpr* ast_expr_makeEmitExpr();
+
+
 typedef enum ExpressionType {
     ET_LITERAL,
     ET_ELEMENT,
@@ -529,7 +553,10 @@ typedef enum ExpressionType {
     ET_MATCH,
     ET_LET,
     ET_LAMBDA,
-    ET_UNSAFE
+    ET_UNSAFE,
+    ET_SPAWN,
+    ET_EMIT,
+    ET_WILDCARD
 }ExpressionType;
 
 typedef struct Expr {
@@ -554,6 +581,8 @@ typedef struct Expr {
         MatchExpr* matchExpr;
         LambdaExpr* lambdaExpr;
         UnsafeExpr* unsafeExpr;
+        SpawnExpr* spawnExpr;
+        EmitExpr* emitExpr;
     };
 }Expr;
 Expr* ast_expr_makeExpr(ExpressionType type);
@@ -686,6 +715,9 @@ typedef enum StatementType {
 
     // BLOCK
     ST_UNSAFE,
+
+    ST_SPAWN,
+    ST_EMIT
 }StatementType;
 
 typedef struct Statement {

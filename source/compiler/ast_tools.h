@@ -9,6 +9,6 @@
 
 char* ast_stringifyType(DataType* type);
 char* ast_stringifyImport(ASTProgramNode* node, uint32_t index);
-char* ast_strigifyExpr(Expr* expr);
+char* ast_stringifyExpr(Expr* expr);
 
 #endif //TYPE_C_AST_TOOLS_H

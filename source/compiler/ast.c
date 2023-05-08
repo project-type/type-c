@@ -216,6 +216,17 @@ GenericParam* ast_make_genericParam() {
     return param;
 }
 
+ProcessType* ast_type_makeProcess(){
+    ALLOC(process, ProcessType);
+    vec_init(&process->argNames);
+    map_init(&process->args);
+    process->inputType = NULL;
+    process->outputType = NULL;
+    process->body = NULL;
+
+    return process;
+}
+
 ElementExpr* ast_expr_makeElementExpr(char* name){
     ALLOC(element, ElementExpr);
     element->name = strdup(name);
@@ -385,6 +396,29 @@ UnsafeExpr* ast_expr_makeUnsafeExpr(ASTScope* parentScope){
 
     return unsafe;
 }
+
+SpawnExpr* ast_expr_makeSpawnExpr(){
+    ALLOC(spawn, SpawnExpr);
+    spawn->callback = NULL;
+    spawn->expr = NULL;
+
+    return spawn;
+}
+
+EmitExpr* ast_expr_makeEmitExpr(){
+    ALLOC(emit, EmitExpr);
+    emit->msg = NULL;
+    emit->process = NULL;
+
+    return emit;
+}
+
+/*AwaitExpr* ast_expr_makeAwaitExpr(){
+    ALLOC(await, AwaitExpr);
+    await->expr = NULL;
+
+    return await;
+}*/
 
 Expr* ast_expr_makeExpr(ExpressionType type){
     ALLOC(expr, Expr);

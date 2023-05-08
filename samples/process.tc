@@ -1,0 +1,70 @@
+type WorkerInput = variant {
+    DownloadFile(url: string),
+    Exit
+}
+
+type WorkerOutput = variant {
+    Ok(tmpPath: string),
+    Error(code: u32)
+}
+
+type Worker = process<WorkerInput, WorkerOutput>(num: u32, renderingProcess: NotificationWorker) {
+    fn receive(input: WorkerInput) {
+        match input {
+            WorkerInput.DownloadFile(url) {
+                stdout("["+ numToString(num) +"]: Downloading " + url + "...")
+                let tmpPath = "tmp/" + num + ".tmp"
+                let response = download(url, tmpPath)
+                if response == 200 {
+                    emit ::WorkerOutput.Ok(tmpPath)
+                    emit guiThread::WorkerOutput.Ok(tmpPath)
+                }
+                else {
+                    emit ::WorkerOutput.Err(response)
+                    emit guiThread::WorkerOutput.Ok(response)
+                }
+            }
+            WorkerInput.Exit {
+                stdout("["+ numToString(num) +"]: Exiting...")
+                exit(0)
+            }
+        }
+    }
+}
+
+type NotificationWorker = process<WorkerOutput,void>() {
+    fn receive(input: WorkerOutput) {
+        match input {
+            WorkerOutput.Ok(tmpPath) {
+                DisplayGUIPopUP("success", "Download complete")
+            }
+            WorkerOutput.Error(code) {
+                DisplayGUIPopUP("success", "Download Failed.")
+            }
+        }
+    }
+}
+
+fn main() {
+    let okResults: {worker: Worker, response: ProcessResponse}[] = []
+    let errorResults: {worker: Worker, response: ProcessResponse}[] = []
+    let notificationGUI = spawn NotificationWorker()
+
+    let processes: Worker[] = []
+    for (i = 0; i < 1000; i = i + 1) {
+        let listener =
+            fn(input: WorkerOutput) {
+                 match input {
+                    WorkerOutput.Ok(tmpPath) {
+                        okResults.push({worker: processes[i], response: input})
+                    }
+                    WorkerOutput.Error(code) {
+                        errorResults.push({worker: processes[i], response: input})
+                    }
+            }
+        }
+        processes.push(spawn listener::Worker(i, notificationGUI))
+        emit processes[i]::DownloadFile("https://www.google.com")
+        emit processes[i]::Exit
+    }
+}

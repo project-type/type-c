@@ -8,10 +8,10 @@ const char* token_type_to_string(TokenType type) {
     switch (type) {
         case TOK_ANY:
             return "any";
-        case TOK_ASYNC:
+        /*case TOK_ASYNC:
             return "async";
         case TOK_AWAIT:
-            return "await";
+            return "await";*/
         case TOK_TYPE_CONVERSION:
             return "as";
         case TOK_BOOLEAN:
@@ -27,9 +27,9 @@ const char* token_type_to_string(TokenType type) {
         case TOK_MUT:
             return "mut";
         case TOK_VARIANT:
-            return "data";
-        case TOK_DELETE:
-            return "delete";
+            return "variant";
+        //case TOK_DELETE:
+        //    return "delete";
         case TOK_DO:
             return "do";
         case TOK_ELSE:
@@ -92,16 +92,24 @@ const char* token_type_to_string(TokenType type) {
             return "unsafe";
         case TOK_PTR:
             return "ptr";
+        case TOK_PROCESS:
+            return "process";
+        case TOK_PROCESS_LINK:
+            return "::";
+        case TOK_EMIT:
+            return "emit";
+        case TOK_SPAWN:
+            return "spawn";
         case TOK_RETURN:
             return "return";
-        case TOK_SIZEOF:
-            return "sizeof";
-        case TOK_SUPER:
-            return "super";
+        //case TOK_SIZEOF:
+        //    return "sizeof";
+        //case TOK_SUPER:
+        //    return "super";
         case TOK_SELF:
-            return "self";
-        case TOK_STATIC:
-            return "static";
+            return "this";
+        //case TOK_STATIC:
+        //    return "static";
         case TOK_STRUCT:
             return "struct";
         case TOK_MATCH:
@@ -110,6 +118,8 @@ const char* token_type_to_string(TokenType type) {
             return "true";
         case TOK_TYPE:
             return "type";
+        case TOK_VEC:
+            return "vec";
         case TOK_VOID:
             return "void";
         case TOK_WHILE:
@@ -195,7 +205,7 @@ const char* token_type_to_string(TokenType type) {
         case TOK_DECREMENT:
             return "--";         // --
         case TOK_FN_RETURN_TYPE:
-            return "->";    // ->
+            return "->";         // ->
         case TOK_WILDCARD:
             return "_";          // _
             // Literals.

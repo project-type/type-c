@@ -223,9 +223,9 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     uint32_t col = lexerState->col;
 
     // check for keyword:
-    if(match_keyword(lexerState, "any")) return makeLexemLineCol(TOK_ANY, NULL, line, col);
-    if(match_keyword(lexerState, "async")) return makeLexemLineCol(TOK_ASYNC, NULL, line, col);
-    if(match_keyword(lexerState, "await")) return makeLexemLineCol(TOK_AWAIT, NULL, line, col);
+    //if(match_keyword(lexerState, "any")) return makeLexemLineCol(TOK_ANY, NULL, line, col);
+    //if(match_keyword(lexerState, "async")) return makeLexemLineCol(TOK_ASYNC, NULL, line, col);
+    //if(match_keyword(lexerState, "await")) return makeLexemLineCol(TOK_AWAIT, NULL, line, col);
     if(match_keyword(lexerState, "as")) return makeLexemLineCol(TOK_TYPE_CONVERSION, NULL, line, col);
     if(match_keyword(lexerState, "break")) return makeLexemLineCol(TOK_BREAK, NULL, line, col);
     if(match_keyword(lexerState, "case")) return makeLexemLineCol(TOK_CASE, NULL, line, col);
@@ -233,7 +233,7 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     if(match_keyword(lexerState, "continue")) return makeLexemLineCol(TOK_CONTINUE, NULL, line, col);
     if(match_keyword(lexerState, "mut")) return makeLexemLineCol(TOK_MUT, NULL, line, col);
     if(match_keyword(lexerState, "variant")) return makeLexemLineCol(TOK_VARIANT, NULL, line, col);
-    if(match_keyword(lexerState, "delete")) return makeLexemLineCol(TOK_DELETE, NULL, line, col);
+    //if(match_keyword(lexerState, "delete")) return makeLexemLineCol(TOK_DELETE, NULL, line, col);
     if(match_keyword(lexerState, "do")) return makeLexemLineCol(TOK_DO, NULL, line, col);
     if(match_keyword(lexerState, "else")) return makeLexemLineCol(TOK_ELSE, NULL, line, col);
     if(match_keyword(lexerState, "enum")) return makeLexemLineCol(TOK_ENUM, NULL, line, col);
@@ -267,18 +267,21 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     if(match_keyword(lexerState, "null")) return makeLexemLineCol(TOK_NULL, NULL, line, col);
     if(match_keyword(lexerState, "unsafe")) return makeLexemLineCol(TOK_UNSAFE, NULL, line, col);
     if(match_keyword(lexerState, "ptr")) return makeLexemLineCol(TOK_PTR, NULL, line, col);
+    if(match_keyword(lexerState, "process")) return makeLexemLineCol(TOK_PROCESS, NULL, line, col);
+    if(match_keyword(lexerState, "spawn")) return makeLexemLineCol(TOK_SPAWN, NULL, line, col);
+    if(match_keyword(lexerState, "emit")) return makeLexemLineCol(TOK_EMIT, NULL, line, col);
     if(match_keyword(lexerState, "return")) return makeLexemLineCol(TOK_RETURN, NULL, line, col);
-    if(match_keyword(lexerState, "sizeof")) return makeLexemLineCol(TOK_SIZEOF, NULL, line, col);
-    if(match_keyword(lexerState, "super")) return makeLexemLineCol(TOK_SUPER, NULL, line, col);
-    if(match_keyword(lexerState, "self")) return makeLexemLineCol(TOK_SELF, NULL, line, col);
-    if(match_keyword(lexerState, "static")) return makeLexemLineCol(TOK_STATIC, NULL, line, col);
+    //if(match_keyword(lexerState, "sizeof")) return makeLexemLineCol(TOK_SIZEOF, NULL, line, col);
+    //if(match_keyword(lexerState, "super")) return makeLexemLineCol(TOK_SUPER, NULL, line, col);
+    if(match_keyword(lexerState, "this")) return makeLexemLineCol(TOK_SELF, NULL, line, col);
+    //if(match_keyword(lexerState, "static")) return makeLexemLineCol(TOK_STATIC, NULL, line, col);
     if(match_keyword(lexerState, "struct")) return makeLexemLineCol(TOK_STRUCT, NULL, line, col);
     if(match_keyword(lexerState, "match")) return makeLexemLineCol(TOK_MATCH, NULL, line, col);
     if(match_keyword(lexerState, "true")) return makeLexemLineCol(TOK_TRUE, NULL, line, col);
     if(match_keyword(lexerState, "type")) return makeLexemLineCol(TOK_TYPE, NULL, line, col);
     if(match_keyword(lexerState, "void")) return makeLexemLineCol(TOK_VOID, NULL, line, col);
     if(match(lexerState, "while")) return makeLexemLineCol(TOK_WHILE, NULL, line, col);
-    if(match(lexerState, "_")) return makeLexemLineCol(TOK_WILDCARD, NULL, line, col);
+    //if(match(lexerState, "_")) return makeLexemLineCol(TOK_WILDCARD, NULL, line, col);
 
     while(isalnum(getCurrentChar(lexerState)) || getCurrentChar(lexerState)=='_') {
         incLexer(lexerState);
@@ -634,6 +637,9 @@ Lexeme lexer_lexCurrent(LexerState* lex) {
             incLexer(lex);
             return makeLexemLineCol(TOK_NULLABLE, NULL, line, col);
         case ':':
+            if(match(lex, "::")) {
+                return makeLexemLineCol(TOK_PROCESS_LINK, NULL, line, col);
+            }
             incLexer(lex);
             return makeLexemLineCol(TOK_COLON, NULL, line, col);
         case ';':

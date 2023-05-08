@@ -8,8 +8,8 @@
 typedef enum {
     // Keywords.
     TOK_ANY,               // any
-    TOK_ASYNC,             // async
-    TOK_AWAIT,             // await
+    //TOK_ASYNC,           // async
+    //TOK_AWAIT,           // await
     TOK_TYPE_CONVERSION,   // as
     TOK_BREAK,             // break
     TOK_CASE,              // case
@@ -17,7 +17,7 @@ typedef enum {
     TOK_CONTINUE,          // continue
     TOK_MUT,               // mut
     TOK_VARIANT,           // variant
-    TOK_DELETE,            // delete
+    //TOK_DELETE,          // delete
     TOK_DO,                // do
     TOK_ELSE,              // else
     TOK_ENUM,              // enum
@@ -43,11 +43,16 @@ typedef enum {
     TOK_U64,               // u64
     TOK_F32,               // f32
     TOK_F64,               // f64
-    TOK_VEC,               // vec
     TOK_BOOLEAN,           // bool
+    TOK_VOID,              // void
     TOK_STRING,            // string
     TOK_CHAR,              // char
     TOK_PTR,               // ptr
+    TOK_VEC,               // vec
+    TOK_PROCESS,           // process
+    TOK_PROCESS_LINK,      // ::
+    TOK_EMIT,              // emit
+    TOK_SPAWN,             // spawn,
     TOK_NULLABLE,          // ?
 
     TOK_LET,               // let
@@ -55,15 +60,14 @@ typedef enum {
     TOK_NULL,              // null
     TOK_UNSAFE,            // unsafe
     TOK_RETURN,            // return
-    TOK_SIZEOF,            // sizeof
-    TOK_SUPER,             // super
+    //TOK_SIZEOF,          // sizeof
+    //TOK_SUPER,           // super
     TOK_SELF,              // self
-    TOK_STATIC,            // static
+    //TOK_STATIC,          // static
     TOK_STRUCT,            // struct
     TOK_MATCH,             // match
     TOK_TRUE,              // true
     TOK_TYPE,              // type
-    TOK_VOID,              // void
     TOK_WHILE,             // while
     TOK_SEMICOLON,         // ;
     TOK_COLON,             // :
@@ -111,8 +115,8 @@ typedef enum {
     // Literals.
     TOK_WILDCARD,          // _
     TOK_IDENTIFIER,        // variable or function name
-    TOK_STRING_VAL,            // string literal  (double quotes)
-    TOK_CHAR_VAL,              // single character (single quote)
+    TOK_STRING_VAL,        // string literal  (double quotes)
+    TOK_CHAR_VAL,          // single character (single quote)
     TOK_INT,
     TOK_BINARY_INT,        // 0b[01]+
     TOK_OCT_INT,           // 0o[0-7]+
