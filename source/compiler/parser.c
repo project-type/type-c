@@ -889,7 +889,7 @@ DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentRefe
     if(lexeme.type == TOK_FN_RETURN_TYPE) {
         ACCEPT;
         // parse return type
-        fnType->fnType->returnType = parser_parseTypePrimary(parser, node, fnType, currentScope);
+        fnType->fnType->returnType = parser_parseTypeUnion(parser, node, fnType, currentScope);
         // assert return type is not null
         ASSERT(fnType->fnType->returnType != NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, return type null detected, this is a parser issue.", EXPAND_LEXEME);
     }
@@ -912,7 +912,7 @@ DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentRef
     ASSERT(lexeme.type == TOK_LESS, "Line: %"PRIu16", Col: %"PRIu16" `<` expected but %s was found.", EXPAND_LEXEME);
     ACCEPT;
     // parse type
-    ptrType->ptrType->target = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+    ptrType->ptrType->target = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
     // assert type is not null
     ASSERT(ptrType->ptrType->target != NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, type null detected, this is a parser issue.", EXPAND_LEXEME);
     // assert we have a ">"
@@ -932,12 +932,12 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
     ASSERT(lexeme.type == TOK_LESS, "Line: %"PRIu16", Col: %"PRIu16" `<` expected but %s was found.", EXPAND_LEXEME);
     ACCEPT;
     // parse type
-    processType->processType->inputType = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+    processType->processType->inputType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
     CURRENT;
     // assert we have a ","
     ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` expected but %s was found.", EXPAND_LEXEME);
     ACCEPT;
-    processType->processType->outputType = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+    processType->processType->outputType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
     CURRENT;
     // assert we have a ">"
     ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
@@ -960,7 +960,7 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
         ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
         ACCEPT;
         // parse type
-        fnarg->type = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+        fnarg->type = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
         CURRENT;
         // check if we have "," else assert ) and stop
         if(lexeme.type == TOK_COMMA){
@@ -1010,7 +1010,7 @@ void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentT
         ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
         ACCEPT;
         // parse type
-        fnarg->type = parser_parseTypePrimary(parser, node, parentType, currentScope);
+        fnarg->type = parser_parseTypeUnion(parser, node, parentType, currentScope);
         // assert type is not null
         ASSERT(fnarg->type != NULL, "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.", EXPAND_LEXEME);
         // add to args
@@ -1128,7 +1128,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
                        EXPAND_LEXEME);
                 ACCEPT;
                 // parse type
-                var->type = parser_parseTypePrimary(parser, node, NULL, currentScope);
+                var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
                 // assert type is not null
                 ASSERT(var->type != NULL,
                        "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
@@ -1760,7 +1760,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
         Expr* spawn = ast_expr_makeExpr(ET_SPAWN);
         ACCEPT;
         // prepare spawn struct
-        spawn->spawnExpr = ast_expr_makeSpawnExpr(NULL);
+        spawn->spawnExpr = ast_expr_makeSpawnExpr();
         CURRENT;
         if(lexeme.type == TOK_PROCESS_LINK){
             ACCEPT;
@@ -1796,6 +1796,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
             ASSERT(lexeme.type == TOK_PROCESS_LINK, "Line: %"PRIu16", Col: %"PRIu16" `->` expected but `%s` was found", lexeme.line, lexeme.col);
             ACCEPT;
             emit->emitExpr->msg = parser_parseExpr(parser, node, currentScope);
+            return  emit;
         }
     }
 
@@ -1930,9 +1931,9 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
             // assert {
             ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` or `=` expected but %s was found.", EXPAND_LEXEME);
             expr->lambdaExpr->bodyType = FBT_BLOCK;
-            // throw  not implemented
-            ASSERT(1==0, "Lambda block body is not yet implemented");
-            return NULL;
+            parser_reject(parser);
+            expr->lambdaExpr->block = parser_parseStmtBlock(parser, node, expr->lambdaExpr->scope);
+            return expr;
         }
 
     }
@@ -1949,8 +1950,9 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
     // check for array construction [
     if(lexeme.type == TOK_LBRACKET) {
         ACCEPT;
+        CURRENT;
         ArrayConstructionExpr* arrayConstructionExpr = ast_expr_makeArrayConstructionExpr();
-        uint8_t can_loop = 1;
+        uint8_t can_loop = lexeme.type != TOK_RBRACKET;
 
         while(can_loop) {
             Expr* index = parser_parseExpr(parser, node, currentScope);
@@ -1962,10 +1964,10 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
             else {
                 can_loop = 0;
                 parser_reject(parser);
+                CURRENT;
             }
         }
         // assert ]
-        CURRENT;
         ASSERT(lexeme.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.", EXPAND_LEXEME);
         ACCEPT;
         Expr* expr = ast_expr_makeExpr(ET_ARRAY_CONSTRUCTION);
@@ -2354,6 +2356,7 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
             if(lexeme.type == TOK_GREATER) {
                 can_loop = 0;
                 ACCEPT;
+                CURRENT;
             }
             else {
                 ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `>` expected in generic list but %s was found.", EXPAND_LEXEME);
@@ -2362,7 +2365,6 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
             }
         }
     }
-    CURRENT;
     // assert we have "("
     ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected after function name but %s was found.", EXPAND_LEXEME);
     ACCEPT;
@@ -2549,7 +2551,7 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
                    EXPAND_LEXEME);
             ACCEPT;
             // parse type
-            var->type = parser_parseTypePrimary(parser, node, NULL, currentScope);
+            var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
             // assert type is not null
             ASSERT(var->type != NULL,
                    "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
@@ -2695,7 +2697,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
     ACCEPT;
 
     CURRENT;
-    uint8_t loop = 1;
+    uint8_t loop = lexeme.type != TOK_RPAREN;
     while (loop) {
         FnArgument *arg = ast_type_makeFnArgument();
         // check if we have a mut
@@ -2730,16 +2732,13 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
             ACCEPT;
             CURRENT;
         } else {
-            parser_reject(parser);
+            ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
             loop = 0;
         }
     }
-    CURRENT;
-    // assert )
-    ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
     ACCEPT;
-    // check if we have ->
-    lexeme = parser_peek(parser);
+    CURRENT;
+
     if (lexeme.type == TOK_FN_RETURN_TYPE) {
         ACCEPT;
         // parse the return type
@@ -2749,6 +2748,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         ASSERT(stmt->fnDecl->header->type->returnType != NULL,
                "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
                EXPAND_LEXEME);
+        ACCEPT;
         CURRENT;
 
     }
@@ -2793,6 +2793,7 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* curren
 
     while(loop) {
         Statement * s = parser_parseStmt(parser, node, stmt->blockStmt->scope);
+        ASSERT(s != NULL, "Line: %"PRIu16", Col: %"PRIu16" `statement` near %s, generated a NULL statement. This is a parser issue.", EXPAND_LEXEME);
         vec_push(&stmt->blockStmt->stmts, s);
         // TODO: free s
 
@@ -2991,6 +2992,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
     // make sure we have initializer, i.e token is not ";"
     CURRENT;
     if(lexeme.type != TOK_SEMICOLON){
+        parser_reject(parser);
         // parse initializer
         stmt->forLoop->initializer = parser_parseStmtLet(parser, node, currentScope);
 
@@ -3004,11 +3006,13 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
                EXPAND_LEXEME);
         ACCEPT;
     }
-    else
+    else{
         ACCEPT;
-
+    }
+    CURRENT;
     // now we parse the condition
     if(lexeme.type != TOK_SEMICOLON){
+        parser_reject(parser);
         // parse condition
         stmt->forLoop->condition = parser_parseExpr(parser, node, currentScope);
         // assert condition is not null
@@ -3027,6 +3031,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
     // check if we have {
     CURRENT;
     if(lexeme.type != TOK_LBRACE) {
+
         parser_reject(parser);
         // now we parse increments as <expr>(","<expr>)*
         // prepare to loop
@@ -3048,6 +3053,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
                 loop = 0;
         }
     }
+    parser_reject(parser);
 
     // current
     stmt->forLoop->block = parser_parseStmtBlock(parser, node, currentScope);

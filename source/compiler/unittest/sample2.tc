@@ -13,17 +13,26 @@ type Worker = process<WorkerInput, WorkerOutput>(num: u32, renderingProcess: Not
 }
 
 type NotificationWorker = process<WorkerOutput, u32>(x: i32, y: i32) {
-    print("hello")
+    fn receive(input: WorkerOutput) {
+        match input {
+            WorkerOutput.Ok(tmpPath) {
+                DisplayGUIPopUP("success", "Download complete")
+            }
+            WorkerOutput.Error(code) {
+                DisplayGUIPopUP("success", "Download Failed.")
+            }
+        }
+    }
 }
 
-fn main() {
-    let okResults: {worker: Worker, response: ProcessResponse}[] = []
-    let errorResults: {worker: Worker, response: ProcessResponse}[] = []
-    let notificationGUI = spawn NotificationWorker()
+fn main() -> void {
+    let okResults: struct {worker: Worker, response: ProcessResponse}[] = []
+    let errorResults: struct {worker: Worker, response: ProcessResponse}[] = []
+    let notificationGUI: NotificationWorker = spawn ::NotificationWorker()
 
     let processes: Worker[] = []
-    for (i = 0; i < 1000; i = i + 1) {
-        let listener =
+    for let i: u32 = 0; i < 1000; i = i + 1 {
+        let listener: fn(input: WorkerOutput) =
             fn(input: WorkerOutput) {
                  match input {
                     WorkerOutput.Ok(tmpPath) {

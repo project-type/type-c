@@ -933,8 +933,8 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
                 json_object_set_value(root_object, "body", ast_json_serializeExprRecursive(lambda->expr));
             }
             else {
-                // throw not implemented
-                ASSERT(1==0, "not implemented");
+                // add statement body
+                json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(lambda->block));
             }
 
         // TODO: print lambda body
@@ -958,6 +958,21 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
             // add the process
             json_object_set_value(root_object, "process", ast_json_serializeExprRecursive(expr->spawnExpr->expr));
         }
+        case ET_EMIT: {
+            // category = emit
+            json_object_set_string(root_object, "category", "emit");
+            // add the process if not null
+            if(expr->emitExpr->process != NULL)
+                json_object_set_value(root_object, "process", ast_json_serializeExprRecursive(expr->emitExpr->process));
+            else
+                json_object_set_null(root_object, "process");
+            // add the message
+            json_object_set_value(root_object, "message", ast_json_serializeExprRecursive(expr->emitExpr->msg));
+
+            break;
+        }
+        case ET_WILDCARD:
+            break;
     }
     return root_value;
 }
@@ -968,8 +983,14 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
     JSON_Object * root_object = json_value_get_object(root_value);
     switch(stmt->type) {
 
-        case ST_EXPR:
+        case ST_EXPR: {
+            // category = expr
+            json_object_set_string(root_object, "category", "expr");
+            // add the expression
+            json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(stmt->expr->expr));
+
             break;
+        }
         case ST_VAR_DECL: {
             VarDeclStatement* varDecl = stmt->varDecl;
             json_object_set_string(root_object, "category", "let");
@@ -1028,8 +1049,11 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
             json_object_set_string(root_object, "bodyType", stmt->fnDecl->bodyType==FBT_EXPR?"expr":"block");
             // add the name
             json_object_set_string(root_object, "name", stmt->fnDecl->header->name);
-            // add the return type
-            json_object_set_value(root_object, "returnType", ast_json_serializeDataTypeRecursive(stmt->fnDecl->header->type->returnType));
+            // add the return type if exists, else set value to null
+            if(stmt->fnDecl->header->type->returnType != NULL)
+                json_object_set_value(root_object, "returnType", ast_json_serializeDataTypeRecursive(stmt->fnDecl->header->type->returnType));
+            else
+                json_object_set_null(root_object, "returnType");
             // add function isGeneric
             json_object_set_boolean(root_object, "hasGeneric", stmt->fnDecl->hasGeneric);
             // add generic params in an array
@@ -1231,6 +1255,13 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
             json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(stmt->unsafeStmt->block));
             break;
         }
+        case ST_SPAWN: {
+            // category = spawn
+            json_object_set_string(root_object, "category", "spawn");
+            break;
+        }
+        case ST_EMIT:
+            break;
     }
     return root_value;
 }

@@ -511,7 +511,7 @@ typedef struct LambdaExpr {
     FnBodyType bodyType;
     union {
         struct Expr *expr;
-        struct BlockStatement *block;
+        struct Statement *block;
     };
 }LambdaExpr;
 LambdaExpr* ast_expr_makeLambdaExpr(ASTScope* parentScope);

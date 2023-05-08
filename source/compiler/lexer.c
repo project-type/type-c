@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <printf.h>
+#include <inttypes.h>
 #include "lexer.h"
+#include "error.h"
 
 /*
  * First we define some utilities for our lexer
@@ -694,6 +696,8 @@ Lexeme lexer_lexCurrent(LexerState* lex) {
             }
         }
     }
-
-
+    // throw error at current lexem line and col
+    ASSERT(0 == 0,
+           "Line: %"PRIu16", Col: %"PRIu16" invalid symbol `%c`",
+            lex->line, lex->col, c);
 }
