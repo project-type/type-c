@@ -1104,40 +1104,40 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
             // iterate over the assignment groups
             uint32_t i; LetExprDecl * letDecl;
             vec_foreach(&varDecl->letList, letDecl, i) {
-                    // create a group
-                    JSON_Value * assignmentGroup_value = json_value_init_object();
-                    JSON_Object * assignmentGroup_object = json_value_get_object(assignmentGroup_value);
+                // create a group
+                JSON_Value * assignmentGroup_value = json_value_init_object();
+                JSON_Object * assignmentGroup_object = json_value_get_object(assignmentGroup_value);
 
-                    // each group object will contain an array of variables
-                    JSON_Value * variables_value = json_value_init_array();
-                    JSON_Array * variables_array = json_value_get_array(variables_value);
+                // each group object will contain an array of variables
+                JSON_Value * variables_value = json_value_init_array();
+                JSON_Array * variables_array = json_value_get_array(variables_value);
 
-                    // iterate over the variables
-                    int j; char * var;
-                    vec_foreach(&letDecl->variableNames, var, j) {
-                            // get the variable var from the map
-                            FnArgument **v = map_get(&letDecl->variables, var);
-                            // create a variable object
-                            JSON_Value * variable_value = json_value_init_object();
-                            JSON_Object * variable_object = json_value_get_object(variable_value);
-                            // add the name
-                            json_object_set_string(variable_object, "name", var);
-                            // add the type if it's not null, otherwise write null
-                            if ((*v)->type != NULL)
-                                json_object_set_value(variable_object, "type", ast_json_serializeDataTypeRecursive((*v)->type));
-                            else
-                                json_object_set_string(variable_object, "type", "null");
-                            // add the variable to the variables array
-                            json_array_append_value(variables_array, variable_value);
-                        }
-                    // add the variables array to the group object
-                    json_object_set_value(assignmentGroup_object, "variables", variables_value);
-                    // add the assigned value of that group
-                    json_object_set_string(assignmentGroup_object, "initializerType", letDecl->initializerType==LIT_STRUCT_DECONSTRUCTION?"structDeconstruction":(letDecl->initializerType==LIT_NONE?"none":"arrayDestruction"));
-                    json_object_set_value(assignmentGroup_object, "initializer", ast_json_serializeExprRecursive(letDecl->initializer));
-                    // add the group to the groups array
-                    json_array_append_value(assignmentGroups_array, assignmentGroup_value);
-                }
+                // iterate over the variables
+                int j; char * var;
+                vec_foreach(&letDecl->variableNames, var, j) {
+                        // get the variable var from the map
+                        FnArgument **v = map_get(&letDecl->variables, var);
+                        // create a variable object
+                        JSON_Value * variable_value = json_value_init_object();
+                        JSON_Object * variable_object = json_value_get_object(variable_value);
+                        // add the name
+                        json_object_set_string(variable_object, "name", var);
+                        // add the type if it's not null, otherwise write null
+                        if ((*v)->type != NULL)
+                            json_object_set_value(variable_object, "type", ast_json_serializeDataTypeRecursive((*v)->type));
+                        else
+                            json_object_set_string(variable_object, "type", "null");
+                        // add the variable to the variables array
+                        json_array_append_value(variables_array, variable_value);
+                    }
+                // add the variables array to the group object
+                json_object_set_value(assignmentGroup_object, "variables", variables_value);
+                // add the assigned value of that group
+                json_object_set_string(assignmentGroup_object, "initializerType", letDecl->initializerType==LIT_STRUCT_DECONSTRUCTION?"structDeconstruction":(letDecl->initializerType==LIT_NONE?"none":"arrayDestruction"));
+                json_object_set_value(assignmentGroup_object, "initializer", ast_json_serializeExprRecursive(letDecl->initializer));
+                // add the group to the groups array
+                json_array_append_value(assignmentGroups_array, assignmentGroup_value);
+            }
             // add the groups array to the root object
             json_object_set_value(root_object, "assignmentGroups", assignmentGroups_value);
             // add "in" expression

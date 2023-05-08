@@ -45,7 +45,7 @@ type NotificationWorker = process<WorkerOutput, u32>(x: i32, y: i32) {
 fn main() -> void {
     let okResults: struct {worker: Worker, response: ProcessResponse}[] = []
     let errorResults: struct {worker: Worker, response: ProcessResponse}[] = []
-    let notificationGUI: NotificationWorker = spawn ::NotificationWorker()
+    let notificationGUI = spawn ::NotificationWorker()
 
     let processes: Worker[] = []
     for let i: u32 = 0; i < 1000; i = i + 1 {
