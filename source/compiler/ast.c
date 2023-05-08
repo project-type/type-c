@@ -113,12 +113,14 @@ InterfaceType* ast_type_makeInterface() {
     return interface;
 }
 
-ClassType* ast_type_makeClass() {
+ClassType* ast_type_makeClass(ASTScope* parentScope) {
     ALLOC(class_, ClassType);
+    class_->scope = ast_scope_makeScope(parentScope);
     map_init(&class_->methods);
-    map_init(&class_->attributes);
-    vec_init(&class_->attributeNames);
+    //map_init(&class_->attributes);
+    //vec_init(&class_->attributeNames);
     vec_init(&class_->methodNames);
+    vec_init(&class_->letList);
 
     return class_;
 }
@@ -195,6 +197,13 @@ FnHeader*  ast_makeFnHeader(){
     map_init(&header->generics);
 
     return header;
+}
+
+ClassMethod * ast_type_makeClassMethod(){
+    ALLOC(method, ClassMethod);
+    method->decl = NULL;
+
+    return method;
 }
 
 FnArgument * ast_type_makeFnArgument(){

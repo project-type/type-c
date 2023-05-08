@@ -37,6 +37,7 @@ struct CaseExpr;
 struct Statement;
 struct BlockStatement;
 struct CaseStatement;
+struct ASTScope;
 
 /* Data types */
 typedef map_t(uint32_t) u32_map_t;
@@ -137,14 +138,18 @@ typedef struct InterfaceType {
 InterfaceType* ast_type_makeInterface();
 
 typedef struct ClassType {
-    map_classattribute_t attributes;
+    //map_classattribute_t attributes;
     map_classmethod_t methods;
 
     // important for layout management
-    vec_str_t attributeNames;
+    //vec_str_t attributeNames;
     vec_str_t methodNames;
+
+    vec_dtype_t extends;
+    vec_letexprlist_t letList;
+    struct ASTScope* scope;
 }ClassType;
-ClassType* ast_type_makeClass();
+ClassType* ast_type_makeClass(struct ASTScope* parentScope);
 
 typedef struct FnType {
     map_fnargument_t args;
@@ -241,8 +246,9 @@ typedef struct FnHeader {
 FnHeader*  ast_makeFnHeader();
 
 typedef struct  ClassMethod {
-    struct FnHeader* header;
+    struct FnDeclStatement* decl;
 } ClassMethod;
+ClassMethod * ast_type_makeClassMethod();
 
 /**
  * A generic descriptors

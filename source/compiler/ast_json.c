@@ -258,6 +258,7 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             json_object_set_string(root_object, "primitiveType", "vec");
             break;
              */
+            break;
         }
         case DT_STRING:
             // add category=primitive
@@ -271,10 +272,107 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             // add primitive type = char
             json_object_set_string(root_object, "primitiveType", "char");
             break;
-        case DT_CLASS:
-            // throw not implemented
-            ASSERT(0==1, "Not implemented");
+        case DT_CLASS: {
+            // category=class
+            json_object_set_string(root_object, "category", "class");
+            // first we check what the class extends
+            JSON_Value* extends_value = json_value_init_array();
+            JSON_Array* extends_array = json_value_get_array(extends_value);
+            // iterate over the extends
+            uint32_t i ; DataType * val;
+            vec_foreach(&type->classType->extends, val, i){
+                // add the type
+                json_array_append_value(extends_array, ast_json_serializeDataTypeRecursive(val));
+            }
+            // add the extends
+            json_object_set_value(root_object, "extends", extends_value);
+            // now we add the methods
+            JSON_Value* methods_value = json_value_init_array();
+            JSON_Array* methods_array = json_value_get_array(methods_value);
+            char* methodName;
+            // iterate over the methods
+
+            vec_foreach(&type->classType->methodNames, methodName, i){
+                ClassMethod ** function = map_get(&type->classType->methods, methodName);
+                FnDeclStatement* fnDecl = (*function)->decl;
+                // create the object to hold method decl
+                JSON_Value* method_value = json_value_init_object();
+                JSON_Object* method_object = json_value_get_object(method_value);
+
+                json_object_set_string(method_object, "bodyType", fnDecl->bodyType==FBT_EXPR?"expr":"block");
+                // add the name
+                json_object_set_string(method_object, "name", fnDecl->header->name);
+                // add the return type if exists, else set value to null
+                if(fnDecl->header->type->returnType != NULL)
+                    json_object_set_value(method_object, "returnType", ast_json_serializeDataTypeRecursive(fnDecl->header->type->returnType));
+                else
+                    json_object_set_null(method_object, "returnType");
+                // add function isGeneric
+                json_object_set_boolean(method_object, "hasGeneric", fnDecl->hasGeneric);
+                // add generic params in an array
+                JSON_Value * genericParams_value = json_value_init_array();
+                JSON_Array * genericParams_array = json_value_get_array(genericParams_value);
+                // iterate over the generic params
+                uint32_t j = 0; GenericParam * genericParam;
+                vec_foreach(&fnDecl->genericParams, genericParam, j) {
+                        // create a generic param object
+                        JSON_Value * genericParam_value = json_value_init_object();
+                        JSON_Object * genericParam_object = json_value_get_object(genericParam_value);
+                        // add the name
+                        json_object_set_string(genericParam_object, "name", genericParam->name);
+                        // add the requirements or null if it's null
+                        if (genericParam->constraint != NULL)
+                            json_object_set_value(genericParam_object, "supertype", ast_json_serializeDataTypeRecursive(genericParam->constraint));
+                        else
+                            json_object_set_null(genericParam_object, "requirements");
+
+
+                        // add the generic param to the generic params array
+                        json_array_append_value(genericParams_array, genericParam_value);
+                    }
+                // add the generic params array to the root object
+                json_object_set_value(method_object, "genericParams", genericParams_value);
+
+
+                // add the args
+                // create an array of args
+                JSON_Value * args_value = json_value_init_array();
+                JSON_Array * args_array = json_value_get_array(args_value);
+                // iterate over the args
+                char * argName;
+                vec_foreach(&fnDecl->header->type->argNames, argName, i) {
+                        FnArgument** arg = map_get(&fnDecl->header->type->args, argName);
+                        // create an arg object
+                        JSON_Value * arg_value = json_value_init_object();
+                        JSON_Object * arg_object = json_value_get_object(arg_value);
+                        // add the name
+                        json_object_set_string(arg_object, "name", argName);
+                        // add the type
+                        json_object_set_value(arg_object, "type", ast_json_serializeDataTypeRecursive((*arg)->type));
+                        // add the arg to the args array
+                        json_array_append_value(args_array, arg_value);
+                        // add isMutable
+                        json_object_set_boolean(arg_object, "isMutable", (*arg)->isMutable);
+                        // add to array
+                        json_array_append_value(args_array, arg_value);
+                    }
+                // add the args array to the root object
+                json_object_set_value(method_object, "args", args_value);
+
+                // if body type is expression we set expr
+                if (fnDecl->bodyType == FBT_EXPR)
+                    json_object_set_value(method_object, "expr", ast_json_serializeExprRecursive(fnDecl->expr));
+                else
+                    json_object_set_value(method_object, "block", ast_json_serializeStatementRecursive(fnDecl->block));
+
+                json_array_append_value(methods_array, method_value);
+            }
+            // add the methods
+            json_object_set_value(root_object, "methods", methods_value);
+
+
             break;
+        }
         case DT_INTERFACE: {
             // category=interface
             json_object_set_string(root_object, "category", "interface");
@@ -386,7 +484,7 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
 
             break;
         }
-        case DT_VARIANT:
+        case DT_VARIANT: {
             // category = variant
             json_object_set_string(root_object, "category", "variant");
             // add the fields
@@ -396,50 +494,54 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             char *variantName;
             uint32_t i;
             vec_foreach(&type->variantType->constructorNames, variantName, i) {
-                // we want to create an object {"name": <name>, "type": <type>}
-                JSON_Value *variant_value = json_value_init_object();
-                JSON_Object *variant_object = json_value_get_object(variant_value);
-                // add the name
-                json_object_set_string(variant_object, "name", variantName);
-                // add the type
-                VariantConstructor ** variant = map_get(&type->variantType->constructors, variantName);
-                // each constructor has args
-                JSON_Value* args_value = json_value_init_array();
-                JSON_Array* args_array = json_value_get_array(args_value);
-                // iterate over the args
-                char* argName;
-                uint32_t j;
-                vec_foreach(&(*variant)->argNames, argName, j) {
-                    VariantConstructorArgument ** argType = map_get(&(*variant)->args, argName);
                     // we want to create an object {"name": <name>, "type": <type>}
-                    JSON_Value* arg_value = json_value_init_object();
-                    JSON_Object* arg_object = json_value_get_object(arg_value);
+                    JSON_Value *variant_value = json_value_init_object();
+                    JSON_Object *variant_object = json_value_get_object(variant_value);
                     // add the name
-                    json_object_set_string(arg_object, "name", argName);
+                    json_object_set_string(variant_object, "name", variantName);
                     // add the type
-                    json_object_set_value(arg_object, "type", ast_json_serializeDataTypeRecursive((*argType)->type));
-                    // add the arg
-                    json_array_append_value(args_array, arg_value);
-                }
-                // add the args
-                json_object_set_value(variant_object, "args", args_value);
+                    VariantConstructor **variant = map_get(&type->variantType->constructors, variantName);
+                    // each constructor has args
+                    JSON_Value *args_value = json_value_init_array();
+                    JSON_Array *args_array = json_value_get_array(args_value);
+                    // iterate over the args
+                    char *argName;
+                    uint32_t j;
+                    vec_foreach(&(*variant)->argNames, argName, j) {
+                            VariantConstructorArgument **argType = map_get(&(*variant)->args, argName);
+                            // we want to create an object {"name": <name>, "type": <type>}
+                            JSON_Value *arg_value = json_value_init_object();
+                            JSON_Object *arg_object = json_value_get_object(arg_value);
+                            // add the name
+                            json_object_set_string(arg_object, "name", argName);
+                            // add the type
+                            json_object_set_value(arg_object, "type",
+                                                  ast_json_serializeDataTypeRecursive((*argType)->type));
+                            // add the arg
+                            json_array_append_value(args_array, arg_value);
+                        }
+                    // add the args
+                    json_object_set_value(variant_object, "args", args_value);
 
-                // add the field
-                json_array_append_value(variants_array, variant_value);
-            }
+                    // add the field
+                    json_array_append_value(variants_array, variant_value);
+                }
             // add the fields
             json_object_set_value(root_object, "variants", variants_value);
 
             break;
-        case DT_ARRAY:
+        }
+        case DT_ARRAY: {
             // category = array
             json_object_set_string(root_object, "category", "array");
             // add the type
-            json_object_set_value(root_object, "arrayOf", ast_json_serializeDataTypeRecursive(type->arrayType->arrayOf));
+            json_object_set_value(root_object, "arrayOf",
+                                  ast_json_serializeDataTypeRecursive(type->arrayType->arrayOf));
             // add the size
-            json_object_set_number(root_object, "size", (double)type->arrayType->len);
+            json_object_set_number(root_object, "size", (double) type->arrayType->len);
 
             break;
+        }
         case DT_FN: {
             // category = fn
             json_object_set_string(root_object, "category", "fn");
@@ -455,7 +557,7 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             JSON_Array *args_array = json_value_get_array(args_value);
             // iterate over the args
             char *argName;
-            uint32_t i;
+            uint32_t i = 0;
             vec_foreach(&type->fnType->argNames, argName, i) {
                 // we want to create an object {"name": <name>, "type": <type>}
                 JSON_Value *arg_value = json_value_init_object();

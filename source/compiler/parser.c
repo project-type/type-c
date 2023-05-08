@@ -457,6 +457,9 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
         ACCEPT;
         type = basicType;
     }
+    else if (lexeme.type == TOK_CLASS){
+        type = parser_parseTypeClass(parser, node, parentReferee, currentScope);
+    }
     else if (lexeme.type == TOK_INTERFACE){
         type = parser_parseTypeInterface(parser, node, parentReferee, currentScope);
     }
@@ -634,6 +637,82 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* par
     }
 
     return interfaceType;
+}
+
+DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+    DataType * classType = ast_type_makeType();
+    classType->kind = DT_CLASS;
+    classType->classType = ast_type_makeClass(currentScope);
+    // accept class
+    ACCEPT;
+    Lexeme CURRENT;
+
+    // if we have "(", means interface extends other interfaces
+    if(lexeme.type == TOK_LPAREN) {
+        ACCEPT;
+        parser_parseExtends(parser, node, parentReferee, &classType->classType->extends, currentScope);
+        CURRENT;
+    }
+    else {
+
+        //parser_reject(parser);
+    }
+
+
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+    // now we expect an interface method
+    // prepare to loop
+    uint8_t can_loop = lexeme.type == TOK_FN || lexeme.type == TOK_LET;
+    while(can_loop) {
+        // parse interface method
+        // we assert "fn"
+        ASSERT(lexeme.type == TOK_FN || lexeme.type == TOK_LET,
+               "Line: %"PRIu16", Col: %"PRIu16" `fn` or `let` expected but %s was found.",
+               EXPAND_LEXEME);
+        // reject it
+        if(lexeme.type == TOK_FN){
+            parser_reject(parser);
+            Statement * stmt = parser_parseStmtFn(parser, node, currentScope);
+            // assert stmt != NULL
+            ASSERT(stmt != NULL, "Line: %"PRIu16", Col: %"PRIu16" invalid token `%s`.",
+                   EXPAND_LEXEME);
+
+            FnDeclStatement * fnDecl = stmt->fnDecl;
+            // add method name
+            ClassMethod * classMethod = ast_type_makeClassMethod();
+            classMethod->decl = fnDecl;
+            map_set(&classType->classType->methods, fnDecl->header->name, classMethod);
+            vec_push(&classType->classType->methodNames, fnDecl->header->name);
+        }
+        else {
+            parser_reject(parser);
+            Statement *stmt = parser_parseStmtLet(parser, node, currentScope);
+            VarDeclStatement* varDecl = stmt->varDecl;
+            uint32_t i = 0; LetExprDecl* letDecl;
+            vec_foreach(&varDecl->letList, letDecl, i){
+                vec_push(&classType->classType->letList, letDecl);
+            }
+
+            free(varDecl);
+            free(stmt);
+        }
+        // skip "," if any
+        CURRENT;
+        if(lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        }
+
+        // check if we reached "}"
+        if(lexeme.type == TOK_RBRACE) {
+            ACCEPT;
+            can_loop = 0;
+        }
+    }
+
+    return classType;
 }
 
 // variant_type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"

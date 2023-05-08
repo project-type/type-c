@@ -1,3 +1,20 @@
+type Instance = class {
+    fn init(){
+        print("awesome!")
+    }
+}
+
+type ConstantNode = class(Node) {
+    fn forward() -> Node {
+        return self
+    }
+    fn backward() -> Node {
+        return self
+    }
+}
+
+
+/*
 type WorkerInput = variant {
     DownloadFile(url: string),
     Exit()
@@ -82,3 +99,4 @@ extern "C" cRaylibWindow {
     fn IsWindowReady() -> bool
     fn IsWindowFullscreen() -> bool
 }
+*/
