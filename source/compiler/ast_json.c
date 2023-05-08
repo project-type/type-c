@@ -1266,6 +1266,58 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
     return root_value;
 }
 
+JSON_Value* ast_json_serializeExternDeclRecursive(ExternDecl* decl) {
+    // create the root object
+    JSON_Value * root_value = json_value_init_object();
+    JSON_Object * root_object = json_value_get_object(root_value);
+    // add the name
+    json_object_set_string(root_object, "name", decl->name);
+    // add the linkage and set it to C by default
+    json_object_set_string(root_object, "linkage", "C");
+    // add the interface methods
+    JSON_Value* methods_value = json_value_init_array();
+    JSON_Array* methods_array = json_value_get_array(methods_value);
+    // iterate over the methods
+    char * methodName; uint32_t i;
+    vec_foreach(&decl->methodNames, methodName, i){
+            // we want to create an object {"name": <name>, "args": [<args>], "returnType": <returnType>}
+            JSON_Value* method_value = json_value_init_object();
+            JSON_Object* method_object = json_value_get_object(method_value);
+            // add the name
+            json_object_set_string(method_object, "name", methodName);
+            // add the args
+            JSON_Value* args_value = json_value_init_array();
+            JSON_Array* args_array = json_value_get_array(args_value);
+            // iterate over the args
+            FnHeader ** function = map_get(&decl->methods, methodName);
+            uint32_t j; char* argName;
+            vec_foreach(&(*function)->type->argNames, argName, j) {
+                    FnArgument ** argType = map_get(&(*function)->type->args, argName);
+                    // we want to create an object {"name": <name>, "type": <type>}
+                    JSON_Value* arg_value = json_value_init_object();
+                    JSON_Object* arg_object = json_value_get_object(arg_value);
+                    // add the name
+                    json_object_set_string(arg_object, "name", argName);
+                    // add the type
+                    json_object_set_value(arg_object, "type", ast_json_serializeDataTypeRecursive((*argType)->type));
+                    // add the arg
+                    json_array_append_value(args_array, arg_value);
+                }
+            // add the args
+            json_object_set_value(method_object, "args", args_value);
+            // add the return type
+            if((*function)->type->returnType != NULL)
+                json_object_set_value(method_object, "returnType", ast_json_serializeDataTypeRecursive((*function)->type->returnType));
+            else
+                json_object_set_null(method_object, "returnType");
+            // add the method
+            json_array_append_value(methods_array, method_value);
+        }
+    // add the methods
+    json_object_set_value(root_object, "methods", methods_value);
+    return root_value;
+}
+
 char* ast_json_serializeDataType(DataType* type) {
     JSON_Value * root_val = ast_json_serializeDataTypeRecursive(type);
     return json_serialize_to_string(root_val);
@@ -1278,5 +1330,10 @@ char* ast_json_serializeExpr(Expr* expr) {
 
 char* ast_json_serializeStatement(Statement* stmt) {
     JSON_Value * root_val = ast_json_serializeStatementRecursive(stmt);
+    return json_serialize_to_string(root_val);
+}
+
+char* ast_json_serializeExternDecl(ExternDecl* decl){
+    JSON_Value * root_val = ast_json_serializeExternDeclRecursive(decl);
     return json_serialize_to_string(root_val);
 }

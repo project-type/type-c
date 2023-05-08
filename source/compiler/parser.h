@@ -55,6 +55,8 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope)
 void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope* currentScope);
 void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope);
 
+ExternDecl* parser_parseExternDecl(Parser* parser, ASTNode* node, ASTScope* currentScope);
+
 DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);
 DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);
 DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope);

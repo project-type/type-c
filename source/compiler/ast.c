@@ -438,6 +438,16 @@ ASTScope * ast_scope_makeScope(ASTScope* parentScope){
     return scope;
 }
 
+ExternDecl* ast_externdecl_make(){
+    ALLOC(externDecl, ExternDecl);
+    externDecl->name = NULL;
+    externDecl->linkage = "C";
+    vec_init(&externDecl->methodNames);
+    map_init(&externDecl->methods);
+
+    return externDecl;
+}
+
 BlockStatement* ast_stmt_makeBlockStatement(ASTScope* parentScope){
     ALLOC(block, BlockStatement);
     block->scope = ast_scope_makeScope(parentScope);

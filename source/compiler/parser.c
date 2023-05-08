@@ -11,7 +11,6 @@
 #include "ast.h"
 #include "error.h"
 #include "tokens.h"
-#include "ast_tools.h"
 #include "ast_json.h"
 
 #define TTTS(t) token_type_to_string(t)
@@ -83,7 +82,13 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
 
     can_loop = 1; //lexeme.type == TOK_TYPE;
     while (can_loop) {
-
+        if(lexeme.type == TOK_EXTERN) {
+            parser_reject(parser);
+            ExternDecl* externDecl = parser_parseExternDecl(parser, node, node->scope);
+            char* strDecl = ast_json_serializeExternDecl(externDecl);
+            printf("%s\n", strDecl);
+            CURRENT;
+        }
         if(lexeme.type == TOK_TYPE) {
             parser_parseTypeDecl(parser, node, node->scope);
             CURRENT;
@@ -110,6 +115,65 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
              */
         }
     }
+}
+
+ExternDecl* parser_parseExternDecl(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    ExternDecl* externDecl = ast_externdecl_make();
+
+    Lexeme lexeme = parser_peek(parser);
+    // assert extern
+    ASSERT(lexeme.type == TOK_EXTERN, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // assert string token
+    lexeme = parser_peek(parser);
+    ASSERT(lexeme.type == TOK_STRING_VAL, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    // assert value is "C"
+    ASSERT(strcmp(lexeme.string, "\"C\"") == 0, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    // assert identifier
+    CURRENT;
+    ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    externDecl->name = strdup(lexeme.string);
+    ACCEPT;
+    // assert {
+    CURRENT;
+    ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    ACCEPT;
+    CURRENT;
+    // now we expect an interface method
+    // prepare to loop
+    uint8_t can_loop = lexeme.type == TOK_FN;
+    while(can_loop) {
+        // parse interface method
+        // we assert "fn"
+        ASSERT(lexeme.type == TOK_FN,
+               "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.",
+               EXPAND_LEXEME);
+        // reject it
+        parser_reject(parser);
+        FnHeader * header = parser_parseFnHeader(parser, node, currentScope);
+        // make sure fn doesn't already exist
+        ASSERT(map_get(&externDecl->methods, header->name) == NULL,
+               "Line: %"PRIu16", Col: %"PRIu16" near %s, method `%s` already exists in interface.",
+               EXPAND_LEXEME, header->name);
+
+        // else we add it
+        map_set(&externDecl->methods, header->name, header);
+        vec_push(&externDecl->methodNames, header->name);
+        // skip "," if any
+        CURRENT;
+        if(lexeme.type == TOK_COMMA) {
+            ACCEPT;
+            CURRENT;
+        }
+
+        // check if we reached "}"
+        if(lexeme.type == TOK_RBRACE) {
+            ACCEPT;
+            can_loop = 0;
+        }
+    }
+    return externDecl;
 }
 
 /*
@@ -2295,8 +2359,8 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
         // check if we reached ")"
         CURRENT;
         if(lexeme.type == TOK_RPAREN) {
-            can_loop = 0;
-            ACCEPT;
+            break;
+
         }
         else {
             ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `)` expected after arg declaration but %s was found.", EXPAND_LEXEME);
@@ -2306,6 +2370,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
     }
 
     // do we have a return type?
+    ACCEPT;
     CURRENT;
     if(lexeme.type == TOK_FN_RETURN_TYPE) {
         ACCEPT;

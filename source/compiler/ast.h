@@ -281,13 +281,22 @@ typedef enum ASTNodeType{
     AST_PROGRAM,
 }ASTNodeType;
 
+
+typedef struct ExternDecl {
+    char* name;
+    char* linkage;
+    map_interfacemethod_t methods;
+    vec_str_t  methodNames;
+}ExternDecl;
+ExternDecl* ast_externdecl_make();
+
 typedef struct ASTScope {
     uint8_t isSafe;
     void* variables;
     void* functions;
     map_dtype_t dataTypes;
-    void* statements;
-    void* externDeclarations;
+    ExternDecl* statements;
+    struct Ex* externDeclarations;
     struct ASTScope* parentScope;
 } ASTScope;
 ASTScope * ast_scope_makeScope(ASTScope* parentScope);
@@ -311,11 +320,6 @@ typedef struct ASTNode {
         ASTProgramNode* programNode;
     };
 }ASTNode;
-
-typedef struct FFIDecl {
-    char* name;
-
-}FFIDecl;
 
 typedef enum BinaryExprType {
     BET_ADD,

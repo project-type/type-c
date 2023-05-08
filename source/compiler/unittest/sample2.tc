@@ -48,3 +48,37 @@ fn main() -> void {
         emit processes[i]::Exit()
     }
 }
+
+fn test() {
+    let x: u8 = let z : u32 = 1 in
+        let y: u32 = 32 in
+            "haha"
+
+    let z: u32 = let alpha: u32 = 0xff in
+        "unreachable"
+
+    print (let y: u32 = 1 in
+        match 1 {
+            1 => match 2 {
+                2 => "two",
+                3 => "three",
+                5 => "other",
+                7 => "unreachable"
+            },
+            2 => "two",
+            3 => "three",
+            5 => "other"
+        })
+
+    let x: u32 =
+        let y: u32 = 3 in y
+}
+
+
+extern "C" cRaylibWindow {
+    fn InitWindow(width: u32, height: u32, title: char[])
+    fn WindowShouldClose() -> bool
+    fn CloseWindow()
+    fn IsWindowReady() -> bool
+    fn IsWindowFullscreen() -> bool
+}
