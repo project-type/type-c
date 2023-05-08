@@ -1,6 +1,6 @@
 type Instance = class {
-    fn init(){
-        print("awesome!")
+    fn init() {
+        return Instance()
     }
 }
 
@@ -14,7 +14,7 @@ type ConstantNode = class(Node) {
 }
 
 
-/*
+
 type WorkerInput = variant {
     DownloadFile(url: string),
     Exit()
@@ -99,4 +99,3 @@ extern "C" cRaylibWindow {
     fn IsWindowReady() -> bool
     fn IsWindowFullscreen() -> bool
 }
-*/

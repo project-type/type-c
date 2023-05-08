@@ -1267,21 +1267,24 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 ACCEPT;
                 CURRENT;
                 // assert ":"
-                ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
-                       EXPAND_LEXEME);
-                ACCEPT;
-                // parse type
-                var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
-                // assert type is not null
-                ASSERT(var->type != NULL,
-                       "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
-                       EXPAND_LEXEME);
+                if(lexeme.type == TOK_COLON) {
+                    ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
+                           EXPAND_LEXEME);
+                    ACCEPT;
+                    // parse type
+                    var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                    // assert type is not null
+                    ASSERT(var->type != NULL,
+                           "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
+                           EXPAND_LEXEME);
+
+                    // check if we have a comma
+                    CURRENT;
+                }
                 // add to args
                 map_set(&letDecl->variables, var->name, var);
                 vec_push(&letDecl->variableNames, var->name);
 
-                // check if we have a comma
-                lexeme = parser_peek(parser);
                 if (lexeme.type == TOK_COMMA) {
                     ACCEPT;
                     CURRENT;
@@ -2691,22 +2694,25 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
             var->name = strdup(lexeme.string);
             ACCEPT;
             CURRENT;
-            // assert ":"
-            ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
-                   EXPAND_LEXEME);
-            ACCEPT;
-            // parse type
-            var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
-            // assert type is not null
-            ASSERT(var->type != NULL,
-                   "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
-                   EXPAND_LEXEME);
+            if(lexeme.type == TOK_COLON){
+                // assert ":"
+                ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
+                       EXPAND_LEXEME);
+                ACCEPT;
+                // parse type
+                var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                // assert type is not null
+                ASSERT(var->type != NULL,
+                       "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
+                       EXPAND_LEXEME);
+                CURRENT;
+            }
             // add to args
             map_set(&letDecl->variables, var->name, var);
             vec_push(&letDecl->variableNames, var->name);
 
             // check if we have a comma
-            lexeme = parser_peek(parser);
+
             if (lexeme.type == TOK_COMMA) {
                 ACCEPT;
                 CURRENT;
