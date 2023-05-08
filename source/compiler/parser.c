@@ -1875,6 +1875,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
         uint8_t can_loop = lexeme.type != TOK_RPAREN;
 
         while(can_loop) {
+            parser_reject(parser);
             Expr* index = parser_parseExpr(parser, node, currentScope);
             vec_push(&call->args, index);
             CURRENT;
