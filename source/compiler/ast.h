@@ -30,6 +30,7 @@ struct FnArgument;
 struct GenericParam;
 struct UnresolvedType;
 struct LetExprDecl;
+struct FnHeader;
 
 struct Expr;
 struct CaseExpr;
@@ -51,6 +52,7 @@ typedef map_t(struct FnArgument*) map_fnargument_t;
 typedef map_t(struct VariantConstructorArgument*) map_variantconstructorarg_t;
 typedef map_t(struct VariantConstructor*) map_variantconstructor_t;
 typedef map_t(struct Expr*) mat_expr_t;
+typedef map_t(struct FnHeader*) mat_fnheader_t;
 
 typedef vec_t(struct GenericParam*) vec_genericparam_t;
 typedef vec_t(struct DataType*) vec_dtype_t;
@@ -297,13 +299,14 @@ typedef struct ExternDecl {
 ExternDecl* ast_externdecl_make();
 
 typedef struct ASTScope {
-    uint8_t isSafe;
-    void* variables;
-    void* functions;
-    map_dtype_t dataTypes;
-    ExternDecl* statements;
-    struct Ex* externDeclarations;
-    struct ASTScope* parentScope;
+    uint8_t isSafe;                          // block is safe
+    uint8_t withinClass;                     // is within a class
+    uint8_t withinSync;                      // is within a sync block
+    map_dtype_t * variables;                 // variables declared in this scope
+    mat_fnheader_t* functions;               // functions declared in this scope
+    map_dtype_t dataTypes;                   // data types declared in this scope
+    struct ExternDecl * externDeclarations;  // extern declarations
+    struct ASTScope* parentScope;            // parent scope
 } ASTScope;
 ASTScope * ast_scope_makeScope(ASTScope* parentScope);
 

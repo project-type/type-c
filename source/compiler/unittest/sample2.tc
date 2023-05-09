@@ -4,7 +4,11 @@ type Instance = class {
     }
 }
 
-type ConstantNode = class(Node) {
+type Z = variant {
+    A(), B(), Z(A: u32 AHAHAHAHAHAHAHAHA)
+}
+
+type ConstantNode = class (Node) {
     fn forward() -> Node {
         return self
     }

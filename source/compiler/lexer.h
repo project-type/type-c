@@ -13,6 +13,7 @@ typedef struct Lexeme {
     char* string;
     uint32_t line;
     uint32_t col;
+    uint32_t pos;
 }Lexeme;
 
 typedef struct LexerState {
