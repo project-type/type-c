@@ -719,6 +719,7 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
         case ET_THIS: {
             // category = this
             json_object_set_string(root_object, "category", "this");
+            break;
         }
         case ET_ARRAY_CONSTRUCTION: {
             // category = arrayConstruction
