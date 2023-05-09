@@ -277,7 +277,7 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     if(match_keyword(lexerState, "return")) return makeLexemLineCol(TOK_RETURN, NULL, line, col, pos);
     //if(match_keyword(lexerState, "sizeof")) return makeLexemLineCol(TOK_SIZEOF, NULL, line, col, pos);
     //if(match_keyword(lexerState, "super")) return makeLexemLineCol(TOK_SUPER, NULL, line, col, pos);
-    if(match_keyword(lexerState, "this")) return makeLexemLineCol(TOK_SELF, NULL, line, col, pos);
+    if(match_keyword(lexerState, "this")) return makeLexemLineCol(TOK_THIS, NULL, line, col, pos);
     //if(match_keyword(lexerState, "static")) return makeLexemLineCol(TOK_STATIC, NULL, line, col, pos);
     if(match_keyword(lexerState, "struct")) return makeLexemLineCol(TOK_STRUCT, NULL, line, col, pos);
     if(match_keyword(lexerState, "match")) return makeLexemLineCol(TOK_MATCH, NULL, line, col, pos);

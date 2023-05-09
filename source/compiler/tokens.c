@@ -108,7 +108,7 @@ const char* token_type_to_string(TokenType type) {
         //    return "sizeof";
         //case TOK_SUPER:
         //    return "super";
-        case TOK_SELF:
+        case TOK_THIS:
             return "this";
         //case TOK_STATIC:
         //    return "static";

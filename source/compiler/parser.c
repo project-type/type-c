@@ -1937,13 +1937,6 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
         return unaryExpr;
     }
 
-    if (lexeme.type == TOK_TYPE_CONVERSION) {
-        ACCEPT;
-        // TODO parse type
-        PARSER_ASSERT(1==0, "`type conversion` operation is not yet implemented");
-        return NULL;
-    }
-
     parser_reject(parser);
     return uhs;
 }
@@ -2032,6 +2025,13 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
         return expr;
     }
+    if(lexeme.type == TOK_THIS){
+        Expr* expr = ast_expr_makeExpr(ET_THIS);
+        expr->thisExpr = ast_expr_makeThisExpr();
+        ACCEPT;
+
+        return expr;
+    }
     if(lexeme.type == TOK_FN){
         // lambda expression
         parser_reject(parser);
@@ -2104,7 +2104,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
     // check if we have a "{"
     if(lexeme.type == TOK_LBRACE) {
         ACCEPT;
-        // we need to look a head find an ID and ":", then its named
+        // we need to look a head find an ID and ":", then it's named
         // else its unnamed
         CURRENT;
         if(lexeme.type == TOK_IDENTIFIER){

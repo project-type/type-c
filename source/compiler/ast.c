@@ -431,6 +431,12 @@ EmitExpr* ast_expr_makeEmitExpr(){
     return emit;
 }
 
+ThisExpr* ast_expr_makeThisExpr(){
+    ALLOC(this, ThisExpr);
+    this->placeHolder = 0;
+    return this;
+}
+
 /*AwaitExpr* ast_expr_makeAwaitExpr(){
     ALLOC(await, AwaitExpr);
     await->expr = NULL;

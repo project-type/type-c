@@ -562,9 +562,14 @@ typedef struct EmitExpr {
 }EmitExpr;
 EmitExpr* ast_expr_makeEmitExpr();
 
+typedef struct ThisExpr {
+    uint8_t placeHolder;
+}ThisExpr;
+ThisExpr* ast_expr_makeThisExpr();
 
 typedef enum ExpressionType {
     ET_LITERAL,
+    ET_THIS,
     ET_ELEMENT,
     ET_ARRAY_CONSTRUCTION,
     ET_NAMED_STRUCT_CONSTRUCTION,
@@ -613,6 +618,7 @@ typedef struct Expr {
         SyncExpr* syncExpr;
         SpawnExpr* spawnExpr;
         EmitExpr* emitExpr;
+        ThisExpr* thisExpr;
     };
 }Expr;
 Expr* ast_expr_makeExpr(ExpressionType type);

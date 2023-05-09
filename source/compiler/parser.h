@@ -16,6 +16,10 @@ typedef struct Parser {
     LexerState* lexerState;
     lexem_vec_t stack;
     uint32_t stack_index;
+
+    vec_dtype_t unresolvedTypes;
+    vec_str_t unresolvedSymbols;
+
 }Parser;
 
 Parser* parser_init(LexerState* lexerState);

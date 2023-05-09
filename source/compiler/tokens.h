@@ -63,7 +63,7 @@ typedef enum {
     TOK_RETURN,            // return
     //TOK_SIZEOF,          // sizeof
     //TOK_SUPER,           // super
-    TOK_SELF,              // self
+    TOK_THIS,              // this
     //TOK_STATIC,          // static
     TOK_STRUCT,            // struct
     TOK_MATCH,             // match

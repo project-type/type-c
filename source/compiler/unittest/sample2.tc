@@ -11,7 +11,7 @@ type Z = variant {
 type ConstantNode = class (Node) {
     fn forward() -> Node {
         sync {
-            return unsafe ( sync ( x.abs() ))
+            return unsafe ( sync ( x.abs() as u32 ))
         }
         return self
     }
