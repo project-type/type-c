@@ -5,24 +5,18 @@
 #include "error.h"
 #include <assert.h>
 #include <stdlib.h>
-#include <inttypes.h>
 #include <printf.h>
 #include "../utils/vec.h"
 #include "parser.h"
 #include "parser_resolve.h"
 #include "ast.h"
-#include "error.h"
 #include "tokens.h"
 #include "ast_json.h"
 #include "parser_utils.h"
 
-
-
-
 #define ACCEPT parser_accept(parser)
 #define CURRENT lexeme = parser_peek(parser)
 #define EXPAND_LEXEME lexeme.line, lexeme.col, TTTS(lexeme.type)
-
 
 Parser* parser_init(LexerState* lexerState) {
     Parser* parser = malloc(sizeof(Parser));
@@ -1906,7 +1900,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
     else if (lexeme.type == TOK_EMIT){
         Expr* emit = ast_expr_makeExpr(ET_EMIT);
         ACCEPT;
-        emit->emitExpr = ast_expr_makeEmitExpr(NULL);
+        emit->emitExpr = ast_expr_makeEmitExpr();
         CURRENT;
         if(lexeme.type == TOK_PROCESS_LINK){
             ACCEPT;
@@ -2595,7 +2589,7 @@ Statement* parser_parseStmt(Parser* parser, ASTNode* node, ASTScope* currentScop
         parser_reject(parser);
         return parser_parseStmtWhile(parser, node, currentScope);
     }
-    // check if we have do
+    // check if we have 'do'
     else if(lexeme.type == TOK_DO) {
         parser_reject(parser);
         return parser_parseStmtDoWhile(parser, node, currentScope);
@@ -2634,11 +2628,6 @@ Statement* parser_parseStmt(Parser* parser, ASTNode* node, ASTScope* currentScop
     else if(lexeme.type == TOK_MATCH) {
         parser_reject(parser);
         return parser_parseStmtMatch(parser, node, currentScope);
-    }
-    // if we have unsafe
-    else if(lexeme.type == TOK_UNSAFE) {
-        parser_reject(parser);
-        return parser_parseStmtUnsafe(parser, node, currentScope);
     }
     // if we have sync
     else if(lexeme.type == TOK_SYNC) {
