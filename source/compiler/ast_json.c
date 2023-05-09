@@ -139,9 +139,11 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
     // set isNullable
     json_object_set_boolean(root_object, "isNullable", type->isNullable);
     // set hasGeneric
-    json_object_set_boolean(root_object, "hasGeneric", type->hasGeneric);
-    // check if type has generic
-    if (type->hasGeneric){
+    json_object_set_boolean(root_object, "hasGeneric", type->hasGenerics);
+    // set isGeneric
+    json_object_set_boolean(root_object, "isGeneric", type->isGeneric);
+    // check if type isGeneric
+    if (type->isGeneric){
         // create new array which holds generic
         JSON_Value* generic_value = json_value_init_array();
         JSON_Array* generic_array = json_value_get_array(generic_value);
@@ -153,22 +155,15 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
             // create generic object
             JSON_Value* generic_object_value = json_value_init_object();
             JSON_Object* generic_object = json_value_get_object(generic_object_value);
-            // set isGeneric
-            json_object_set_boolean(generic_object, "isGeneric", param->isGeneric);
-            // check isGeneric
-            if (param->isGeneric){
-                // set the name
-                json_object_set_string(generic_object, "name", param->name);
-                // set the constraint if its not null
-                if (param->constraint != NULL)
-                    json_object_set_value(generic_object, "constraint", ast_json_serializeDataTypeRecursive(param->constraint));
-                else
-                    // set constraint to null
-                    json_object_set_null(generic_object, "constraint");
-            } else {
-                // set the type
-                json_object_set_value(generic_object, "type", ast_json_serializeDataTypeRecursive(param->type));
-            }
+            // set the name
+            json_object_set_string(generic_object, "name", param->name);
+            // set the constraint if it's not null
+            if (param->constraint != NULL)
+                json_object_set_value(generic_object, "constraint", ast_json_serializeDataTypeRecursive(param->constraint));
+            else
+                // set constraint to null
+                json_object_set_null(generic_object, "constraint");
+
             // append to array
             json_array_append_value(generic_array, generic_object_value);
         }
@@ -176,6 +171,37 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
         json_object_set_value(root_object, "genericParams", generic_value);
 
     }
+    // check if hasGenerics
+    if(type->hasGenerics){
+        // create new array which holds generic
+        JSON_Value* generic_value = json_value_init_array();
+        JSON_Array* generic_array = json_value_get_array(generic_value);
+        // iterate over the generic
+        int uint32_t; char* val;
+        vec_foreach(&type->genericNames, val, uint32_t){
+            GenericParam ** paramRef = map_get(&type->generics, val);
+            GenericParam * param = *paramRef;
+            // create generic object
+            JSON_Value* generic_object_value = json_value_init_object();
+            JSON_Object* generic_object = json_value_get_object(generic_object_value);
+            // set the name
+            json_object_set_string(generic_object, "name", param->name);
+            // set the constraint if it's not null
+            if (param->constraint != NULL)
+                json_object_set_value(generic_object, "constraint", ast_json_serializeDataTypeRecursive(param->constraint));
+            else
+                // set constraint to null
+                json_object_set_null(generic_object, "constraint");
+
+            // append to array
+            json_array_append_value(generic_array, generic_object_value);
+        }
+        // set the generic array
+        json_object_set_value(root_object, "concreteGenerics", generic_value);
+
+    }
+
+
 
     // now depending on the kind, we might store different things
     switch(type->kind){
@@ -310,21 +336,22 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
                 else
                     json_object_set_null(method_object, "returnType");
                 // add function isGeneric
-                json_object_set_boolean(method_object, "hasGeneric", fnDecl->hasGeneric);
+                json_object_set_boolean(method_object, "isGeneric", fnDecl->header->isGeneric);
                 // add generic params in an array
                 JSON_Value * genericParams_value = json_value_init_array();
                 JSON_Array * genericParams_array = json_value_get_array(genericParams_value);
                 // iterate over the generic params
-                uint32_t j = 0; GenericParam * genericParam;
-                vec_foreach(&fnDecl->genericParams, genericParam, j) {
+                uint32_t j = 0; char* name;
+                vec_foreach(&fnDecl->header->genericNames, name, j) {
+                        GenericParam ** genericParam = map_get(&fnDecl->header->generics, name);
                         // create a generic param object
                         JSON_Value * genericParam_value = json_value_init_object();
                         JSON_Object * genericParam_object = json_value_get_object(genericParam_value);
                         // add the name
-                        json_object_set_string(genericParam_object, "name", genericParam->name);
+                        json_object_set_string(genericParam_object, "name", (*genericParam)->name);
                         // add the requirements or null if it's null
-                        if (genericParam->constraint != NULL)
-                            json_object_set_value(genericParam_object, "supertype", ast_json_serializeDataTypeRecursive(genericParam->constraint));
+                        if ((*genericParam)->constraint != NULL)
+                            json_object_set_value(genericParam_object, "supertype", ast_json_serializeDataTypeRecursive((*genericParam)->constraint));
                         else
                             json_object_set_null(genericParam_object, "requirements");
 
@@ -1171,21 +1198,22 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
             else
                 json_object_set_null(root_object, "returnType");
             // add function isGeneric
-            json_object_set_boolean(root_object, "hasGeneric", stmt->fnDecl->hasGeneric);
+            json_object_set_boolean(root_object, "isGeneric", stmt->fnDecl->header->isGeneric);
             // add generic params in an array
             JSON_Value * genericParams_value = json_value_init_array();
             JSON_Array * genericParams_array = json_value_get_array(genericParams_value);
             // iterate over the generic params
-            uint32_t j = 0; GenericParam * genericParam;
-            vec_foreach(&stmt->fnDecl->genericParams, genericParam, j) {
+            uint32_t j = 0; char* name;
+            vec_foreach(&stmt->fnDecl->header->genericNames, name, j) {
+                GenericParam ** genericParam = map_get(&stmt->fnDecl->header->generics, name);
                 // create a generic param object
                 JSON_Value * genericParam_value = json_value_init_object();
                 JSON_Object * genericParam_object = json_value_get_object(genericParam_value);
                 // add the name
-                json_object_set_string(genericParam_object, "name", genericParam->name);
+                json_object_set_string(genericParam_object, "name", (*genericParam)->name);
                 // add the requirements or null if it's null
-                if (genericParam->constraint != NULL)
-                    json_object_set_value(genericParam_object, "supertype", ast_json_serializeDataTypeRecursive(genericParam->constraint));
+                if ((*genericParam)->constraint != NULL)
+                    json_object_set_value(genericParam_object, "supertype", ast_json_serializeDataTypeRecursive((*genericParam)->constraint));
                 else
                     json_object_set_null(genericParam_object, "requirements");
 

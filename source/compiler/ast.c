@@ -9,18 +9,14 @@
 #define ALLOC(v, t) t* v = malloc(sizeof(t))
 
 
-ASTNode * ast_makeProgramNode() {
+ASTProgramNode * ast_makeProgramNode() {
     ASTProgramNode* program = malloc(sizeof(ASTProgramNode));
 
+    vec_init(&program->stmts);
     vec_init(&program->importStatements);
-    vec_init(&program->unresolvedTypes);
+    program->scope = ast_scope_makeScope(NULL);
 
-    ASTNode* node = malloc(sizeof(ASTNode));
-    node->type = AST_PROGRAM;
-    node->programNode = program;
-    node->scope = ast_scope_makeScope(NULL);
-
-    return node;
+    return program;
 }
 
 PackageID* ast_makePackageID() {
@@ -33,17 +29,21 @@ PackageID* ast_makePackageID() {
 ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias) {
     uint32_t i; char** str;
     PackageID * full_path = ast_makePackageID();
+    char* lastName;
     vec_foreach_ptr(&source->ids, str, i) {
         vec_push(&full_path->ids, strdup(*str));
+        lastName = *str;
     }
     vec_foreach_ptr(&target->ids, str, i) {
         vec_push(&full_path->ids, strdup(*str));
+        lastName = *str;
     }
 
     ImportStmt * importStmt = malloc(sizeof(ImportStmt));
     importStmt->hasAlias = hasAlias;
     importStmt->alias = alias != NULL? strdup(alias):NULL;
     importStmt->path = full_path;
+    importStmt->lookupName = strdup(hasAlias?alias:lastName);
 
     return importStmt;
 }
@@ -143,15 +143,18 @@ StructType* ast_type_makeStruct() {
     return struct_;
 }
 
-DataType* ast_type_makeType() {
+DataType* ast_type_makeType(Lexeme lexeme) {
     ALLOC(type, DataType);
     type->name = NULL;
-    type->hasGeneric = 0;
+    type->hasGenerics = 0;
+    type->isGeneric = 0;
     type->isNullable = 0;
     type->kind = DT_UNRESOLVED;
     type->classType = NULL;
+    vec_init(&type->genericRefs);
     vec_init(&type->genericNames);
     map_init(&type->generics);
+    type->lexeme = lexeme;
 
     return type;
 }
@@ -193,6 +196,7 @@ FnHeader*  ast_makeFnHeader(){
     header->name = NULL;
     header->type = ast_type_makeFn();
     header->isGeneric = 0;
+
     // init vec and map
     vec_init(&header->genericNames);
     map_init(&header->generics);
@@ -219,8 +223,6 @@ FnArgument * ast_type_makeFnArgument(){
 GenericParam* ast_make_genericParam() {
     ALLOC(param, GenericParam);
     param->name = NULL;
-    param->type = NULL;
-    param->isGeneric = 0;
     param->constraint = NULL;
 
     return param;
@@ -502,8 +504,6 @@ FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope){
     fnDecl->scope = ast_scope_makeScope(parentScope);
     fnDecl->bodyType = FBT_BLOCK;
     fnDecl->expr = NULL;
-
-    vec_init(&fnDecl->genericParams);
 
     return fnDecl;
 }

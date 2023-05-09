@@ -8,6 +8,7 @@
 #include "../utils/vec.h"
 #include "../utils/map.h"
 #include "tokens.h"
+#include "lexer.h"
 
 /**
  * Basic types
@@ -91,7 +92,8 @@ typedef enum DataTypeKind {
     DT_TYPE_JOIN,
     DT_TYPE_UNION,
     DT_PROCESS,
-    DT_UNRESOLVED // means parser didn't see this type yet so its on hold.
+    DT_UNRESOLVED, // means parser didn't see this type yet so its on hold.
+    DT_INVALID // Used only for type checking
 }DataTypeKind;
 
 /** Array data type structure e.g u32[] */
@@ -175,11 +177,7 @@ StructType* ast_type_makeStruct();
 
 
 typedef struct GenericParam {
-    uint8_t isGeneric;
-    // if is generic, we check the name
-    // else we check the type
     char* name;
-    struct DataType* type;
     struct DataType* constraint; // i.e must be an instance of something
 }GenericParam;
 GenericParam* ast_make_genericParam();
@@ -196,9 +194,14 @@ ProcessType* ast_type_makeProcess();
 typedef struct DataType {
     char* name;
     DataTypeKind kind;
-    uint8_t hasGeneric;
+    uint8_t hasGenerics;
+    uint8_t isGeneric;
     uint8_t isNullable;
 
+    // when hasGeneric = true
+    vec_dtype_t genericRefs;
+
+    // when isGeneric = true
     map_genericparam_t generics;
     vec_str_t genericNames;
 
@@ -216,8 +219,9 @@ typedef struct DataType {
         ReferenceType* refType;
         ProcessType* processType;
     };
+    Lexeme lexeme;
 }DataType;
-DataType* ast_type_makeType();
+DataType* ast_type_makeType(Lexeme lexeme);
 
 typedef struct VariantConstructorArgument {
     char* name;
@@ -249,6 +253,7 @@ typedef struct FnHeader {
     FnType* type;
     uint8_t isGeneric;
 
+    // when isGeneric = true
     map_genericparam_t generics;
     vec_str_t genericNames;
 } FnHeader;
@@ -280,7 +285,9 @@ typedef struct ImportStmt {
     PackageID* path;
     uint8_t hasAlias;
     char* alias;
+    char* lookupName; // either alias or the last identifier in the import path
 }ImportStmt;
+ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias);
 
 typedef struct FnArgument {
     char* name;
@@ -290,11 +297,6 @@ typedef struct FnArgument {
 FnArgument * ast_type_makeFnArgument();
 
 typedef vec_t(ImportStmt*) import_stmt_vec;
-
-
-typedef enum ASTNodeType{
-    AST_PROGRAM,
-}ASTNodeType;
 
 
 typedef struct ExternDecl {
@@ -325,17 +327,11 @@ typedef struct UnresolvedType{
 }UnresolvedType;
 
 typedef struct ASTProgramNode {
+    ASTScope * scope;
+    struct Statement* stmts;
     import_stmt_vec importStatements;
-    vec_unresolvedtype_t unresolvedTypes;
 }ASTProgramNode;
-
-typedef struct ASTNode {
-    ASTScope* scope;
-    ASTNodeType type;
-    union {
-        ASTProgramNode* programNode;
-    };
-}ASTNode;
+ASTProgramNode * ast_makeProgramNode();
 
 typedef enum BinaryExprType {
     BET_ADD,
@@ -647,9 +643,6 @@ typedef struct FnDeclStatement {
         struct Statement *block;
     };
     ASTScope * scope;
-
-    uint8_t hasGeneric;
-    vec_genericparam_t genericParams;
 }FnDeclStatement;
 FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope);
 
@@ -794,9 +787,7 @@ typedef struct Statement {
 }Statement;
 Statement* ast_stmt_makeStatement(StatementType type);
 
-ASTNode * ast_makeProgramNode();
 PackageID* ast_makePackageID();
-ImportStmt* ast_makeImportStmt(PackageID* source, PackageID* target, uint8_t hasAlias, char* alias);
 
 // debugging
 #endif //TYPE_C_AST_H

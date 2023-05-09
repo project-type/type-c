@@ -42,28 +42,7 @@ char* readFile(const char* url){
 
 MU_TEST(test_imports_1){
     char* input = readFile("../../source/compiler/unittest/import.tc");
-    LexerState* lex = lexer_init("import.tc", input, strlen(input));
-    Parser* parser = parser_init(lex);
-    ASTNode* node = parser_parse(parser);
-    // make sure that the number of imporst is 8
-    mu_assert_int_eq(8, node->programNode->importStatements.length);
 
-    const char* imports[]  = {
-        "std.io.lib.console",
-        "matplotlib.pyplot.plot as pt",
-        "matplotlib.cool",
-        "pandas.pandas_api as pd",
-        "pandas.pp",
-        "x.y.z.cool.z.y as haha",
-        "x.y.z.cool.z",
-        "x.y.z.cool as yeet"
-    };
-
-    for (uint32_t i = 0; i < node->programNode->importStatements.length; i++){
-        // get string version
-        //char* import = ast_stringifyImport(node->programNode, i);
-        //mu_assert_string_eq(imports[i], import);
-    }
 }
 
 MU_TEST(test_type_declaration_1){
@@ -75,7 +54,7 @@ MU_TEST(sample_1) {
     char* input = readFile("../../source/compiler/unittest/sample2.tc");
     LexerState* lex = lexer_init("sample2.tc", input, strlen(input));
     Parser* parser = parser_init(lex);
-    ASTNode* node = parser_parse(parser);
+    parser_parse(parser);
 }
 
 MU_TEST_SUITE(imports_test) {

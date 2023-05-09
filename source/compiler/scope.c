@@ -5,6 +5,19 @@
 #include "scope.h"
 #include "ast.h"
 
+ScopeRegResult scope_program_addImport(ASTProgramNode* program, ImportStmt * import){
+    // make sure lookup name doesn't exist already
+    ImportStmt* imp; uint32_t i;
+    vec_foreach(&program->importStatements, imp, i){
+        if(strcmp(imp->lookupName, import->lookupName) == 0){
+            return SRRT_TOKEN_ALREADY_REGISTERED;
+        }
+    }
+
+    vec_push(&program->importStatements, import);
+    return SRRT_SUCCESS;
+}
+
 ScopeRegResult scope_ffi_addMethod(ExternDecl* ffi, FnHeader* method){
     // make sure function name doesn't exist already
     if(map_get(&ffi->methods, method->name) == NULL){
@@ -16,11 +29,11 @@ ScopeRegResult scope_ffi_addMethod(ExternDecl* ffi, FnHeader* method){
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
-ScopeRegResult scope_fnheader_addGeneric(FnHeader* fn, char* genericName, uint32_t idx) {
+ScopeRegResult scope_fnheader_addGeneric(FnHeader* fn, GenericParam * genericParam) {
     // make sure generic name doesn't exist already
-    if(map_get(&fn->generics, genericName) == NULL){
-        vec_push(&fn->genericNames, genericName);
-        map_set(&fn->generics, genericName, idx);
+    if(map_get(&fn->generics, genericParam->name) == NULL){
+        vec_push(&fn->genericNames, genericParam->name);
+        map_set(&fn->generics, genericParam->name, genericParam);
         return SRRT_SUCCESS;
     }
 
@@ -38,7 +51,7 @@ ScopeRegResult scope_fnheader_addArg(FnHeader* fn, FnArgument* arg){
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
-ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericParam, uint32_t idx){
+ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericParam){
     // make sure generic name doesn't exist already
     if(map_get(&dtype->generics, genericParam->name) == NULL){
         vec_push(&dtype->genericNames, genericParam->name);

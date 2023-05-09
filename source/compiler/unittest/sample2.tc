@@ -1,3 +1,5 @@
+
+
 type Instance = class {
     fn init() {
         return Instance()
@@ -7,6 +9,45 @@ type Instance = class {
 type Instance2 = interface {
     fn init()
 }
+
+type Instance3 = interface {
+    fn init()
+}
+
+
+type C = Instance | Instance
+
+
+type LargeArray<T> = class {
+    fn init() {
+        return LargeArray()
+    }
+    fn get(index: u32) -> T {
+        return unsafe ( sync ( x.abs() as u32 ))
+    }
+    fn set(index: u32, value: T) {
+        sync {
+            return unsafe ( sync ( x.abs() as u32 ))
+        }
+    }
+}
+
+//              G                     C
+type SmallArray<T> = class(LargeArray<T>){
+    fn init() {
+        return SmallArray()
+    }
+}
+
+
+//      G
+fn call<T>(x: T) -> T {
+    return x
+}
+
+//    C
+call<u32>(32)
+
 
 extern "C" cRaylibWindow {
     //fn InitWindow<V, V>(width: u32, height: u32, title: char[])

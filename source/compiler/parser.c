@@ -14,6 +14,7 @@
 #include "ast_json.h"
 #include "parser_utils.h"
 #include "scope.h"
+#include "type_checker.h"
 
 #define ACCEPT parser_accept(parser)
 #define CURRENT lexeme = parser_peek(parser)
@@ -50,14 +51,15 @@ void parser_reject(Parser* parser) {
     parser->stack_index = 0;
 }
 
-ASTNode* parser_parse(Parser* parser) {
-    ASTNode* node = ast_makeProgramNode();
+void parser_parse(Parser* parser) {
+    ASTProgramNode * node = ast_makeProgramNode();
+    parser->programNode = node;
     parser_parseProgram(parser, node);
 
-    return node;
+    return;
 }
 
-void parser_parseProgram(Parser* parser, ASTNode* node) {
+void parser_parseProgram(Parser* parser, ASTProgramNode * node) {
     Lexeme lexeme = parser_peek(parser);
 
     uint8_t can_loop = lexeme.type == TOK_FROM || lexeme.type == TOK_IMPORT;
@@ -65,13 +67,13 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
     while(can_loop) {
         if(lexeme.type == TOK_FROM) {
             ACCEPT;
-            parser_parseFromStmt(parser, node, node->scope);
+            parser_parseFromStmt(parser, node->scope);
         }
         if(lexeme.type == TOK_IMPORT) {
             ACCEPT;
-            parser_parseImportStmt(parser, node, node->scope);
+            parser_parseImportStmt(parser, node->scope);
         }
-        char* imports = ast_json_serializeImports(node->programNode);
+        char* imports = ast_json_serializeImports(node);
         printf("%s\n", imports);
         lexeme = parser_peek(parser);
         can_loop = lexeme.type == TOK_FROM || lexeme.type == TOK_IMPORT;
@@ -85,7 +87,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
         switch(lexeme.type) {
             case TOK_EXTERN: {
                 parser_reject(parser);
-                ExternDecl *externDecl = parser_parseExternDecl(parser, node, node->scope);
+                ExternDecl *externDecl = parser_parseExternDecl(parser, node->scope);
                 // add externDecl to symbol table
                 ScopeRegResult res = scope_registerFFI(node->scope, externDecl);
                 if (res == SRRT_TOKEN_ALREADY_REGISTERED) {
@@ -98,7 +100,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
                 break;
             }
             case TOK_TYPE: {
-                parser_parseTypeDecl(parser, node, node->scope);
+                parser_parseTypeDecl(parser, node->scope);
                 CURRENT;
                 break;
             }
@@ -110,15 +112,15 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
             {
                 parser_reject(parser);
 
-                Statement *stmt = parser_parseStmt(parser, node, node->scope);
+                Statement *stmt = parser_parseStmt(parser, node->scope);
                 CURRENT;
                 if (stmt == NULL) {
                     PARSER_ASSERT(0, "Invalid token %s", token_type_to_string(lexeme.type));
                 }
-                printf("%s\n", ast_json_serializeStatement(stmt));
+                //printf("%s\n", ast_json_serializeStatement(stmt));
 
                 /*
-                Expr* expr = parser_parseExpr(parser, node, node->scope);
+                Expr* expr = parser_parseExpr(parser, node->scope);
 
                 printf("%s\n", ast_json_serializeExpr(expr));
                 CURRENT;
@@ -129,7 +131,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
     }
 }
 
-ExternDecl* parser_parseExternDecl(Parser* parser, ASTNode* node, ASTScope* currentScope){
+ExternDecl* parser_parseExternDecl(Parser* parser, ASTScope* currentScope){
     ExternDecl* externDecl = ast_externdecl_make();
 
     Lexeme lexeme = parser_peek(parser);
@@ -161,7 +163,7 @@ ExternDecl* parser_parseExternDecl(Parser* parser, ASTNode* node, ASTScope* curr
         PARSER_ASSERT(lexeme.type == TOK_FN, "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
         // reject it
         parser_reject(parser);
-        FnHeader * header = parser_parseFnHeader(parser, node, currentScope);
+        FnHeader * header = parser_parseFnHeader(parser, currentScope);
         // make sure fn doesn't already exist
         PARSER_ASSERT(scope_ffi_addMethod(externDecl, header),
                "method name `%s` already exists in ffi.", header->name);
@@ -202,8 +204,8 @@ We need to generate functions to parse each of the following:
                  | <reference_type>
 
 */
-void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope) {
-    DataType * type = ast_type_makeType();
+void parser_parseTypeDecl(Parser* parser, ASTScope* currentScope) {
+    DataType * type = ast_type_makeType(parser->stack.data[0]);
     type->kind = DT_REFERENCE;
     ACCEPT;
     Lexeme lexeme = parser_peek(parser);
@@ -215,7 +217,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
     if(lexeme.type == TOK_LESS) {
         // GENERICS!
-        type->hasGeneric = 1;
+        type->isGeneric = 1;
         ACCEPT;
         CURRENT;
         uint8_t can_loop = 1;
@@ -225,7 +227,6 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
         while(can_loop) {
             // init generic param
             GenericParam * genericParam = ast_make_genericParam();
-            genericParam->isGeneric = 1;
 
             // in a type declaration, all given templates in the referee are generic and not concrete.
             PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
@@ -233,7 +234,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
             // get generic name
             genericParam->name = strdup(lexeme.string);
-            PARSER_ASSERT(scope_dtype_addGeneric(type, genericParam, idx++), "generic param `%s` already exists in type `%s`.", genericParam->name, type->name);
+            PARSER_ASSERT(scope_dtype_addGeneric(type, genericParam), "generic param `%s` already exists in type `%s`.", genericParam->name, type->name);
             ACCEPT;
             CURRENT;
             // check if have ":"
@@ -241,7 +242,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 ACCEPT;
                 CURRENT;
                 // get generic type
-                genericParam->constraint = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                genericParam->constraint = parser_parseTypeUnion(parser, NULL, currentScope);
                 CURRENT;
             }
             else {
@@ -267,7 +268,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
     PARSER_ASSERT(lexeme.type == TOK_EQUAL, "`=` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     //lexeme = parser_peek(parser);
-    DataType* type_def = parser_parseTypeUnion(parser, node, type, currentScope);
+    DataType* type_def = parser_parseTypeUnion(parser, type, currentScope);
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
     //printf("%s\n", ast_stringifyType(type_def));
@@ -277,50 +278,52 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
 }
 
 // <union_type> ::= <intersection_type> ( "|" <union_type> )*
-DataType* parser_parseTypeUnion(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+DataType* parser_parseTypeUnion(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // must parse union type
-    DataType* type = parser_parseTypeIntersection(parser, node, parentReferee, currentScope);
+    DataType* type = parser_parseTypeIntersection(parser, parentReferee, currentScope);
     // check if we have intersection
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_BITWISE_OR) {
         // we have an intersection
         ACCEPT;
-        DataType* type2 = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+        DataType* type2 = parser_parseTypeUnion(parser, parentReferee, currentScope);
+
+        PARSER_ASSERT(tc_check_canJoinOrUnion(currentScope, type, type2), "Cannot create union of two different categories")
+
         // create intersection type
         UnionType * unions = ast_type_makeUnion();
         unions->left = type;
         unions->right = type2;
 
+
         // create new datatype to hold joints
-        DataType* newType = ast_type_makeType();
+        DataType* newType = ast_type_makeType(parser->stack.data[0]);
         newType->kind = DT_TYPE_UNION;
         newType->unionType = unions;
         type = newType;
     }
-    // TODO: make sure that unions lhs and rhs match
-    // TODO: make sure that nullable types are valid (memory references)
 
     parser_reject(parser);
     return type;
 }
 
 // <intersection_type> ::= <group_type> ( "&" <group_type> )*
-DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
+DataType* parser_parseTypeIntersection(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
     // must parse group type
-    DataType* type = parser_parseTypeArray(parser, node, parentReferee, currentScope);
+    DataType* type = parser_parseTypeArray(parser, parentReferee, currentScope);
     // check if we have intersection
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_BITWISE_AND) {
         // we have an intersection
         ACCEPT;
-        DataType* type2 = parser_parseTypeIntersection(parser, node, parentReferee, currentScope);
+        DataType* type2 = parser_parseTypeIntersection(parser, parentReferee, currentScope);
         // create intersection type
         JoinType * join = ast_type_makeJoin();
         join->left = type;
         join->left = type2;
 
         // create new datatype to hold joints
-        DataType* newType = ast_type_makeType();
+        DataType* newType = ast_type_makeType(parser->stack.data[0]);
         newType->kind = DT_TYPE_JOIN;
         newType->joinType = join;
         return newType;
@@ -330,13 +333,13 @@ DataType* parser_parseTypeIntersection(Parser* parser, ASTNode* node, DataType* 
 }
 
 // <group_type> ::= <primary_type>  | "(" <union_type> ")" "?"?
-DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+DataType* parser_parseTypeGroup(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // check if we have group first
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_LPAREN) {
         // we have a group
         ACCEPT;
-        DataType* type = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+        DataType* type = parser_parseTypeUnion(parser, parentReferee, currentScope);
         lexeme = parser_peek(parser);
         PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
@@ -355,14 +358,14 @@ DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentR
         return type;
     }
     parser_reject(parser);
-    DataType* type = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+    DataType* type = parser_parseTypePrimary(parser, parentReferee, currentScope);
     return type;
 }
 
 // <array_type> ::= <primary_type> "[" "]" | <primary_type> "[" <integer_literal> "]"
-DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+DataType * parser_parseTypeArray(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // must parse primary type first
-    DataType* primary = parser_parseTypeGroup(parser, node, parentReferee, currentScope);
+    DataType* primary = parser_parseTypeGroup(parser, parentReferee, currentScope);
     Lexeme lexeme = parser_peek(parser);
     DataType * last_type = primary;
     // if next token is "[" then it is an array
@@ -408,7 +411,7 @@ DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parent
                 ACCEPT;
             }
 
-            DataType * retType = ast_type_makeType();
+            DataType * retType = ast_type_makeType(parser->stack.data[0]);
             retType->kind = DT_ARRAY;
             retType->arrayType = array;
             last_type = retType;
@@ -433,18 +436,18 @@ DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parent
                  | <class_type> "?"?
                  | <reference_type> "?"?
  */
-DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+DataType* parser_parseTypePrimary(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // parse enum if current keyword is enum
     DataType * type = NULL;
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_ENUM) {
-        type = parser_parseTypeEnum(parser, node, currentScope);
+        type = parser_parseTypeEnum(parser, currentScope);
     }
     else if(lexeme.type == TOK_STRUCT){
-        type = parser_parseTypeStruct(parser, node, parentReferee, currentScope);
+        type = parser_parseTypeStruct(parser, parentReferee, currentScope);
     }
     else if(lexeme.type == TOK_VARIANT) {
-        type = parser_parseTypeVariant(parser, node, parentReferee, currentScope);
+        type = parser_parseTypeVariant(parser, parentReferee, currentScope);
     }
     // check if current keyword is a basic type
     else if((lexeme.type >= TOK_I8) && (lexeme.type <= TOK_CHAR)) {
@@ -453,29 +456,29 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
             DataTypeKind t2 = lexeme.type - TOK_I8;
         }
         // create new type assign basic to it
-        DataType* basicType = ast_type_makeType();
+        DataType* basicType = ast_type_makeType(parser->stack.data[0]);
         basicType->kind = lexeme.type - TOK_I8;
         ACCEPT;
         type = basicType;
     }
     else if (lexeme.type == TOK_CLASS){
-        type = parser_parseTypeClass(parser, node, parentReferee, currentScope);
+        type = parser_parseTypeClass(parser, parentReferee, currentScope);
     }
     else if (lexeme.type == TOK_INTERFACE){
-        type = parser_parseTypeInterface(parser, node, parentReferee, currentScope);
+        type = parser_parseTypeInterface(parser, parentReferee, currentScope);
     }
     else if (lexeme.type == TOK_FN) {
-        type = parser_parseTypeFn(parser, node, parentReferee, currentScope);
+        type = parser_parseTypeFn(parser, parentReferee, currentScope);
     }
     else if (lexeme.type == TOK_PTR) {
-        type = parser_parseTypePtr(parser, node, parentReferee, currentScope);
+        type = parser_parseTypePtr(parser, parentReferee, currentScope);
     }
     else if (lexeme.type == TOK_PROCESS) {
-        type = parser_parseTypeProcess(parser, node, parentReferee, currentScope);
+        type = parser_parseTypeProcess(parser, parentReferee, currentScope);
     }
     // check if we have an ID, we parse package then
     else if(lexeme.type == TOK_IDENTIFIER) {
-        DataType* refType = parser_parseTypeRef(parser, node, parentReferee, currentScope);
+        DataType* refType = parser_parseTypeRef(parser, parentReferee, currentScope);
 
         type = refType;
     }
@@ -491,19 +494,19 @@ DataType* parser_parseTypePrimary(Parser* parser, ASTNode* node, DataType* paren
     return type;
 }
 
-DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // we create a reference refType
-    DataType* refType = ast_type_makeType();
+    DataType* refType = ast_type_makeType(parser->stack.data[0]);
     refType->kind = DT_REFERENCE;
     refType->refType = ast_type_makeReference();
     // rollback
     parser_reject(parser);
-    refType->refType->pkg = parser_parsePackage(parser, node, currentScope);
+    refType->refType->pkg = parser_parsePackage(parser, currentScope);
 
     // a generic list might follow
     Lexeme lexeme = parser_peek(parser);
     if(lexeme.type == TOK_LESS) {
-        refType->hasGeneric = 1;
+        refType->hasGenerics = 1;
         // here, each generic refType can be any refType, so we recursively parse refType
         // format <refType> ("," <refType>)* ">"
         ACCEPT;
@@ -511,42 +514,9 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
         uint8_t can_loop = lexeme.type != TOK_GREATER;
         while(can_loop) {
             // parse refType
-            DataType* genericType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
-            GenericParam* gparam = ast_make_genericParam();
-            gparam->isGeneric = 0;
+            DataType* genericType = parser_parseTypeUnion(parser, parentReferee, currentScope);
+            vec_push(&refType->genericRefs, genericType);
 
-            if(parentReferee != NULL) {
-                // check if the param is a reference
-                if (genericType->kind == DT_REFERENCE) {
-                    // check if it has a single name (not entire package a.b.c)
-                    if (genericType->refType->pkg->ids.length == 1) {
-                        // check if it exists on parent
-                        char *gtname = genericType->refType->pkg->ids.data[0];
-                        uint32_t i;
-                        char* genericName = NULL;
-
-                        vec_foreach(&parentReferee->genericNames, genericName, i) {
-                            GenericParam **parentGenericType = map_get(&parentReferee->generics, genericName);
-                            if ((*parentGenericType)->isGeneric == 1) {
-                                if (strcmp((*parentGenericType)->name, gtname) == 0) {
-                                    gparam->isGeneric = 1;
-                                    gparam->name = strdup(gtname);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if(!gparam->isGeneric) {
-                gparam->type = genericType;
-            }
-
-            //add to generic list
-            //vec_push(&refType->genericParams, gparam);
-            vec_push(&refType->genericNames, gparam->name);
-            map_set(&refType->generics, gparam->name, gparam);
             lexeme = parser_peek(parser);
             if(lexeme.type == TOK_COMMA) {
                 ACCEPT;
@@ -569,22 +539,29 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
             printf("Type `%s` is resolved by itself\n", refType->refType->pkg->ids.data[0]);
         }
 
-        DataType* t = resolver_resolveType(parser, node, currentScope, refType->refType->pkg->ids.data[0]);
+        // TODO: change this once we have imports running
+        DataType* t = resolver_resolveType(parser, currentScope, refType->refType->pkg->ids.data[0]);
+        PARSER_ASSERT(t != NULL, "Type `%s` is not defined.", refType->refType->pkg->ids.data[0]);
+        refType->refType->ref = t;
+
+        /*
+         *
         if(t != NULL) {
             printf("Type `%s` is resolved!\n", refType->refType->pkg->ids.data[0]);
         }
         else {
             printf("Type `%s` NOT is resolved!\n", refType->refType->pkg->ids.data[0]);
         }
+         */
     }
 
     return refType;
 }
 
 // interface_tupe ::= "interface" "{" <interface_decl> (","? <interface_decl>)* "}"
-DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
+DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
     // create base type
-    DataType* interfaceType = ast_type_makeType();
+    DataType* interfaceType = ast_type_makeType(parser->stack.data[0]);
     interfaceType->kind = DT_INTERFACE;
     interfaceType->interfaceType = ast_type_makeInterface();
     // accept interface
@@ -594,7 +571,7 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* par
     // if we have "(", means interface extends other interfaces
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
-        parser_parseExtends(parser, node, parentReferee, &interfaceType->interfaceType->extends, currentScope);
+        parser_parseExtends(parser, parentReferee, &interfaceType->interfaceType->extends, currentScope);
         CURRENT;
     }
     else {
@@ -616,7 +593,7 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* par
                "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
         // reject it
         parser_reject(parser);
-        FnHeader * header = parser_parseFnHeader(parser, node, currentScope);
+        FnHeader * header = parser_parseFnHeader(parser, currentScope);
         // make sure fn doesn't already exist
         PARSER_ASSERT(map_get(&interfaceType->interfaceType->methods, header->name) == NULL,
                "`%s` already exists in interface.", header->name);
@@ -641,8 +618,8 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* par
     return interfaceType;
 }
 
-DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
-    DataType * classType = ast_type_makeType();
+DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
+    DataType * classType = ast_type_makeType(parser->stack.data[0]);
     classType->kind = DT_CLASS;
     classType->classType = ast_type_makeClass(currentScope);
     // accept class
@@ -652,7 +629,7 @@ DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentR
     // if we have "(", means interface extends other interfaces
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
-        parser_parseExtends(parser, node, parentReferee, &classType->classType->extends, currentScope);
+        parser_parseExtends(parser, parentReferee, &classType->classType->extends, currentScope);
         CURRENT;
     }
     else {
@@ -676,7 +653,7 @@ DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentR
         // reject it
         if(lexeme.type == TOK_FN){
             parser_reject(parser);
-            Statement * stmt = parser_parseStmtFn(parser, node, currentScope);
+            Statement * stmt = parser_parseStmtFn(parser, currentScope);
             // assert stmt != NULL
             PARSER_ASSERT(stmt != NULL, "invalid token `%s`", token_type_to_string(lexeme.type));
 
@@ -689,7 +666,7 @@ DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentR
         }
         else {
             parser_reject(parser);
-            Statement *stmt = parser_parseStmtLet(parser, node, currentScope);
+            Statement *stmt = parser_parseStmtLet(parser, currentScope);
             VarDeclStatement* varDecl = stmt->varDecl;
             uint32_t i = 0; LetExprDecl* letDecl;
             vec_foreach(&varDecl->letList, letDecl, i){
@@ -717,9 +694,9 @@ DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentR
 }
 
 // variant_type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"
-DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     //create base type
-    DataType * variantType = ast_type_makeType();
+    DataType * variantType = ast_type_makeType(parser->stack.data[0]);
     variantType->kind = DT_VARIANT;
     variantType->variantType = ast_type_makeVariant();
     // accept variant
@@ -774,7 +751,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
                 ACCEPT;
                 CURRENT;
                 // we parse the type
-                DataType* argType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+                DataType* argType = parser_parseTypeUnion(parser, parentReferee, currentScope);
                 // we create a new argument
                 VariantConstructorArgument * arg = ast_type_makeVariantConstructorArgument();
                 arg->name = strdup(argName);
@@ -823,8 +800,8 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
 }
 
 // struct_type ::= "struct" "{" <struct_decl> ("," <struct_decl>)* "}"
-DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
-    DataType * structType = ast_type_makeType();
+DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
+    DataType * structType = ast_type_makeType(parser->stack.data[0]);
     structType->kind = DT_STRUCT;
     structType->structType = ast_type_makeStruct();
 
@@ -835,7 +812,7 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
     // if we have "(", means interface extends other interfaces
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
-        parser_parseExtends(parser, node, parentReferee, &structType->structType->extends, currentScope);
+        parser_parseExtends(parser, parentReferee, &structType->structType->extends, currentScope);
         CURRENT;
     }
     else {
@@ -863,7 +840,7 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
         ACCEPT;
 
         // parse type
-        attr->type = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+        attr->type = parser_parseTypeUnion(parser, parentReferee, currentScope);
 
         // add to struct
         // make sure type doesn't exist first
@@ -892,7 +869,7 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
 }
 
 // enum_type ::= "enum" "{" <enum_decl> ("," <enum_decl>)* "}"
-DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+DataType* parser_parseTypeEnum(Parser* parser, ASTScope* currentScope) {
     EnumType* enum_ = ast_type_makeEnum();
     // current position: enum
     ACCEPT;
@@ -930,7 +907,7 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope* currentS
     }
     PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
-    DataType * enumType = ast_type_makeType();
+    DataType * enumType = ast_type_makeType(parser->stack.data[0]);
     enumType->kind = DT_ENUM;
     enumType->enumType = enum_;
     return enumType;
@@ -939,10 +916,10 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope* currentS
 /*
  * "from" <package_id> "import" <package_id> ("as" <id>)? ("," <package_id> ("as" <id>)?)*
  */
-void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope){
+void parser_parseFromStmt(Parser* parser, ASTScope* currentScope){
     // from has already been accepted
     // we expect a namespace x.y.z
-    PackageID* source = parser_parsePackage(parser, node, currentScope);
+    PackageID* source = parser_parsePackage(parser, currentScope);
     Lexeme lexeme = parser_peek(parser);
     // next we need an import
     PARSER_ASSERT(lexeme.type == TOK_IMPORT, "`import` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -951,7 +928,7 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
     uint8_t can_loop = 1;
     do {
-        PackageID* target = parser_parsePackage(parser, node, currentScope);
+        PackageID* target = parser_parsePackage(parser, currentScope);
         lexeme = parser_peek(parser);
 
         uint8_t hasAlias = 0;
@@ -969,7 +946,8 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope)
             parser_reject(parser);
         }
         ImportStmt* import = ast_makeImportStmt(source, target, hasAlias, alias);
-        vec_push(&node->programNode->importStatements, import);
+
+        PARSER_ASSERT(scope_program_addImport(parser->programNode, import) == 0, "import already exists.");
         lexeme = parser_peek(parser);
 
         // here we might find a comma. if we do, we accept it and keep looping
@@ -982,7 +960,7 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope)
 }
 
 // parses extends list, must start from first symbol after "("
-void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee, vec_dtype_t* extends, ASTScope* currentScope){
+void parser_parseExtends(Parser* parser, DataType* parentReferee, vec_dtype_t* extends, ASTScope* currentScope){
     Lexeme lexeme = parser_peek(parser);
     uint8_t can_loop = lexeme.type != TOK_RPAREN;
     while(can_loop) {
@@ -992,7 +970,7 @@ void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee,
         //       EXPAND_LEXEME);
         // parse type
         parser_reject(parser);
-        DataType* interfaceParentType = parser_parseTypePrimary(parser, node, parentReferee, currentScope);
+        DataType* interfaceParentType = parser_parseTypePrimary(parser, parentReferee, currentScope);
         // add to extends
         vec_push(extends, interfaceParentType);
 
@@ -1010,7 +988,7 @@ void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee,
     }
 }
 // "fn" "(" <param_list>? ")" ("->" <type>)? <block>
-DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+DataType* parser_parseTypeFn(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // current position: fn
     ACCEPT;
     Lexeme CURRENT;
@@ -1019,17 +997,17 @@ DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentRefe
     CURRENT;
 
     // create function type
-    DataType* fnType = ast_type_makeType();
+    DataType* fnType = ast_type_makeType(parser->stack.data[0]);
     fnType->kind = DT_FN;
     fnType->fnType = ast_type_makeFn();
     // parse parameters
-    parser_parseFnDefArguments(parser, node, parentReferee, &fnType->fnType->args, &fnType->fnType->argNames, currentScope);
+    parser_parseFnDefArguments(parser, parentReferee, &fnType->fnType->args, &fnType->fnType->argNames, currentScope);
     // check if we have `->`
     lexeme = parser_peek(parser);
     if(lexeme.type == TOK_FN_RETURN_TYPE) {
         ACCEPT;
         // parse return type
-        fnType->fnType->returnType = parser_parseTypeUnion(parser, node, fnType, currentScope);
+        fnType->fnType->returnType = parser_parseTypeUnion(parser, fnType, currentScope);
         // assert return type is not null
         PARSER_ASSERT(fnType->fnType->returnType != NULL, "Unexpected symbol while parsing data type `%s`.", token_type_to_string(lexeme.type));
     }
@@ -1041,9 +1019,9 @@ DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentRefe
 }
 
 // "ptr" "<" <type> ">"
-DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
+DataType* parser_parseTypePtr(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
     // build type
-    DataType* ptrType = ast_type_makeType();
+    DataType* ptrType = ast_type_makeType(parser->stack.data[0]);
     ptrType->kind = DT_PTR;
     ptrType->ptrType = ast_type_makePtr();
     // currently at ptr
@@ -1052,7 +1030,7 @@ DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentRef
     PARSER_ASSERT(lexeme.type == TOK_LESS, "`<` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse type
-    ptrType->ptrType->target = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+    ptrType->ptrType->target = parser_parseTypeUnion(parser, parentReferee, currentScope);
     // assert type is not null
     PARSER_ASSERT(ptrType->ptrType->target != NULL, "Invalid symbol `%s` while parsing pointer target", token_type_to_string(lexeme.type));
     // assert we have a ">"
@@ -1062,8 +1040,8 @@ DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentRef
     return ptrType;
 }
 
-DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope){
-    DataType * processType = ast_type_makeType();
+DataType * parser_parseTypeProcess(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
+    DataType * processType = ast_type_makeType(parser->stack.data[0]);
     processType->kind = DT_PROCESS;
     processType->processType = ast_type_makeProcess();
     ACCEPT;
@@ -1072,12 +1050,12 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
     PARSER_ASSERT(lexeme.type == TOK_LESS, "`<` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse type
-    processType->processType->inputType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+    processType->processType->inputType = parser_parseTypeUnion(parser, parentReferee, currentScope);
     CURRENT;
     // assert we have a ","
     PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
-    processType->processType->outputType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+    processType->processType->outputType = parser_parseTypeUnion(parser, parentReferee, currentScope);
     CURRENT;
     // assert we have a ">"
     PARSER_ASSERT(lexeme.type == TOK_GREATER, "`>` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -1100,7 +1078,7 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
         PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // parse type
-        fnarg->type = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
+        fnarg->type = parser_parseTypeUnion(parser, parentReferee, currentScope);
         CURRENT;
         // check if we have "," else assert ) and stop
         if(lexeme.type == TOK_COMMA){
@@ -1122,12 +1100,12 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
     PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     parser_reject(parser);
     // parse block
-    processType->processType->body = parser_parseStmtBlock(parser, node, currentScope);
+    processType->processType->body = parser_parseStmtBlock(parser, currentScope);
     return processType;
 }
 
 // starts from the first argument
-void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentType, map_fnargument_t* args, vec_str_t* argsNames, ASTScope* currentScope){
+void parser_parseFnDefArguments(Parser* parser, DataType* parentType, map_fnargument_t* args, vec_str_t* argsNames, ASTScope* currentScope){
     Lexeme CURRENT;
     uint8_t loop = lexeme.type != TOK_RPAREN;
     while(loop) {
@@ -1150,7 +1128,7 @@ void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentT
         PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // parse type
-        fnarg->type = parser_parseTypeUnion(parser, node, parentType, currentScope);
+        fnarg->type = parser_parseTypeUnion(parser, parentType, currentScope);
         // assert type is not null
         PARSER_ASSERT(fnarg->type != NULL, "Invalid symbol `%s` while parsing function argument type", token_type_to_string(lexeme.type));
         // add to args
@@ -1174,10 +1152,10 @@ void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentT
 /*
  * "import" <package_id> ("as" <id>)?
  */
-void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope* currentScope){
+void parser_parseImportStmt(Parser* parser, ASTScope* currentScope){
     // from has already been accepted
     // we expect a namespace x.y.z
-    PackageID* source = parser_parsePackage(parser, node, currentScope);
+    PackageID* source = parser_parsePackage(parser, currentScope);
     uint8_t hasAlias = 0;
     char* alias = NULL;
     Lexeme lexeme = parser_peek(parser);
@@ -1196,14 +1174,14 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope* currentScop
 
     PackageID * empty = ast_makePackageID();
     ImportStmt* import = ast_makeImportStmt(source, empty, hasAlias, alias);
-    // TODO: free empty
-    vec_push(&node->programNode->importStatements, import);
+
+    PARSER_ASSERT(scope_program_addImport(parser->programNode, import), "Import already exists");
 }
 
 
 /** Expressions **/
-Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
-    return parser_parseLetExpr(parser, node, currentScope);
+Expr* parser_parseExpr(Parser* parser, ASTScope* currentScope) {
+    return parser_parseLetExpr(parser, currentScope);
 }
 
 /*
@@ -1211,7 +1189,7 @@ Expr* parser_parseExpr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
  * let "{"<id> (":" <type>)? (<id> (":" <type>)?)*"}" "=" <uhs> "in" <uhs>
  * let "["<id> (":" <type>)? (<id> (":" <type>)?)*"]" "=" <uhs> "in" <uhs>
  */
-Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+Expr* parser_parseLetExpr(Parser* parser, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_LET)
     {
@@ -1266,7 +1244,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
                     PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
                     // parse type
-                    var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                    var->type = parser_parseTypeUnion(parser, NULL, currentScope);
                     // assert type is not null
                     PARSER_ASSERT(var->type != NULL, "Invalid symbol `%s` while parsing variable type", token_type_to_string(lexeme.type));
 
@@ -1308,7 +1286,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
             PARSER_ASSERT(lexeme.type == TOK_EQUAL, "`=` expected but %s was found.", token_type_to_string(lexeme.type));
             ACCEPT;
 
-            Expr *initializer = parser_parseExpr(parser, node, currentScope);
+            Expr *initializer = parser_parseExpr(parser, currentScope);
             letDecl->initializer = initializer;
             // assert initializer is not null
             PARSER_ASSERT(initializer != NULL, "Invalid symbol `%s` while parsing variable init value", token_type_to_string(lexeme.type));
@@ -1333,7 +1311,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
         ACCEPT;
 
         // parse in uhs
-        Expr *inExpr = parser_parseExpr(parser, node, currentScope);
+        Expr *inExpr = parser_parseExpr(parser, currentScope);
         let->inExpr = inExpr;
         // assert in uhs is not null
         PARSER_ASSERT(inExpr != NULL, "Invalid symbol `%s` while parsing `in` expression", token_type_to_string(lexeme.type));
@@ -1341,20 +1319,20 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
         return expr;
     }
     parser_reject(parser);
-    return parser_parseMatchExpr(parser, node, currentScope);
+    return parser_parseMatchExpr(parser, currentScope);
 }
 
 // "match" uhs "{" <cases> "}"
-Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Expr* parser_parseMatchExpr(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type != TOK_MATCH) {
         parser_reject(parser);
-        return parser_parseOpAssign(parser, node, currentScope);
+        return parser_parseOpAssign(parser, currentScope);
     }
 
     ACCEPT;
     Expr* expr = ast_expr_makeExpr(ET_MATCH);
-    MatchExpr* match = ast_expr_makeMatchExpr(parser_parseExpr(parser, node, currentScope));
+    MatchExpr* match = ast_expr_makeMatchExpr(parser_parseExpr(parser, currentScope));
     expr->matchExpr = match;
     // assert "{"
     CURRENT;
@@ -1365,7 +1343,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
 
     while(loop){
 
-        Expr* condition = parser_parseExpr(parser, node, currentScope);
+        Expr* condition = parser_parseExpr(parser, currentScope);
         // assert condition is not null
         PARSER_ASSERT(condition != NULL, "Invalid symbol `%s` while parsing match condition", token_type_to_string(lexeme.type));
 
@@ -1373,7 +1351,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
         // assert "=>"
         PARSER_ASSERT(lexeme.type == TOK_CASE_EXPR, "`=>` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
-        Expr* result = parser_parseExpr(parser, node, currentScope);
+        Expr* result = parser_parseExpr(parser, currentScope);
         // assert result is not null
         PARSER_ASSERT(result != NULL, "Invalid symbol `%s` while parsing case expression", token_type_to_string(lexeme.type));
         CaseExpr* case_ = ast_expr_makeCaseExpr(condition, result);
@@ -1399,8 +1377,8 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
     return expr;
 }
 
-Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope* currentScope){
-    Expr* lhs = parser_parseOpOr(parser, node, currentScope);
+Expr* parser_parseOpAssign(Parser* parser, ASTScope* currentScope){
+    Expr* lhs = parser_parseOpOr(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1431,7 +1409,7 @@ Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope* currentScope
             PARSER_ASSERT(0==1, "This is a parser error");
 
 
-        Expr* rhs = parser_parseOpAssign(parser, node, currentScope);
+        Expr* rhs = parser_parseOpAssign(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1444,8 +1422,8 @@ Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope* currentScope
     return lhs;
 }
 
-Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
-    Expr* lhs = parser_parseOpAnd(parser, node, currentScope);
+Expr* parser_parseOpOr(Parser* parser, ASTScope* currentScope) {
+    Expr* lhs = parser_parseOpAnd(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1455,7 +1433,7 @@ Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_OR, NULL, NULL);
 
-        Expr* rhs = parser_parseOpOr(parser, node, currentScope);
+        Expr* rhs = parser_parseOpOr(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1469,8 +1447,8 @@ Expr* parser_parseOpOr(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     return lhs;
 }
 
-Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
-    Expr* lhs = parser_parseOpBinOr(parser, node, currentScope);
+Expr* parser_parseOpAnd(Parser* parser, ASTScope* currentScope){
+    Expr* lhs = parser_parseOpBinOr(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1480,7 +1458,7 @@ Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_AND, NULL, NULL);
 
-        Expr* rhs = parser_parseOpAnd(parser, node, currentScope);
+        Expr* rhs = parser_parseOpAnd(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1494,8 +1472,8 @@ Expr* parser_parseOpAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     return lhs;
 }
 
-Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope* currentScope){
-    Expr* lhs = parser_parseOpBinXor(parser, node, currentScope);
+Expr* parser_parseOpBinOr(Parser* parser, ASTScope* currentScope){
+    Expr* lhs = parser_parseOpBinXor(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1505,7 +1483,7 @@ Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope* currentScope)
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_BIT_OR, NULL, NULL);
 
-        Expr* rhs = parser_parseOpBinOr(parser, node, currentScope);
+        Expr* rhs = parser_parseOpBinOr(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1519,8 +1497,8 @@ Expr* parser_parseOpBinOr(Parser* parser, ASTNode* node, ASTScope* currentScope)
     return lhs;
 }
 
-Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope* currentScope){
-    Expr* lhs =  parser_parseOpBinAnd(parser, node, currentScope);
+Expr* parser_parseOpBinXor(Parser* parser, ASTScope* currentScope){
+    Expr* lhs =  parser_parseOpBinAnd(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1530,7 +1508,7 @@ Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope* currentScope
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr =ast_expr_makeBinaryExpr(BET_BIT_XOR, NULL, NULL);
 
-        Expr* rhs = parser_parseOpBinXor(parser, node, currentScope);
+        Expr* rhs = parser_parseOpBinXor(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1544,8 +1522,8 @@ Expr* parser_parseOpBinXor(Parser* parser, ASTNode* node, ASTScope* currentScope
     return lhs;
 }
 
-Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope* currentScope){
-    Expr* lhs = parser_parseOpEq(parser, node, currentScope);
+Expr* parser_parseOpBinAnd(Parser* parser, ASTScope* currentScope){
+    Expr* lhs = parser_parseOpEq(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1555,7 +1533,7 @@ Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope* currentScope
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_BIT_AND, NULL, NULL);
 
-        Expr* rhs = parser_parseOpBinAnd(parser, node, currentScope);
+        Expr* rhs = parser_parseOpBinAnd(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1569,8 +1547,8 @@ Expr* parser_parseOpBinAnd(Parser* parser, ASTNode* node, ASTScope* currentScope
     return lhs;
 }
 
-Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope* currentScope){
-    Expr* lhs = parser_parseOpCompare(parser, node, currentScope);
+Expr* parser_parseOpEq(Parser* parser, ASTScope* currentScope){
+    Expr* lhs = parser_parseOpCompare(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1580,7 +1558,7 @@ Expr* parser_parseOpEq(Parser* parser, ASTNode* node, ASTScope* currentScope){
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_EQUAL_EQUAL?BET_EQ:BET_NEQ, NULL, NULL);
 
-        Expr* rhs = parser_parseOpEq(parser, node, currentScope);
+        Expr* rhs = parser_parseOpEq(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1631,8 +1609,8 @@ uint8_t lookUpGenericFunctionCall(Parser* parser){
     return 0;
 }
 
-Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScope) {
-    Expr* lhs = parser_parseOpShift(parser, node, currentScope);
+Expr* parser_parseOpCompare(Parser* parser, ASTScope* currentScope) {
+    Expr* lhs = parser_parseOpShift(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1653,7 +1631,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
             // parse generic arguments
             uint8_t can_loop = lexeme.type != TOK_GREATER;
             while(can_loop) {
-                DataType * type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                DataType * type = parser_parseTypeUnion(parser, NULL, currentScope);
                 vec_push(&callExpr->callExpr->generics, type);
 
                 CURRENT;
@@ -1676,7 +1654,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
             can_loop = lexeme.type != TOK_RPAREN;
 
             while(can_loop) {
-                Expr* index = parser_parseExpr(parser, node, currentScope);
+                Expr* index = parser_parseExpr(parser, currentScope);
                 vec_push(&callExpr->callExpr->args, index);
                 CURRENT;
                 if(lexeme.type == TOK_COMMA) {
@@ -1706,7 +1684,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
             binaryExpr->binaryExpr->type = BET_GTE;
 
 
-        Expr* rhs = parser_parseOpCompare(parser, node, currentScope);
+        Expr* rhs = parser_parseOpCompare(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1721,7 +1699,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
         Expr* castExpr = ast_expr_makeExpr(ET_CAST);
         castExpr->castExpr = ast_expr_makeCastExpr(NULL, NULL);
         castExpr->castExpr->expr = lhs;
-        castExpr->castExpr->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        castExpr->castExpr->type = parser_parseTypeUnion(parser, NULL, currentScope);
         return castExpr;
     }
 
@@ -1730,7 +1708,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
         Expr* checkExpr = ast_expr_makeExpr(ET_INSTANCE_CHECK);
         checkExpr->instanceCheckExpr = ast_expr_makeInstanceCheckExpr(NULL, NULL);
         checkExpr->instanceCheckExpr->expr = lhs;
-        checkExpr->instanceCheckExpr->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        checkExpr->instanceCheckExpr->type = parser_parseTypeUnion(parser, NULL, currentScope);
         return  checkExpr;
     }
 
@@ -1738,8 +1716,8 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
     return lhs;
 }
 
-Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope* currentScope) {
-    Expr* lhs = parser_parseAdd(parser, node, currentScope);
+Expr* parser_parseOpShift(Parser* parser, ASTScope* currentScope) {
+    Expr* lhs = parser_parseAdd(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1749,7 +1727,7 @@ Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope* currentScope)
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_RIGHT_SHIFT?BET_RSHIFT:BET_LSHIFT, NULL, NULL);
 
-        Expr* rhs = parser_parseOpShift(parser, node, currentScope);
+        Expr* rhs = parser_parseOpShift(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1763,8 +1741,8 @@ Expr* parser_parseOpShift(Parser* parser, ASTNode* node, ASTScope* currentScope)
     return lhs;
 }
 
-Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope* currentScope){
-    Expr* lhs = parser_parseOpMult(parser, node, currentScope);
+Expr* parser_parseAdd(Parser* parser, ASTScope* currentScope){
+    Expr* lhs = parser_parseOpMult(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1774,7 +1752,7 @@ Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope* currentScope){
         Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_PLUS?BET_ADD:BET_SUB, NULL, NULL);
 
-        Expr* rhs = parser_parseAdd(parser, node, currentScope);
+        Expr* rhs = parser_parseAdd(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1788,8 +1766,8 @@ Expr* parser_parseAdd(Parser* parser, ASTNode* node, ASTScope* currentScope){
     return lhs;
 }
 
-Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope* currentScope) {
-    Expr* lhs = parser_parseOpUnary(parser, node, currentScope);
+Expr* parser_parseOpMult(Parser* parser, ASTScope* currentScope) {
+    Expr* lhs = parser_parseOpUnary(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
@@ -1801,7 +1779,7 @@ Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope* currentScope) 
         if(lexeme.type == TOK_PERCENT)
             binaryExpr->binaryExpr->type = BET_MOD;
 
-        Expr* rhs = parser_parseOpMult(parser, node, currentScope);
+        Expr* rhs = parser_parseOpMult(parser, currentScope);
         binaryExpr->binaryExpr->lhs = lhs;
         binaryExpr->binaryExpr->rhs = rhs;
 
@@ -1815,7 +1793,7 @@ Expr* parser_parseOpMult(Parser* parser, ASTNode* node, ASTScope* currentScope) 
     return lhs;
 }
 
-Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope) {
     // check if we have prefix op
     Lexeme CURRENT;
     if (lexeme.type == TOK_STAR || lexeme.type == TOK_MINUS || lexeme.type == TOK_BITWISE_NOT ||
@@ -1840,7 +1818,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
         else if(lexeme.type == TOK_BITWISE_AND)
             unaryExpr->unaryExpr->type = UET_ADDRESS_OF;
 
-        Expr *uhs = parser_parseOpUnary(parser, node, currentScope);
+        Expr *uhs = parser_parseOpUnary(parser, currentScope);
         unaryExpr->unaryExpr->uhs = uhs;
 
         return unaryExpr;
@@ -1849,7 +1827,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
         Expr* new = ast_expr_makeExpr(ET_NEW);
         ACCEPT;
         // parse type
-        DataType* dt = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        DataType* dt = parser_parseTypeUnion(parser, NULL, currentScope);
         new->newExpr = ast_expr_makeNewExpr(dt);
 
         // assert dt not NULL
@@ -1861,7 +1839,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
             CURRENT;
             uint8_t can_loop = lexeme.type != TOK_RPAREN;
             while(can_loop){
-                Expr* arg = parser_parseExpr(parser, node, currentScope);
+                Expr* arg = parser_parseExpr(parser, currentScope);
                 // assert arg not null
                 PARSER_ASSERT(arg != NULL, "Invalid symbol `%s` while parsing `new` expression arguments", token_type_to_string(lexeme.type));
 
@@ -1895,16 +1873,16 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
         CURRENT;
         if(lexeme.type == TOK_PROCESS_LINK){
             ACCEPT;
-            spawn->spawnExpr->expr = parser_parseExpr(parser, node, currentScope);
+            spawn->spawnExpr->expr = parser_parseExpr(parser, currentScope);
             return spawn;
         }
         else {
             parser_reject(parser);
-            spawn->spawnExpr->callback = parser_parseExpr(parser, node, currentScope);
+            spawn->spawnExpr->callback = parser_parseExpr(parser, currentScope);
             CURRENT;
             PARSER_ASSERT(lexeme.type == TOK_PROCESS_LINK, "`->` expected but `%s` was found", token_type_to_string(lexeme.type));
             ACCEPT;
-            spawn->spawnExpr->expr = parser_parseExpr(parser, node, currentScope);
+            spawn->spawnExpr->expr = parser_parseExpr(parser, currentScope);
             // TODO: assert callback is valid and expr is of type process
 
             return spawn;
@@ -1917,22 +1895,22 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
         CURRENT;
         if(lexeme.type == TOK_PROCESS_LINK){
             ACCEPT;
-            emit->emitExpr->msg = parser_parseExpr(parser, node, currentScope);
+            emit->emitExpr->msg = parser_parseExpr(parser, currentScope);
             return emit;
         }
         else {
             parser_reject(parser);
-            emit->emitExpr->process = parser_parseExpr(parser, node, currentScope);
+            emit->emitExpr->process = parser_parseExpr(parser, currentScope);
             CURRENT;
             PARSER_ASSERT(lexeme.type == TOK_PROCESS_LINK, "`->` expected but `%s` was found", token_type_to_string(lexeme.type));
             ACCEPT;
-            emit->emitExpr->msg = parser_parseExpr(parser, node, currentScope);
+            emit->emitExpr->msg = parser_parseExpr(parser, currentScope);
             return  emit;
         }
     }
 
     parser_reject(parser);
-    Expr* uhs = parser_parseOpPointer(parser, node, currentScope);
+    Expr* uhs = parser_parseOpPointer(parser, currentScope);
     Expr *unaryExpr = ast_expr_makeExpr(ET_UNARY);
     CURRENT;
 
@@ -1948,16 +1926,16 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
     return uhs;
 }
 
-Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
 
-    Expr* lhs = parser_parseOpValue(parser, node, currentScope);
+    Expr* lhs = parser_parseOpValue(parser, currentScope);
     if(lhs == NULL){
         return NULL;
     }
     Lexeme CURRENT;
     if(lexeme.type == TOK_DOT) {
         ACCEPT;
-        Expr* rhs = parser_parseOpPointer(parser, node, currentScope);
+        Expr* rhs = parser_parseOpPointer(parser, currentScope);
         MemberAccessExpr *memberAccessExpr = ast_expr_makeMemberAccessExpr(lhs, rhs);
 
         Expr* memberExpr = ast_expr_makeExpr(ET_MEMBER_ACCESS);
@@ -1970,7 +1948,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
         uint8_t can_loop = 1;
 
         while(can_loop) {
-            Expr* index = parser_parseExpr(parser, node, currentScope);
+            Expr* index = parser_parseExpr(parser, currentScope);
             vec_push(&idx->indexes, index);
             CURRENT;
             if(lexeme.type == TOK_COMMA) {
@@ -2000,7 +1978,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
 
         while(can_loop) {
             parser_reject(parser);
-            Expr* index = parser_parseExpr(parser, node, currentScope);
+            Expr* index = parser_parseExpr(parser, currentScope);
             vec_push(&call->args, index);
             CURRENT;
             if(lexeme.type == TOK_COMMA) {
@@ -2023,7 +2001,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
     return lhs;
 }
 
-Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_IDENTIFIER){
         Expr* expr = ast_expr_makeExpr(ET_ELEMENT);
@@ -2042,7 +2020,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
     if(lexeme.type == TOK_FN){
         // lambda expression
         parser_reject(parser);
-        FnHeader * fnHeader= parser_parseLambdaFnHeader(parser, node, NULL, currentScope);
+        FnHeader * fnHeader= parser_parseLambdaFnHeader(parser, NULL, currentScope);
 
         Expr* expr = ast_expr_makeExpr(ET_LAMBDA);
         expr->lambdaExpr = ast_expr_makeLambdaExpr(currentScope);
@@ -2055,7 +2033,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         if(lexeme.type == TOK_EQUAL){
             expr->lambdaExpr->bodyType = FBT_EXPR;
             ACCEPT;
-            expr->lambdaExpr->expr = parser_parseExpr(parser, node, expr->lambdaExpr->scope);
+            expr->lambdaExpr->expr = parser_parseExpr(parser, expr->lambdaExpr->scope);
 
             return expr;
         }
@@ -2064,7 +2042,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
             PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` or `=` expected but %s was found.", token_type_to_string(lexeme.type));
             expr->lambdaExpr->bodyType = FBT_BLOCK;
             parser_reject(parser);
-            expr->lambdaExpr->block = parser_parseStmtBlock(parser, node, expr->lambdaExpr->scope);
+            expr->lambdaExpr->block = parser_parseStmtBlock(parser, expr->lambdaExpr->scope);
             return expr;
         }
 
@@ -2072,7 +2050,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
 
-        Expr* expr = parser_parseExpr(parser, node, currentScope);
+        Expr* expr = parser_parseExpr(parser, currentScope);
         // assert )
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -2087,7 +2065,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         uint8_t can_loop = lexeme.type != TOK_RBRACKET;
 
         while(can_loop) {
-            Expr* index = parser_parseExpr(parser, node, currentScope);
+            Expr* index = parser_parseExpr(parser, currentScope);
             vec_push(&arrayConstructionExpr->args, index);
             CURRENT;
             if(lexeme.type == TOK_COMMA) {
@@ -2137,7 +2115,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
                     PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
 
-                    Expr* value = parser_parseExpr(parser, node, currentScope);
+                    Expr* value = parser_parseExpr(parser, currentScope);
                     // we add the arg to the struct
                     vec_push(&namedStruct->argNames, argName);
                     map_set(&namedStruct->args, argName, value);
@@ -2168,7 +2146,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         // prepare loop
         uint8_t can_loop = 1;
         while(can_loop) {
-            Expr* index = parser_parseExpr(parser, node, currentScope);
+            Expr* index = parser_parseExpr(parser, currentScope);
             vec_push(&unnamedStruct->args, index);
             CURRENT;
             if(lexeme.type == TOK_COMMA) {
@@ -2196,7 +2174,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
-        expr->unsafeExpr->expr = parser_parseExpr(parser, node, currentScope);
+        expr->unsafeExpr->expr = parser_parseExpr(parser, currentScope);
         // assert ")"
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -2215,7 +2193,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
-        expr->syncExpr->expr = parser_parseExpr(parser, node, currentScope);
+        expr->syncExpr->expr = parser_parseExpr(parser, currentScope);
         // assert ")"
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -2227,12 +2205,12 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         // create IfElseExpr
         IfElseExpr* ifElseExpr = ast_expr_makeIfElseExpr();
         ACCEPT;
-        ifElseExpr->condition = parser_parseExpr(parser, node, currentScope);
+        ifElseExpr->condition = parser_parseExpr(parser, currentScope);
         // assert {
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
-        ifElseExpr->ifExpr = parser_parseExpr(parser, node, currentScope);
+        ifElseExpr->ifExpr = parser_parseExpr(parser, currentScope);
         // assert }
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -2245,7 +2223,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
-        ifElseExpr->elseExpr = parser_parseExpr(parser, node, currentScope);
+        ifElseExpr->elseExpr = parser_parseExpr(parser, currentScope);
         CURRENT;
         // assert }
         PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -2256,7 +2234,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         return expr;
     }
     parser_reject(parser);
-    return parser_parseLiteral(parser, node, currentScope);
+    return parser_parseLiteral(parser, currentScope);
 }
 
 
@@ -2270,9 +2248,9 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
     TOK_FLOAT,             //
     TOK_DOUBLE,
  */
-Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+Expr* parser_parseLiteral(Parser* parser, ASTScope* currentScope) {
     Expr* expr = ast_expr_makeExpr(ET_LITERAL);
-    expr->dataType = ast_type_makeType();
+    expr->dataType = ast_type_makeType(parser->stack.data[0]);
 
     expr->literalExpr = ast_expr_makeLiteralExpr(0);
     Lexeme lexeme = parser_peek(parser);
@@ -2327,7 +2305,7 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope)
  * Terminal parsers
 */
 
-PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+PackageID* parser_parsePackage(Parser* parser, ASTScope* currentScope) {
     PackageID * package = ast_makePackageID();
     Lexeme lexeme = parser_peek(parser);
     PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "`identifier/package` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -2354,7 +2332,7 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope* currentS
 
 // parses fn header for interfaces, interfaces cannot have mut arguments, they are not allowed
 // to mutate arguments given to them.
-FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+FnHeader* parser_parseFnHeader(Parser* parser, ASTScope* currentScope) {
     // build header struct
     FnHeader* header = ast_makeFnHeader();
     header->type = ast_type_makeFn();
@@ -2379,30 +2357,45 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
 
         // prepare to loop
         uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
-        uint32_t idx = 0;
         while(can_loop) {
-            // assert its an ID
-            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected in function header but %s was found.", token_type_to_string(lexeme.type));
+            while(can_loop) {
+                // init generic param
+                GenericParam * genericParam = ast_make_genericParam();
 
-            // add it to our generic list
-            // make sure we do not have duplicates by getting the element of the map with the name and asserting it is null
+                // in a type declaration, all given templates in the referee are generic and not concrete.
+                PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
+                              "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
-            PARSER_ASSERT(scope_fnheader_addGeneric(header, lexeme.string, idx++), "generic name `%s` already exists.", lexeme.string);
-
-            // get current lexeme
-            CURRENT;
-            // assert we got a name
-
-            // if we have a ">" we are done
-            if(lexeme.type == TOK_GREATER) {
-                can_loop = 0;
+                // get generic name
+                genericParam->name = strdup(lexeme.string);
+                PARSER_ASSERT(scope_fnheader_addGeneric(header, genericParam), "generic param `%s` already exists in function `%s`.", genericParam->name, header->name);
                 ACCEPT;
                 CURRENT;
-            }
-            else {
-                PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` or `>` expected in generic list but %s was found.", token_type_to_string(lexeme.type));
-                ACCEPT;
-                CURRENT;
+                // check if have ":"
+                if(lexeme.type == TOK_COLON) {
+                    ACCEPT;
+                    CURRENT;
+                    // get generic type
+                    genericParam->constraint = parser_parseTypeUnion(parser, NULL, currentScope);
+                    CURRENT;
+                }
+                else {
+                    // if not, set to any
+                    genericParam->constraint = NULL;
+                }
+
+                if(lexeme.type == TOK_GREATER){
+                    can_loop = 0;
+                    ACCEPT;
+                    CURRENT;
+                }
+
+                else {
+                    PARSER_ASSERT(lexeme.type == TOK_COMMA,
+                                  "`,` expected but %s was found.", token_type_to_string(lexeme.type));
+                    ACCEPT;
+                    CURRENT;
+                }
             }
         }
     }
@@ -2430,7 +2423,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
         ACCEPT;
         CURRENT;
         // assert type
-        DataType* type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        DataType* type = parser_parseTypeUnion(parser, NULL, currentScope);
         arg->type = type;
 
         // check if we reached ")"
@@ -2451,7 +2444,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
     CURRENT;
     if(lexeme.type == TOK_FN_RETURN_TYPE) {
         ACCEPT;
-        header->type->returnType = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        header->type->returnType = parser_parseTypeUnion(parser, NULL, currentScope);
     }
     else{
         parser_reject(parser);
@@ -2460,7 +2453,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
     return header;
 }
 
-FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* parentReferee, ASTScope* currentScope) {
+FnHeader* parser_parseLambdaFnHeader(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // build header struct
     FnHeader* header = ast_makeFnHeader();
     header->type = ast_type_makeFn();
@@ -2472,37 +2465,49 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
     // if we have "<" it's a generic
     CURRENT;
     if(lexeme.type == TOK_LESS) {
+        // GENERICS!
         header->isGeneric = 1;
         ACCEPT;
-        // get current lexeme
         CURRENT;
-
-        // prepare to loop
-        uint8_t can_loop = lexeme.type == TOK_IDENTIFIER;
+        uint8_t can_loop = 1;
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
+                      "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         uint32_t idx = 0;
         while(can_loop) {
-            // assert its an ID
-            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected in function header but %s was found.", token_type_to_string(lexeme.type));
+            // init generic param
+            GenericParam * genericParam = ast_make_genericParam();
 
-            // add it to our generic list
-            // make sure we do not have duplicates by getting the element of the map with the name and asserting it is null
-            PARSER_ASSERT(map_get(&header->generics, lexeme.string) == NULL, "generic name `%s` already defined.", lexeme.string);
+            // in a type declaration, all given templates in the referee are generic and not concrete.
+            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
+                          "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
-            vec_push(&header->genericNames, strdup(lexeme.string));
-            map_set(&header->generics, lexeme.string, idx++);
-
-            // get current lexeme
+            // get generic name
+            genericParam->name = strdup(lexeme.string);
+            PARSER_ASSERT(scope_fnheader_addGeneric(header, genericParam), "generic param `%s` already exists in anonymous function.", genericParam->name);
+            ACCEPT;
             CURRENT;
-            // assert we got a name
+            // check if have ":"
+            if(lexeme.type == TOK_COLON) {
+                ACCEPT;
+                CURRENT;
+                // get generic type
+                genericParam->constraint = parser_parseTypeUnion(parser, NULL, currentScope);
+                CURRENT;
+            }
+            else {
+                // if not, set to any
+                genericParam->constraint = NULL;
+            }
 
-            // if we have a ">" we are done
-            if(lexeme.type == TOK_GREATER) {
+            if(lexeme.type == TOK_GREATER){
                 can_loop = 0;
                 ACCEPT;
                 CURRENT;
             }
+
             else {
-                PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` or `>` expected in generic list but %s was found.", token_type_to_string(lexeme.type));
+                PARSER_ASSERT(lexeme.type == TOK_COMMA,
+                              "`,` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
             }
@@ -2528,7 +2533,7 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
         ACCEPT;
         CURRENT;
         // assert type
-        DataType* type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        DataType* type = parser_parseTypeUnion(parser, NULL, currentScope);
 
         // make sure arg doesn't already exist
         PARSER_ASSERT(map_get(&header->type->args, name) == NULL, "argument name `%s` already exists.");
@@ -2560,7 +2565,7 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
     CURRENT;
     if(lexeme.type == TOK_FN_RETURN_TYPE) {
         ACCEPT;
-        header->type->returnType = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        header->type->returnType = parser_parseTypeUnion(parser, NULL, currentScope);
     }
     else{
         parser_reject(parser);
@@ -2569,86 +2574,86 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
     return header;
 }
 
-Statement* parser_parseStmt(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+Statement* parser_parseStmt(Parser* parser, ASTScope* currentScope) {
     // we check all the options. if no option is chosen, we parse expressions as a statement
     // if we have a return statement
     Lexeme CURRENT;
     // if we have a let statement
     if(lexeme.type == TOK_LET) {
         parser_reject(parser);
-        return parser_parseStmtLet(parser, node, currentScope);
+        return parser_parseStmtLet(parser, currentScope);
     }
     // if we have a function declaration
     else if(lexeme.type == TOK_FN) {
         parser_reject(parser);
-        return parser_parseStmtFn(parser, node, currentScope);
+        return parser_parseStmtFn(parser, currentScope);
     }
     // if we have an if statement
     else if(lexeme.type == TOK_IF) {
         parser_reject(parser);
-        return parser_parseStmtIf(parser, node, currentScope);
+        return parser_parseStmtIf(parser, currentScope);
     }
     // if we have a while statement
     else if(lexeme.type == TOK_WHILE) {
         parser_reject(parser);
-        return parser_parseStmtWhile(parser, node, currentScope);
+        return parser_parseStmtWhile(parser, currentScope);
     }
     // check if we have 'do'
     else if(lexeme.type == TOK_DO) {
         parser_reject(parser);
-        return parser_parseStmtDoWhile(parser, node, currentScope);
+        return parser_parseStmtDoWhile(parser, currentScope);
     }
     // if we have a for statement
     else if(lexeme.type == TOK_FOR) {
         parser_reject(parser);
-        return parser_parseStmtFor(parser, node, currentScope);
+        return parser_parseStmtFor(parser, currentScope);
     }
     // if we have foreach
     else if(lexeme.type == TOK_FOREACH) {
         parser_reject(parser);
-        return parser_parseStmtForEach(parser, node, currentScope);
+        return parser_parseStmtForEach(parser, currentScope);
     }
     // if we have a break statement
     else if(lexeme.type == TOK_BREAK) {
         parser_reject(parser);
-        return parser_parseStmtBreak(parser, node, currentScope);
+        return parser_parseStmtBreak(parser, currentScope);
     }
     // if we have a continue statement
     else if(lexeme.type == TOK_CONTINUE) {
         parser_reject(parser);
-        return parser_parseStmtContinue(parser, node, currentScope);
+        return parser_parseStmtContinue(parser, currentScope);
     }
     // if we have a return statement
     else if(lexeme.type == TOK_RETURN) {
         parser_reject(parser);
-        return parser_parseStmtReturn(parser, node, currentScope);
+        return parser_parseStmtReturn(parser, currentScope);
     }
     // if we have a block statement
     else if(lexeme.type == TOK_LBRACE) {
         parser_reject(parser);
-        return parser_parseStmtBlock(parser, node, currentScope);
+        return parser_parseStmtBlock(parser, currentScope);
     }
     // if we have a match
     else if(lexeme.type == TOK_MATCH) {
         parser_reject(parser);
-        return parser_parseStmtMatch(parser, node, currentScope);
+        return parser_parseStmtMatch(parser, currentScope);
     }
     // if we have sync
     else if(lexeme.type == TOK_SYNC) {
         parser_reject(parser);
-        return parser_parseStmtSync(parser, node, currentScope);
+        return parser_parseStmtSync(parser, currentScope);
     }
     else if(lexeme.type == TOK_UNSAFE) {
         parser_reject(parser);
-        return parser_parseStmtUnsafe(parser, node, currentScope);
+        return parser_parseStmtUnsafe(parser, currentScope);
     }
     // otherwise, we expect expr
 
     parser_reject(parser);
-    return parser_parseStmtExpr(parser, node, currentScope);
+    return parser_parseStmtExpr(parser, currentScope);
 }
 
-Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtLet(Parser* parser, ASTScope* currentScope){
     Statement* stmt = ast_stmt_makeStatement(ST_VAR_DECL);
     stmt->varDecl = ast_stmt_makeVarDeclStatement(currentScope);
     Lexeme CURRENT;
@@ -2698,7 +2703,7 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
                 PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 // parse type
-                var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                var->type = parser_parseTypeUnion(parser, NULL, currentScope);
                 // assert type is not null
                 PARSER_ASSERT(var->type != NULL,"Invalid symbol %s while parsing variable data type", var->name);
                 CURRENT;
@@ -2740,7 +2745,7 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
         PARSER_ASSERT(lexeme.type == TOK_EQUAL, "`=` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
-        Expr *initializer = parser_parseExpr(parser, node, currentScope);
+        Expr *initializer = parser_parseExpr(parser, currentScope);
         letDecl->initializer = initializer;
         // assert initializer is not null
         PARSER_ASSERT(initializer != NULL, "Invalid symbol %s while parsing variable initializer", token_type_to_string(lexeme.type));
@@ -2760,7 +2765,7 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
     return stmt;
 }
 
-Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
     Statement* stmt = ast_stmt_makeStatement(ST_FN_DECL);
     stmt->fnDecl = ast_stmt_makeFnDeclStatement(currentScope);
     // create the header
@@ -2781,7 +2786,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
 
     if(lexeme.type == TOK_LESS) {
         // GENERICS!
-        stmt->fnDecl->hasGeneric = 1;
+        stmt->fnDecl->header->isGeneric = 1;
         ACCEPT;
         CURRENT;
         uint8_t can_loop = 1;
@@ -2791,7 +2796,6 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         while(can_loop) {
             // init generic param
             GenericParam * genericParam = ast_make_genericParam();
-            genericParam->isGeneric = 1;
 
             // in a type declaration, all given templates in the referee are generic and not concrete.
             PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
@@ -2799,6 +2803,8 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
 
             // get generic name
             genericParam->name = strdup(lexeme.string);
+            PARSER_ASSERT(scope_fnheader_addGeneric(stmt->fnDecl->header, genericParam),
+                   "Generic parameter %s already exists in function %s", genericParam->name, stmt->fnDecl->header->name);
             ACCEPT;
             CURRENT;
             // check if have ":"
@@ -2806,7 +2812,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
                 ACCEPT;
                 CURRENT;
                 // get generic type
-                genericParam->constraint = parser_parseTypeUnion(parser, node, NULL, currentScope);
+                genericParam->constraint = parser_parseTypeUnion(parser, NULL, currentScope);
                 CURRENT;
             }
             else {
@@ -2815,7 +2821,8 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
             }
 
             // add generic param
-            vec_push(&stmt->fnDecl->genericParams, genericParam);
+            // TODO: add api
+
             if(lexeme.type == TOK_GREATER){
                 can_loop = 0;
                 ACCEPT;
@@ -2854,7 +2861,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // parse type
-        arg->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        arg->type = parser_parseTypeUnion(parser, NULL, currentScope);
         // assert type is not null
         PARSER_ASSERT(arg->type != NULL,
                "`type` near %s, generated a NULL type. This is a parser issue.");
@@ -2879,7 +2886,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         ACCEPT;
         // parse the return type
         // TODO: add generics to scope if they exist?
-        stmt->fnDecl->header->type->returnType = parser_parseTypeUnion(parser, node, NULL, currentScope);
+        stmt->fnDecl->header->type->returnType = parser_parseTypeUnion(parser, NULL, currentScope);
         // assert type is not null
         PARSER_ASSERT(stmt->fnDecl->header->type->returnType != NULL,
                "`type` near %s, generated a NULL type. This is a parser issue.");
@@ -2896,7 +2903,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         CURRENT;
         // parse the body
         // TODO: update current
-        stmt->fnDecl->expr = parser_parseExpr(parser, node, stmt->fnDecl->scope);
+        stmt->fnDecl->expr = parser_parseExpr(parser, stmt->fnDecl->scope);
         // assert body is not null
         PARSER_ASSERT(stmt->fnDecl->expr != NULL, "Invalid synbol %s while parsing function expression.");
         ACCEPT;
@@ -2904,7 +2911,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
     } else if (lexeme.type == TOK_LBRACE) {
         stmt->fnDecl->bodyType = FBT_BLOCK;
         parser_reject(parser);
-        stmt->fnDecl->block = parser_parseStmtBlock(parser, node, stmt->fnDecl->scope);
+        stmt->fnDecl->block = parser_parseStmtBlock(parser, stmt->fnDecl->scope);
     } else {
         parser_reject(parser);
         // assert false
@@ -2913,7 +2920,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
     return stmt;
 }
 
-Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtBlock(Parser* parser, ASTScope* currentScope){
     // create statement instance
     Statement* stmt = ast_stmt_makeStatement(ST_BLOCK);
     stmt->blockStmt = ast_stmt_makeBlockStatement(currentScope);
@@ -2925,7 +2932,7 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* curren
     uint8_t loop = 1;
 
     while(loop) {
-        Statement * s = parser_parseStmt(parser, node, stmt->blockStmt->scope);
+        Statement * s = parser_parseStmt(parser, stmt->blockStmt->scope);
         PARSER_ASSERT(s != NULL, "Invalid symbol %s while parsing block statement.", token_type_to_string(lexeme.type));
         vec_push(&stmt->blockStmt->stmts, s);
         // TODO: free s
@@ -2944,7 +2951,7 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* curren
     return stmt;
 }
 
-Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtIf(Parser* parser, ASTScope* currentScope){
     // create statement instance
     Statement* stmt = ast_stmt_makeStatement(ST_IF_CHAIN);
     stmt->ifChain = ast_stmt_makeIfChainStatement();
@@ -2960,13 +2967,13 @@ Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentSc
      * we parse it as 2 conditions and 2 blocks, final else is separate
      */
     while (loop) {
-        Expr* condition = parser_parseExpr(parser, node, currentScope);
+        Expr* condition = parser_parseExpr(parser, currentScope);
         // assert condition is not null
         PARSER_ASSERT(condition != NULL, "Invalid symbol %s while parsing if condition", token_type_to_string(lexeme.type));
         // next token
 
 
-        Statement* block = parser_parseStmtBlock(parser, node, currentScope);
+        Statement* block = parser_parseStmtBlock(parser, currentScope);
 
         vec_push(&stmt->ifChain->conditions, condition);
         vec_push(&stmt->ifChain->blocks, block);
@@ -2982,7 +2989,7 @@ Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentSc
             }
             else{
                 parser_reject(parser);
-                stmt->ifChain->elseBlock = parser_parseStmtBlock(parser, node, currentScope);
+                stmt->ifChain->elseBlock = parser_parseStmtBlock(parser, currentScope);
                 loop = 0;
             }
         }
@@ -2995,7 +3002,7 @@ Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentSc
 
     return stmt;
 }
-Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtMatch(Parser* parser, ASTScope* currentScope){
     // get current token
     Lexeme CURRENT;
     // assert match
@@ -3005,7 +3012,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
     Statement* stmt = ast_stmt_makeStatement(ST_MATCH);
     stmt->match = ast_stmt_makeMatchStatement();
     // parse the main expression to be matched
-    stmt->match->expr = parser_parseExpr(parser, node, currentScope);
+    stmt->match->expr = parser_parseExpr(parser, currentScope);
     // assert expr is not null
     PARSER_ASSERT(stmt->match->expr != NULL, "Invalid symbol %s while parsing match expression.", token_type_to_string(lexeme.type));
     // assert {
@@ -3019,7 +3026,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
         // do we have a wildcard
         if (lexeme.type == TOK_WILDCARD){
             ACCEPT;
-            stmt->match->elseBlock = parser_parseStmtBlock(parser, node, currentScope);
+            stmt->match->elseBlock = parser_parseStmtBlock(parser, currentScope);
             loop = 0;
         }
         else {
@@ -3027,7 +3034,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
             // create CaseStatement
             CaseStatement *caseStmt = ast_stmt_makeCaseStatement();
             // parse the condition
-            caseStmt->condition = parser_parseExpr(parser, node, currentScope);
+            caseStmt->condition = parser_parseExpr(parser, currentScope);
             PARSER_ASSERT(caseStmt->condition != NULL,"Invalid symbol %s while parsing match case condition.", token_type_to_string(lexeme.type));
             // next token
             CURRENT;
@@ -3035,7 +3042,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
             PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
             parser_reject(parser);
             // parse the block
-            caseStmt->block = parser_parseStmtBlock(parser, node, currentScope);
+            caseStmt->block = parser_parseStmtBlock(parser, currentScope);
             // assert block is not null
             PARSER_ASSERT(caseStmt->block != NULL,"Invalid symbol %s while parsing match case block.", token_type_to_string(lexeme.type));
             vec_push(&stmt->match->cases, caseStmt);
@@ -3053,7 +3060,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
     return stmt;
 }
 
-Statement* parser_parseStmtWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtWhile(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_WHILE);
     stmt->whileLoop = ast_stmt_makeWhileStatement();
@@ -3062,18 +3069,18 @@ Statement* parser_parseStmtWhile(Parser* parser, ASTNode* node, ASTScope* curren
     PARSER_ASSERT(lexeme.type == TOK_WHILE, "`while` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse condition
-    stmt->whileLoop->condition = parser_parseExpr(parser, node, currentScope);
+    stmt->whileLoop->condition = parser_parseExpr(parser, currentScope);
     // assert condition is not null
     PARSER_ASSERT(stmt->whileLoop->condition != NULL, "Invalid symbol %s while parsing while condition.", token_type_to_string(lexeme.type));
     // parse block
-    stmt->whileLoop->block = parser_parseStmtBlock(parser, node, currentScope);
+    stmt->whileLoop->block = parser_parseStmtBlock(parser, currentScope);
     // assert block is not null
     PARSER_ASSERT(stmt->whileLoop->block != NULL, "Invalid symbol %s while parsing while block.", token_type_to_string(lexeme.type));
 
     return stmt;
 }
 
-Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtDoWhile(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_DO_WHILE);
     stmt->doWhileLoop = ast_stmt_makeDoWhileStatement();
@@ -3082,7 +3089,7 @@ Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* curr
     PARSER_ASSERT(lexeme.type == TOK_DO, "`do` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
-    stmt->doWhileLoop->block = parser_parseStmtBlock(parser, node, currentScope);
+    stmt->doWhileLoop->block = parser_parseStmtBlock(parser, currentScope);
     // assert block is not null
     PARSER_ASSERT(stmt->doWhileLoop->block != NULL, "Invalid symbol %s while parsing do-while block.", token_type_to_string(lexeme.type));
     // assert while
@@ -3090,13 +3097,13 @@ Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* curr
     PARSER_ASSERT(lexeme.type == TOK_WHILE, "`while` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse condition
-    stmt->doWhileLoop->condition = parser_parseExpr(parser, node, currentScope);
+    stmt->doWhileLoop->condition = parser_parseExpr(parser, currentScope);
     // assert condition is not null
     PARSER_ASSERT(stmt->doWhileLoop->condition != NULL, "Invalid symbol %s while parsing do-while condition.", token_type_to_string(lexeme.type));
     return stmt;
 }
 
-Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentScope) {
+Statement* parser_parseStmtFor(Parser* parser, ASTScope* currentScope) {
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_FOR);
     stmt->forLoop = ast_stmt_makeForStatement(currentScope);
@@ -3109,7 +3116,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
     if(lexeme.type != TOK_SEMICOLON){
         parser_reject(parser);
         // parse initializer
-        stmt->forLoop->initializer = parser_parseStmtLet(parser, node, currentScope);
+        stmt->forLoop->initializer = parser_parseStmtLet(parser, currentScope);
 
         // assert initializer is not null
         PARSER_ASSERT(stmt->forLoop->initializer != NULL, "Invalid symbol %s while parsing for-loop initializer.", token_type_to_string(lexeme.type));
@@ -3126,7 +3133,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
     if(lexeme.type != TOK_SEMICOLON){
         parser_reject(parser);
         // parse condition
-        stmt->forLoop->condition = parser_parseExpr(parser, node, currentScope);
+        stmt->forLoop->condition = parser_parseExpr(parser, currentScope);
         // assert condition is not null
         PARSER_ASSERT(stmt->forLoop->condition != NULL,
                "Invalid symbol %s while parsing for-loop condition.", token_type_to_string(lexeme.type));
@@ -3148,7 +3155,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
         uint8_t loop = 1;
         while(loop) {
             // parse one increment
-            Expr* increment = parser_parseExpr(parser, node, currentScope);
+            Expr* increment = parser_parseExpr(parser, currentScope);
             // assert increment is not null
             PARSER_ASSERT(increment != NULL, "Invalid symbol %s while parsing for-loop increment.", token_type_to_string(lexeme.type));
             // add increment to list
@@ -3164,19 +3171,19 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
     parser_reject(parser);
 
     // current
-    stmt->forLoop->block = parser_parseStmtBlock(parser, node, currentScope);
+    stmt->forLoop->block = parser_parseStmtBlock(parser, currentScope);
     // assert block is not null
     PARSER_ASSERT(stmt->forLoop->block != NULL, "Invalid symbol %s while parsing for-loop block.", token_type_to_string(lexeme.type));
     return stmt;
 }
 
-Statement* parser_parseStmtForEach(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtForEach(Parser* parser, ASTScope* currentScope){
     // throw not implemented error
     Lexeme CURRENT;
     PARSER_ASSERT(0, "`foreach` is not implemented yet.");
 }
 
-Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtContinue(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_CONTINUE);
     stmt->continueStmt = ast_stmt_makeContinueStatement();
@@ -3187,7 +3194,7 @@ Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* cur
     return stmt;
 }
 
-Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtReturn(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_RETURN);
     stmt->returnStmt = ast_stmt_makeReturnStatement();
@@ -3196,13 +3203,13 @@ Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* curre
     PARSER_ASSERT(lexeme.type == TOK_RETURN, "`return` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse expression
-    stmt->returnStmt->expr = parser_parseExpr(parser, node, currentScope);
+    stmt->returnStmt->expr = parser_parseExpr(parser, currentScope);
     // return can be NULL.
 
     return stmt;
 }
 
-Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtBreak(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_BREAK);
     stmt->breakStmt = ast_stmt_makeBreakStatement();
@@ -3213,7 +3220,7 @@ Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* curren
     return stmt;
 }
 
-Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtUnsafe(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_UNSAFE);
     stmt->unsafeStmt = ast_stmt_makeUnsafeStatement(currentScope);
@@ -3222,13 +3229,13 @@ Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* curre
     PARSER_ASSERT(lexeme.type == TOK_UNSAFE, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
-    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, node, currentScope);
+    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, currentScope);
     // assert block is not null
     PARSER_ASSERT(stmt->unsafeStmt->block != NULL, "Invalid symbol %s while parsing unsafe block.", token_type_to_string(lexeme.type));
     return stmt;
 }
 
-Statement* parser_parseStmtSync(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtSync(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_SYNC);
     stmt->syncStmt = ast_stmt_makeSyncStatement(currentScope);
@@ -3237,18 +3244,18 @@ Statement* parser_parseStmtSync(Parser* parser, ASTNode* node, ASTScope* current
     PARSER_ASSERT(lexeme.type == TOK_SYNC, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
-    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, node, currentScope);
+    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, currentScope);
     // assert block is not null
     PARSER_ASSERT(stmt->unsafeStmt->block != NULL, "Invalid symbol %s while parsing unsafe block.", token_type_to_string(lexeme.type));
     return stmt;
 }
 
-Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){
+Statement* parser_parseStmtExpr(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_EXPR);
     stmt->expr = ast_stmt_makeExprStatement(currentScope);
     // parse expression
-    stmt->expr->expr = parser_parseExpr(parser, node, currentScope);
+    stmt->expr->expr = parser_parseExpr(parser, currentScope);
     // expr can be null
 
     if(stmt->expr->expr == NULL){

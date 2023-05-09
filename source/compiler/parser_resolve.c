@@ -11,7 +11,7 @@
 #include "lexer.h"
 #include "ast.h"
 
-DataType* resolver_resolveType(Parser* parser, ASTNode* node, ASTScope* currentScope, char* typeName) {
+DataType* resolver_resolveType(Parser* parser, ASTScope* currentScope, char* typeName) {
     uint8_t fetchParent = 1;
     if(currentScope == NULL) {
         return NULL;
@@ -22,7 +22,7 @@ DataType* resolver_resolveType(Parser* parser, ASTNode* node, ASTScope* currentS
         return *dtptr;
     }
     else {
-        return resolver_resolveType(parser, node, currentScope->parentScope, typeName);
+        return resolver_resolveType(parser, currentScope->parentScope, typeName);
     }
 
 
