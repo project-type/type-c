@@ -150,6 +150,7 @@ Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* cur
 Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* currentScope);
 Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* currentScope);
 Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* currentScope);
+Statement* parser_parseStmtSync(Parser* parser, ASTNode* node, ASTScope* currentScope);
 Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope);
 
 

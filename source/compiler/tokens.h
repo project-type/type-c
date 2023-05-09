@@ -10,6 +10,7 @@ typedef enum {
     TOK_ANY,               // any
     //TOK_ASYNC,           // async
     //TOK_AWAIT,           // await
+    TOK_SYNC,              // sync
     TOK_TYPE_CONVERSION,   // as
     TOK_BREAK,             // break
     TOK_CASE,              // case

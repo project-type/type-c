@@ -5,18 +5,20 @@ type Instance = class {
 }
 
 type Z = variant {
-    A(), B(), Z(A: u32 AHAHAHAHAHAHAHAHA)
+    A(), B(), Z(A: u32)
 }
 
 type ConstantNode = class (Node) {
     fn forward() -> Node {
+        sync {
+            return unsafe ( sync ( x.abs() ))
+        }
         return self
     }
     fn backward() -> Node {
         return self
     }
 }
-
 
 
 type WorkerInput = variant {

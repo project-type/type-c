@@ -229,6 +229,7 @@ Lexeme lexIdOrKeyword(LexerState* lexerState) {
     //if(match_keyword(lexerState, "any")) return makeLexemLineCol(TOK_ANY, NULL, line, col, pos);
     //if(match_keyword(lexerState, "async")) return makeLexemLineCol(TOK_ASYNC, NULL, line, col, pos);
     //if(match_keyword(lexerState, "await")) return makeLexemLineCol(TOK_AWAIT, NULL, line, col, pos);
+    if(match_keyword(lexerState, "sync")) return makeLexemLineCol(TOK_SYNC, NULL, line, col, pos);
     if(match_keyword(lexerState, "as")) return makeLexemLineCol(TOK_TYPE_CONVERSION, NULL, line, col, pos);
     if(match_keyword(lexerState, "break")) return makeLexemLineCol(TOK_BREAK, NULL, line, col, pos);
     if(match_keyword(lexerState, "case")) return makeLexemLineCol(TOK_CASE, NULL, line, col, pos);
@@ -646,7 +647,6 @@ Lexeme lexer_lexCurrent(LexerState* lex) {
             incLexer(lex);
             return makeLexemLineCol(TOK_DOT, NULL, line, col, pos);
         }
-
         case '?':
             incLexer(lex);
             return makeLexemLineCol(TOK_NULLABLE, NULL, line, col, pos);

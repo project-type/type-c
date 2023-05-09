@@ -39,6 +39,7 @@ struct Statement;
 struct BlockStatement;
 struct CaseStatement;
 struct ASTScope;
+struct ExternDecl;
 
 /* Data types */
 typedef map_t(uint32_t) u32_map_t;
@@ -65,6 +66,8 @@ typedef vec_t(struct CaseExpr*) vec_caseexpr_t;
 typedef vec_t(struct Statement*) vec_statement_t;
 typedef vec_t(struct BlockStatement*) vec_blockstatement_t;
 typedef vec_t(struct CaseStatement*) vec_casestatement_t;
+typedef vec_t(struct ExternDecl*) vec_externdecl_t;
+
 
 /**
  * Enums of all possible type categories
@@ -302,10 +305,10 @@ typedef struct ASTScope {
     uint8_t isSafe;                          // block is safe
     uint8_t withinClass;                     // is within a class
     uint8_t withinSync;                      // is within a sync block
-    map_dtype_t * variables;                 // variables declared in this scope
-    mat_fnheader_t* functions;               // functions declared in this scope
+    map_dtype_t variables;                   // variables declared in this scope
+    mat_fnheader_t functions;                // functions declared in this scope
     map_dtype_t dataTypes;                   // data types declared in this scope
-    struct ExternDecl * externDeclarations;  // extern declarations
+    vec_externdecl_t externDecls;            // extern declarations
     struct ASTScope* parentScope;            // parent scope
 } ASTScope;
 ASTScope * ast_scope_makeScope(ASTScope* parentScope);
@@ -540,6 +543,13 @@ typedef struct UnsafeExpr {
 }UnsafeExpr;
 UnsafeExpr* ast_expr_makeUnsafeExpr(ASTScope* parentScope);
 
+
+typedef struct SyncExpr {
+    struct Expr *expr;
+    ASTScope *scope;
+}SyncExpr;
+SyncExpr* ast_expr_makeSyncExpr(ASTScope* parentScope);
+
 typedef struct SpawnExpr {
     struct Expr *callback;
     struct Expr *expr;
@@ -572,6 +582,7 @@ typedef enum ExpressionType {
     ET_LET,
     ET_LAMBDA,
     ET_UNSAFE,
+    ET_SYNC,
     ET_SPAWN,
     ET_EMIT,
     ET_WILDCARD
@@ -599,6 +610,7 @@ typedef struct Expr {
         MatchExpr* matchExpr;
         LambdaExpr* lambdaExpr;
         UnsafeExpr* unsafeExpr;
+        SyncExpr* syncExpr;
         SpawnExpr* spawnExpr;
         EmitExpr* emitExpr;
     };
@@ -701,13 +713,21 @@ ReturnStatement* ast_stmt_makeReturnStatement();
 
 typedef struct UnsafeStatement {
     struct Statement *block;
+    ASTScope * scope;
 }UnsafeStatement;
-UnsafeStatement* ast_stmt_makeUnsafeStatement();
+UnsafeStatement* ast_stmt_makeUnsafeStatement(ASTScope * parentScope);
+
+typedef struct SyncStatement {
+    struct Statement *block;
+    ASTScope * scope;
+}SyncStatement;
+SyncStatement* ast_stmt_makeSyncStatement(ASTScope * parentScope);
 
 typedef struct ExprStatement {
     struct Expr *expr;
+    ASTScope * scope;
 }ExprStatement;
-ExprStatement* ast_stmt_makeExprStatement();
+ExprStatement* ast_stmt_makeExprStatement(ASTScope * parentScope);
 
 typedef enum StatementType {
     ST_EXPR,
@@ -733,6 +753,7 @@ typedef enum StatementType {
 
     // BLOCK
     ST_UNSAFE,
+    ST_SYNC,
 
     ST_SPAWN,
     ST_EMIT
@@ -756,6 +777,7 @@ typedef struct Statement {
         BreakStatement * breakStmt;
         BlockStatement * blockStmt;
         UnsafeStatement * unsafeStmt;
+        SyncStatement * syncStmt;
 
         //void* withStmt;
     };

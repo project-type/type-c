@@ -12,6 +12,8 @@ const char* token_type_to_string(TokenType type) {
             return "async";
         case TOK_AWAIT:
             return "await";*/
+        case TOK_SYNC:
+            return "sync";
         case TOK_TYPE_CONVERSION:
             return "as";
         case TOK_BOOLEAN:

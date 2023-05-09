@@ -406,6 +406,15 @@ UnsafeExpr* ast_expr_makeUnsafeExpr(ASTScope* parentScope){
     return unsafe;
 }
 
+SyncExpr* ast_expr_makeSyncExpr(ASTScope* parentScope){
+    ALLOC(sync, SyncExpr);
+    sync->expr = NULL;
+    sync->scope = ast_scope_makeScope(parentScope);
+    sync->scope->withinSync = 1;
+
+    return sync;
+}
+
 SpawnExpr* ast_expr_makeSpawnExpr(){
     ALLOC(spawn, SpawnExpr);
     spawn->callback = NULL;
@@ -441,9 +450,15 @@ Expr* ast_expr_makeExpr(ExpressionType type){
 ASTScope * ast_scope_makeScope(ASTScope* parentScope){
     ALLOC(scope, ASTScope);
     scope->isSafe = (parentScope == NULL) ? 1 : parentScope->isSafe;
-    scope->parentScope = parentScope;
-    vec_init(&scope->dataTypes);
+    scope->withinClass = (parentScope == NULL) ? 0 : parentScope->withinClass;
+    scope->withinSync = (parentScope == NULL) ? 0 : parentScope->withinSync;
 
+    scope->parentScope = parentScope;
+
+    map_init(&scope->variables);
+    map_init(&scope->functions);
+    map_init(&scope->dataTypes);
+    vec_init(&scope->externDecls);
     return scope;
 }
 
@@ -574,14 +589,25 @@ ReturnStatement* ast_stmt_makeReturnStatement(){
     return returnStmt;
 }
 
-UnsafeStatement* ast_stmt_makeUnsafeStatement(){
+UnsafeStatement* ast_stmt_makeUnsafeStatement(ASTScope * parentScope){
     ALLOC(unsafeStmt, UnsafeStatement);
     unsafeStmt->block = NULL;
+    unsafeStmt->scope = ast_scope_makeScope(parentScope);
+    unsafeStmt->scope->isSafe = 0;
 
     return unsafeStmt;
 }
 
-ExprStatement* ast_stmt_makeExprStatement(){
+SyncStatement* ast_stmt_makeSyncStatement(ASTScope * parentScope){
+    ALLOC(syncStmt, SyncStatement);
+    syncStmt->block = NULL;
+    syncStmt->scope = ast_scope_makeScope(parentScope);
+    syncStmt->scope->withinSync = 1;
+
+    return syncStmt;
+}
+
+ExprStatement* ast_stmt_makeExprStatement(ASTScope * parentScope){
     ALLOC(exprStmt, ExprStatement);
     exprStmt->expr = NULL;
 

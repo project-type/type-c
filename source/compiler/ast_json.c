@@ -1049,6 +1049,13 @@ JSON_Value* ast_json_serializeExprRecursive(Expr* expr) {
             json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(expr->unsafeExpr->expr));
             break;
         }
+        case ET_SYNC: {
+            // category = unsafe
+            json_object_set_string(root_object, "category", "sync");
+            // add the unsafe expression
+            json_object_set_value(root_object, "expr", ast_json_serializeExprRecursive(expr->syncExpr->expr));
+            break;
+        }
         case ET_SPAWN: {
             // category = spawn
             json_object_set_string(root_object, "category", "spawn");
@@ -1353,6 +1360,13 @@ JSON_Value* ast_json_serializeStatementRecursive(Statement* stmt){
         case ST_UNSAFE: {
             // category = unsafe
             json_object_set_string(root_object, "category", "unsafe");
+            // add the unsafe block
+            json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(stmt->unsafeStmt->block));
+            break;
+        }
+        case ST_SYNC: {
+            // category = unsafe
+            json_object_set_string(root_object, "category", "sync");
             // add the unsafe block
             json_object_set_value(root_object, "body", ast_json_serializeStatementRecursive(stmt->unsafeStmt->block));
             break;

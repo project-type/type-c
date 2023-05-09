@@ -2197,6 +2197,25 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
         return expr;
     }
+    if(lexeme.type == TOK_SYNC){
+        // build unsafe expr
+        SyncExpr * syncExpr = ast_expr_makeSyncExpr(currentScope);
+        Expr* expr = ast_expr_makeExpr(ET_SYNC);
+        expr->syncExpr = syncExpr;
+
+        ACCEPT;
+        // assert "("
+        CURRENT;
+        PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
+        ACCEPT;
+        expr->syncExpr->expr = parser_parseExpr(parser, node, currentScope);
+        // assert ")"
+        CURRENT;
+        PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
+        ACCEPT;
+
+        return expr;
+    }
     if(lexeme.type == TOK_IF) {
         // create IfElseExpr
         IfElseExpr* ifElseExpr = ast_expr_makeIfElseExpr();
@@ -2617,6 +2636,15 @@ Statement* parser_parseStmt(Parser* parser, ASTNode* node, ASTScope* currentScop
         return parser_parseStmtMatch(parser, node, currentScope);
     }
     // if we have unsafe
+    else if(lexeme.type == TOK_UNSAFE) {
+        parser_reject(parser);
+        return parser_parseStmtUnsafe(parser, node, currentScope);
+    }
+    // if we have sync
+    else if(lexeme.type == TOK_SYNC) {
+        parser_reject(parser);
+        return parser_parseStmtSync(parser, node, currentScope);
+    }
     else if(lexeme.type == TOK_UNSAFE) {
         parser_reject(parser);
         return parser_parseStmtUnsafe(parser, node, currentScope);
@@ -3195,7 +3223,7 @@ Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* curren
 Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_UNSAFE);
-    stmt->unsafeStmt = ast_stmt_makeUnsafeStatement();
+    stmt->unsafeStmt = ast_stmt_makeUnsafeStatement(currentScope);
     // assert unsafe
     Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_UNSAFE, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -3206,10 +3234,26 @@ Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* curre
     PARSER_ASSERT(stmt->unsafeStmt->block != NULL, "Invalid symbol %s while parsing unsafe block.", token_type_to_string(lexeme.type));
     return stmt;
 }
+
+Statement* parser_parseStmtSync(Parser* parser, ASTNode* node, ASTScope* currentScope){
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_SYNC);
+    stmt->syncStmt = ast_stmt_makeSyncStatement(currentScope);
+    // assert unsafe
+    Lexeme CURRENT;
+    PARSER_ASSERT(lexeme.type == TOK_SYNC, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
+    ACCEPT;
+    // parse block
+    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, node, currentScope);
+    // assert block is not null
+    PARSER_ASSERT(stmt->unsafeStmt->block != NULL, "Invalid symbol %s while parsing unsafe block.", token_type_to_string(lexeme.type));
+    return stmt;
+}
+
 Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_EXPR);
-    stmt->expr = ast_stmt_makeExprStatement();
+    stmt->expr = ast_stmt_makeExprStatement(currentScope);
     // parse expression
     stmt->expr->expr = parser_parseExpr(parser, node, currentScope);
     // expr can be null
