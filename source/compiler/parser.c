@@ -287,8 +287,10 @@ DataType* parser_parseTypeUnion(Parser* parser, DataType* parentReferee, ASTScop
         // we have an intersection
         ACCEPT;
         DataType* type2 = parser_parseTypeUnion(parser, parentReferee, currentScope);
-
-        PARSER_ASSERT(tc_check_canJoinOrUnion(currentScope, type, type2), "Cannot create union of two different categories")
+        uint8_t canJoin = tc_check_canJoinOrUnion(type, type2);
+        PARSER_ASSERT(canJoin, "Cannot create union data types of different categories `%s` and `%s`", dataTypeKindToString(type), dataTypeKindToString(type2));
+        char* unionResult = tc_check_canUnion(type, type2);
+        PARSER_ASSERT(unionResult == NULL, "Cannot create union of these types, duplicate field `%s` found. ", unionResult);
 
         // create intersection type
         UnionType * unions = ast_type_makeUnion();
@@ -317,6 +319,10 @@ DataType* parser_parseTypeIntersection(Parser* parser, DataType* parentReferee, 
         // we have an intersection
         ACCEPT;
         DataType* type2 = parser_parseTypeIntersection(parser, parentReferee, currentScope);
+        uint8_t canJoin = tc_check_canJoinOrUnion(type, type2);
+        PARSER_ASSERT(canJoin, "Cannot create join data types of different categories `%s` and `%s`", dataTypeKindToString(type), dataTypeKindToString(type2));
+        char* unionResult = tc_check_canJoin(type, type2);
+        PARSER_ASSERT(unionResult == NULL, "Cannot create join of these types, duplicate field `%s` found. ", unionResult);
         // create intersection type
         JoinType * join = ast_type_makeJoin();
         join->left = type;
@@ -371,6 +377,11 @@ DataType * parser_parseTypeArray(Parser* parser, DataType* parentReferee, ASTSco
     // if next token is "[" then it is an array
 
     uint8_t can_loop = lexeme.type == TOK_LBRACKET;
+
+    if(!can_loop){
+        parser_reject(parser);
+        return primary;
+    }
 
     while(can_loop){
         if(lexeme.type == TOK_LBRACKET) {

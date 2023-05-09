@@ -21,4 +21,6 @@ void parser_utils_raise(Parser* parser, Lexeme lexeme, const char* condition, co
     }                                    \
 }
 
+char* dataTypeKindToString(DataType* type);
+
 #endif //TYPE_C_PARSER_UTILS_H

@@ -7,6 +7,8 @@
 
 #include "ast.h"
 
-uint8_t tc_check_canJoinOrUnion(ASTScope* scope, DataType* a, DataType* b);
+uint8_t tc_check_canJoinOrUnion(DataType* left, DataType* right);
+char* tc_check_canUnion(DataType* left, DataType* right);
+char* tc_check_canJoin(DataType* left, DataType* right);
 
 #endif //TYPE_C_TYPE_CHECKER_H
