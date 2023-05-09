@@ -150,7 +150,8 @@ DataType* ast_type_makeType() {
     type->isNullable = 0;
     type->kind = DT_UNRESOLVED;
     type->classType = NULL;
-    vec_init(&type->genericParams);
+    vec_init(&type->genericNames);
+    map_init(&type->generics);
 
     return type;
 }

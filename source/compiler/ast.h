@@ -54,6 +54,8 @@ typedef map_t(struct VariantConstructorArgument*) map_variantconstructorarg_t;
 typedef map_t(struct VariantConstructor*) map_variantconstructor_t;
 typedef map_t(struct Expr*) mat_expr_t;
 typedef map_t(struct FnHeader*) mat_fnheader_t;
+typedef map_t(struct ExternDecl*) map_externdecl_t;
+typedef map_t(struct GenericParam*) map_genericparam_t;
 
 typedef vec_t(struct GenericParam*) vec_genericparam_t;
 typedef vec_t(struct DataType*) vec_dtype_t;
@@ -197,7 +199,8 @@ typedef struct DataType {
     uint8_t hasGeneric;
     uint8_t isNullable;
 
-    vec_genericparam_t genericParams;
+    map_genericparam_t generics;
+    vec_str_t genericNames;
 
     union {
         ClassType * classType;
@@ -245,8 +248,9 @@ typedef struct FnHeader {
     char* name;
     FnType* type;
     uint8_t isGeneric;
+
+    map_genericparam_t generics;
     vec_str_t genericNames;
-    u32_map_t generics;
 } FnHeader;
 FnHeader*  ast_makeFnHeader();
 
@@ -305,10 +309,10 @@ typedef struct ASTScope {
     uint8_t isSafe;                          // block is safe
     uint8_t withinClass;                     // is within a class
     uint8_t withinSync;                      // is within a sync block
-    map_dtype_t variables;                   // variables declared in this scope
+    map_fnargument_t variables;              // variables declared in this scope
     mat_fnheader_t functions;                // functions declared in this scope
     map_dtype_t dataTypes;                   // data types declared in this scope
-    vec_externdecl_t externDecls;            // extern declarations
+    map_externdecl_t externDecls;            // extern declarations
     struct ASTScope* parentScope;            // parent scope
 } ASTScope;
 ASTScope * ast_scope_makeScope(ASTScope* parentScope);

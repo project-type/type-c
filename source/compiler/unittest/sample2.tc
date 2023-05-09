@@ -4,6 +4,20 @@ type Instance = class {
     }
 }
 
+type Instance2 = interface {
+    fn init()
+}
+
+extern "C" cRaylibWindow {
+    //fn InitWindow<V, V>(width: u32, height: u32, title: char[])
+    //fn InitWindow(width: u32, width: u32, title: char[])
+    fn InitWindow(width: u32, height: u32, title: char[])
+    fn WindowShouldClose() -> bool
+    fn CloseWindow()
+    fn IsWindowReady() -> bool
+    fn IsWindowFullscreen() -> bool
+}
+
 type Z = variant {
     A(), B(), Z(A: u32)
 }
@@ -96,12 +110,20 @@ fn test() {
     let x: u32 =
         let y: u32 = 3 in y
 }
-
-
-extern "C" cRaylibWindow {
+extern "C" cRayclibWindow {
     fn InitWindow(width: u32, height: u32, title: char[])
     fn WindowShouldClose() -> bool
     fn CloseWindow()
     fn IsWindowReady() -> bool
     fn IsWindowFullscreen() -> bool
 }
+
+extern "C" ccRaylibWindow {
+    fn InitWindow(width: u32, height: u32, title: char[])
+    fn WindowShouldClose() -> bool
+    fn CloseWindow()
+    fn IsWindowReady() -> bool
+    fn IsWindowFullscreen() -> bool
+}
+
+

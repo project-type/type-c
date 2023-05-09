@@ -13,6 +13,7 @@
 #include "tokens.h"
 #include "ast_json.h"
 #include "parser_utils.h"
+#include "scope.h"
 
 #define ACCEPT parser_accept(parser)
 #define CURRENT lexeme = parser_peek(parser)
@@ -81,37 +82,49 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
 
     can_loop = 1; //lexeme.type == TOK_TYPE;
     while (can_loop) {
-        if(lexeme.type == TOK_EXTERN) {
-            parser_reject(parser);
-            ExternDecl* externDecl = parser_parseExternDecl(parser, node, node->scope);
-            char* strDecl = ast_json_serializeExternDecl(externDecl);
-            printf("%s\n", strDecl);
-            CURRENT;
-        }
-        if(lexeme.type == TOK_TYPE) {
-            parser_parseTypeDecl(parser, node, node->scope);
-            CURRENT;
-        }
-        else if(lexeme.type == TOK_EOF) {
-            printf("EOF reached, gracefully stopping.\n");
-            return;
-        }
-        else {
-            parser_reject(parser);
+        switch(lexeme.type) {
+            case TOK_EXTERN: {
+                parser_reject(parser);
+                ExternDecl *externDecl = parser_parseExternDecl(parser, node, node->scope);
+                // add externDecl to symbol table
+                ScopeRegResult res = scope_registerFFI(node->scope, externDecl);
+                if (res == SRRT_TOKEN_ALREADY_REGISTERED) {
+                    PARSER_ASSERT(0, "ExternDecl %s already registered", externDecl->name);
+                }
 
-            Statement * stmt = parser_parseStmt(parser, node, node->scope);
-            CURRENT;
-            if (stmt == NULL) {
-                PARSER_ASSERT(0, "Invalid token %s", token_type_to_string(lexeme.type));
+                //char* strDecl = ast_json_serializeExternDecl(externDecl);
+                //printf("%s\n", strDecl);
+                CURRENT;
+                break;
             }
-            printf("%s\n", ast_json_serializeStatement(stmt));
+            case TOK_TYPE: {
+                parser_parseTypeDecl(parser, node, node->scope);
+                CURRENT;
+                break;
+            }
+            case TOK_EOF: {
+                printf("EOF reached, gracefully stopping.\n");
+                return;
+            }
+            default:
+            {
+                parser_reject(parser);
 
-            /*
-            Expr* expr = parser_parseExpr(parser, node, node->scope);
+                Statement *stmt = parser_parseStmt(parser, node, node->scope);
+                CURRENT;
+                if (stmt == NULL) {
+                    PARSER_ASSERT(0, "Invalid token %s", token_type_to_string(lexeme.type));
+                }
+                printf("%s\n", ast_json_serializeStatement(stmt));
 
-            printf("%s\n", ast_json_serializeExpr(expr));
-            CURRENT;
-             */
+                /*
+                Expr* expr = parser_parseExpr(parser, node, node->scope);
+
+                printf("%s\n", ast_json_serializeExpr(expr));
+                CURRENT;
+                 */
+                break;
+            }
         }
     }
 }
@@ -150,12 +163,9 @@ ExternDecl* parser_parseExternDecl(Parser* parser, ASTNode* node, ASTScope* curr
         parser_reject(parser);
         FnHeader * header = parser_parseFnHeader(parser, node, currentScope);
         // make sure fn doesn't already exist
-        PARSER_ASSERT(map_get(&externDecl->methods, header->name) == NULL,
-               "method `%s` already exists in interface.", header->name);
+        PARSER_ASSERT(scope_ffi_addMethod(externDecl, header),
+               "method name `%s` already exists in ffi.", header->name);
 
-        // else we add it
-        map_set(&externDecl->methods, header->name, header);
-        vec_push(&externDecl->methodNames, header->name);
         // skip "," if any
         CURRENT;
         if(lexeme.type == TOK_COMMA) {
@@ -211,7 +221,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
         uint8_t can_loop = 1;
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
                "identifier expected but %s was found.", token_type_to_string(lexeme.type));
-
+        uint32_t idx = 0;
         while(can_loop) {
             // init generic param
             GenericParam * genericParam = ast_make_genericParam();
@@ -223,6 +233,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
             // get generic name
             genericParam->name = strdup(lexeme.string);
+            PARSER_ASSERT(scope_dtype_addGeneric(type, genericParam, idx++), "generic param `%s` already exists in type `%s`.", genericParam->name, type->name);
             ACCEPT;
             CURRENT;
             // check if have ":"
@@ -238,8 +249,6 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 genericParam->constraint = NULL;
             }
 
-            // add generic param
-            vec_push(&type->genericParams, genericParam);
             if(lexeme.type == TOK_GREATER){
                 can_loop = 0;
                 ACCEPT;
@@ -262,9 +271,9 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
     //printf("%s\n", ast_stringifyType(type_def));
-    printf("%s\n", ast_json_serializeDataType(type_def));
+    //printf("%s\n", ast_json_serializeDataType(type_def));
 
-    map_set(&node->scope->dataTypes, type->name, type);
+    PARSER_ASSERT(scope_registerType(currentScope, type), "type `%s` already exists.", type->name);
 }
 
 // <union_type> ::= <intersection_type> ( "|" <union_type> )*
@@ -514,10 +523,12 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
                         // check if it exists on parent
                         char *gtname = genericType->refType->pkg->ids.data[0];
                         uint32_t i;
-                        GenericParam *parentGenericType;
-                        vec_foreach(&parentReferee->genericParams, parentGenericType, i) {
-                            if (parentGenericType->isGeneric == 1) {
-                                if (strcmp(parentGenericType->name, gtname) == 0) {
+                        char* genericName = NULL;
+
+                        vec_foreach(&parentReferee->genericNames, genericName, i) {
+                            GenericParam **parentGenericType = map_get(&parentReferee->generics, genericName);
+                            if ((*parentGenericType)->isGeneric == 1) {
+                                if (strcmp((*parentGenericType)->name, gtname) == 0) {
                                     gparam->isGeneric = 1;
                                     gparam->name = strdup(gtname);
                                     break;
@@ -533,7 +544,9 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
             }
 
             //add to generic list
-            vec_push(&refType->genericParams, gparam);
+            //vec_push(&refType->genericParams, gparam);
+            vec_push(&refType->genericNames, gparam->name);
+            map_set(&refType->generics, gparam->name, gparam);
             lexeme = parser_peek(parser);
             if(lexeme.type == TOK_COMMA) {
                 ACCEPT;
@@ -2373,10 +2386,8 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
 
             // add it to our generic list
             // make sure we do not have duplicates by getting the element of the map with the name and asserting it is null
-            PARSER_ASSERT(map_get(&header->generics, lexeme.string) == NULL, "generic name `%s` already defined.", lexeme.string);
 
-            vec_push(&header->genericNames, strdup(lexeme.string));
-            map_set(&header->generics, lexeme.string, idx++);
+            PARSER_ASSERT(scope_fnheader_addGeneric(header, lexeme.string, idx++), "generic name `%s` already exists.", lexeme.string);
 
             // get current lexeme
             CURRENT;
@@ -2386,6 +2397,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
             if(lexeme.type == TOK_GREATER) {
                 can_loop = 0;
                 ACCEPT;
+                CURRENT;
             }
             else {
                 PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` or `>` expected in generic list but %s was found.", token_type_to_string(lexeme.type));
@@ -2405,8 +2417,12 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
     while(can_loop) {
         // PARSER_ASSERT ID
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected for arg declaration but %s was found.", token_type_to_string(lexeme.type));
+        FnArgument * arg = ast_type_makeFnArgument();
+        arg->isMutable = 0;
+        arg->name = strdup(lexeme.string);
+        PARSER_ASSERT(scope_fnheader_addArg(header, arg), "argument name `%s` already exists.", lexeme.string);
+
         // accept ID
-        char* name = strdup(lexeme.string);
         ACCEPT;
         CURRENT;
         // assert ":"
@@ -2415,19 +2431,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
         CURRENT;
         // assert type
         DataType* type = parser_parseTypeUnion(parser, node, NULL, currentScope);
-
-        // make sure arg doesn't already exist
-        PARSER_ASSERT(map_get(&header->type->args, name) == NULL, "argument name `%s` already exists.", name);
-
-        // make FnArg
-        FnArgument * arg = ast_type_makeFnArgument();
         arg->type = type;
-        arg->isMutable = 0;
-        arg->name = name;
-
-        // add arg to header
-        vec_push(&header->type->argNames, name);
-        map_set(&header->type->args, name, arg);
 
         // check if we reached ")"
         CURRENT;

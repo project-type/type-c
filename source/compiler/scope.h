@@ -8,6 +8,51 @@
 #include "ast.h"
 #include "parser.h"
 
-void resolve(ASTProgramNode* node);
+typedef enum ASTScopeResultType {
+    SCOPE_VARIABLE,
+    SCOPE_FUNCTION,
+    SCOPE_TYPE,
+    SCOPE_FFI,
+    SCOPE_MODULE
+}ASTScopeResultType;
+
+typedef struct ASTScopeResult {
+    ASTScopeResultType type;
+    union {
+        FnArgument * variable;
+        FnHeader * function;
+        DataType * dataType;
+        ExternDecl * ffi;
+        //ASTModuleDecl* module;
+    };
+}ASTScopeResult;
+
+/**
+ * Creating data
+ */
+
+typedef enum ScopeRegResult {
+    SRRT_TOKEN_ALREADY_REGISTERED=0,
+    SRRT_SUCCESS=1,
+}ScopeRegResult;
+
+
+ScopeRegResult scope_ffi_addMethod(ExternDecl* ffi, FnHeader* method);
+ScopeRegResult scope_fnheader_addGeneric(FnHeader* fn, char* genericName, uint32_t idx);
+ScopeRegResult scope_fnheader_addArg(FnHeader* fn, FnArgument* arg);
+ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericParam, uint32_t idx);
+
+ScopeRegResult scope_registerFFI(ASTScope* scope, ExternDecl* ffi);
+ScopeRegResult scope_registerVariable(ASTScope* scope, FnArgument* variable);
+ScopeRegResult scope_registerFunction(ASTScope* scope, FnHeader* function);
+ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType);
+
+//void scope_registerModule(ASTScope* scope, ASTModuleDecl* module);
+
+/**
+ * Validating data
+ */
+ASTScopeResult* scope_result_init(ASTScopeResultType type, void* data);
+ASTScopeResult* resolveElement(char* e, ASTScope* scope, uint8_t recursive);
 
 #endif //TYPE_C_SCOPE_H
