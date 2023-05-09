@@ -73,7 +73,7 @@ MU_TEST(test_type_declaration_1){
 
 MU_TEST(sample_1) {
     char* input = readFile("../../source/compiler/unittest/sample2.tc");
-    LexerState* lex = lexer_init("import.tc", input, strlen(input));
+    LexerState* lex = lexer_init("sample2.tc", input, strlen(input));
     Parser* parser = parser_init(lex);
     ASTNode* node = parser_parse(parser);
 }

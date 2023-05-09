@@ -14,65 +14,15 @@
 #include "error.h"
 #include "tokens.h"
 #include "ast_json.h"
-
-#define TTTS(t) token_type_to_string(t)
-
-void parser_assert(int cond, const char * rawcond, const char* func_name, int line, const char * fmt, ...) {
-    if (cond)
-        return;
-    char temp[1024];
-    va_list vl;
-    va_start(vl, fmt);
-    vsprintf(temp, fmt, vl);
-    va_end(vl);
-    fprintf(stdout, "Fatal error, assertion failed: `%s` in function `%s`, line %d \n", rawcond, func_name, line);
-    fprintf(stdout, "%s", temp);
-    fprintf(stdout, "\n");
-}
-
-char* extractLine(Parser* parser, Lexeme lexeme){
-    uint32_t token_len = lexeme.type != TOK_IDENTIFIER? strlen(TTTS(lexeme.type)) : strlen(lexeme.string);
-    char line[512] = {0};
-    uint32_t lineIndex1 = lexeme.pos;
-    // find new line pre pos:
-    while (lineIndex1 > 0 && parser->lexerState->buffer[lineIndex1-1] != '\n') {
-        lineIndex1--;
-    }
-    // find new line post pos:
-    uint32_t lineIndex2 = lexeme.pos;
-    while (lineIndex2 < parser->lexerState->len && parser->lexerState->buffer[lineIndex2] != '\n') {
-        lineIndex2++;
-    }
-    // create new string
-    uint32_t lineLength = lineIndex2 - lineIndex1;
-    strncpy(line, parser->lexerState->buffer + lineIndex1, lineLength);
-    // add new line
-    line[lineLength] = '\n';
-    // now we add spaces from new line until pos relative to line
-    uint32_t spaces = lexeme.pos - lineIndex1;
-    for (uint32_t i = 0; i < spaces; i++) {
-        line[lineLength+i+1] = ' ';
-    }
-    // add ^ equal to token length
-    for (uint32_t i = 0; i < token_len; i++) {
-        line[lineLength+spaces+i+1] = '^';
-    }
-    line[lineLength+token_len+spaces+3] = '\0';
+#include "parser_utils.h"
 
 
-    //line[lineLength+spaces+1] = '^';
-    //line[lineLength+spaces+2] = '\0';
-    return strdup(line);
-}
+
 
 #define ACCEPT parser_accept(parser)
 #define CURRENT lexeme = parser_peek(parser)
 #define EXPAND_LEXEME lexeme.line, lexeme.col, TTTS(lexeme.type)
-#define PARSER_ASSERT(c, msg, ...) {                            \
-char* ____track____2455 = c?"":extractLine(parser, lexeme);      \
-parser_assert(c, #c, __FUNCTION_NAME__, __LINE__ , msg, ##__VA_ARGS__);\
-if(!c)fprintf(stdout, "%s\n", ____track____2455);                     \
-assert(c);}
+
 
 Parser* parser_init(LexerState* lexerState) {
     Parser* parser = malloc(sizeof(Parser));
@@ -158,7 +108,7 @@ void parser_parseProgram(Parser* parser, ASTNode* node) {
             Statement * stmt = parser_parseStmt(parser, node, node->scope);
             CURRENT;
             if (stmt == NULL) {
-                PARSER_ASSERT(0, "Line %" PRIu32 ":%" PRIu32 ": Invalid token %s", EXPAND_LEXEME);
+                PARSER_ASSERT(0, "Invalid token %s", token_type_to_string(lexeme.type));
             }
             printf("%s\n", ast_json_serializeStatement(stmt));
 
@@ -177,22 +127,22 @@ ExternDecl* parser_parseExternDecl(Parser* parser, ASTNode* node, ASTScope* curr
 
     Lexeme lexeme = parser_peek(parser);
     // assert extern
-    PARSER_ASSERT(lexeme.type == TOK_EXTERN, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_EXTERN, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // assert string token
     lexeme = parser_peek(parser);
-    PARSER_ASSERT(lexeme.type == TOK_STRING_VAL, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_STRING_VAL, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
     // assert value is "C"
-    PARSER_ASSERT(strcmp(lexeme.string, "\"C\"") == 0, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(strcmp(lexeme.string, "\"C\"") == 0, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // assert identifier
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
     externDecl->name = strdup(lexeme.string);
     ACCEPT;
     // assert {
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
     // now we expect an interface method
@@ -201,16 +151,13 @@ ExternDecl* parser_parseExternDecl(Parser* parser, ASTNode* node, ASTScope* curr
     while(can_loop) {
         // parse interface method
         // we assert "fn"
-        PARSER_ASSERT(lexeme.type == TOK_FN,
-               "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_FN, "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
         // reject it
         parser_reject(parser);
         FnHeader * header = parser_parseFnHeader(parser, node, currentScope);
         // make sure fn doesn't already exist
         PARSER_ASSERT(map_get(&externDecl->methods, header->name) == NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" near %s, method `%s` already exists in interface.",
-               EXPAND_LEXEME, header->name);
+               "method `%s` already exists in interface.", header->name);
 
         // else we add it
         map_set(&externDecl->methods, header->name, header);
@@ -256,7 +203,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
     type->kind = DT_REFERENCE;
     ACCEPT;
     Lexeme lexeme = parser_peek(parser);
-    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
     type->name = strdup(lexeme.string);
     ACCEPT;
 
@@ -269,7 +216,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
         CURRENT;
         uint8_t can_loop = 1;
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+               "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
         while(can_loop) {
             // init generic param
@@ -278,8 +225,7 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
             // in a type declaration, all given templates in the referee are generic and not concrete.
             PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
-                   EXPAND_LEXEME);
+                   "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
             // get generic name
             genericParam->name = strdup(lexeme.string);
@@ -308,15 +254,14 @@ void parser_parseTypeDecl(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
             else {
                 PARSER_ASSERT(lexeme.type == TOK_COMMA,
-                       "Line: %"PRIu16", Col: %"PRIu16" `,` expected but %s was found.",
-                       EXPAND_LEXEME);
+                       "`,` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
             }
         }
     }
 
-    PARSER_ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_EQUAL, "`=` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     //lexeme = parser_peek(parser);
     DataType* type_def = parser_parseTypeUnion(parser, node, type, currentScope);
@@ -390,7 +335,7 @@ DataType* parser_parseTypeGroup(Parser* parser, ASTNode* node, DataType* parentR
         ACCEPT;
         DataType* type = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
         lexeme = parser_peek(parser);
-        PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
         // check if we have optional
@@ -437,8 +382,7 @@ DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parent
                 // value must in either int, hex, oct or bin
                 PARSER_ASSERT((lexeme.type == TOK_INT) || (lexeme.type == TOK_HEX_INT) ||
                        (lexeme.type == TOK_OCT_INT) || (lexeme.type == TOK_BINARY_INT),
-                       "Line: %"PRIu16", Col: %"PRIu16" `int` expected but %s was found.",
-                       EXPAND_LEXEME);
+                       "`int` expected but %s was found.", token_type_to_string(lexeme.type));
                 // parse the value
 
                 if(lexeme.type == TOK_INT) {
@@ -457,8 +401,7 @@ DataType * parser_parseTypeArray(Parser* parser, ASTNode* node, DataType* parent
                 ACCEPT;
                 lexeme = parser_peek(parser);
                 PARSER_ASSERT(lexeme.type == TOK_RBRACKET,
-                       "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
-                       EXPAND_LEXEME);
+                       "`]` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
             }
 
@@ -604,8 +547,7 @@ DataType* parser_parseTypeRef(Parser* parser, ASTNode* node, DataType* parentRef
             else {
                 // if no comma, we assert ">"
                 PARSER_ASSERT(lexeme.type == TOK_GREATER,
-                       "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.",
-                       EXPAND_LEXEME);
+                       "`>` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 can_loop = 0;
             }
@@ -654,7 +596,7 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* par
     }
 
 
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
     // now we expect an interface method
@@ -664,15 +606,13 @@ DataType* parser_parseTypeInterface(Parser* parser, ASTNode* node, DataType* par
         // parse interface method
         // we assert "fn"
         PARSER_ASSERT(lexeme.type == TOK_FN,
-               "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.",
-               EXPAND_LEXEME);
+               "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
         // reject it
         parser_reject(parser);
         FnHeader * header = parser_parseFnHeader(parser, node, currentScope);
         // make sure fn doesn't already exist
         PARSER_ASSERT(map_get(&interfaceType->interfaceType->methods, header->name) == NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" near %s, method `%s` already exists in interface.",
-               EXPAND_LEXEME, header->name);
+               "`%s` already exists in interface.", header->name);
 
         // else we add it
         map_set(&interfaceType->interfaceType->methods, header->name, header);
@@ -714,7 +654,7 @@ DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentR
     }
 
 
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.\n%s", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
     // now we expect an interface method
@@ -725,15 +665,13 @@ DataType* parser_parseTypeClass(Parser* parser, ASTNode* node, DataType* parentR
         // we assert "fn"
 
         PARSER_ASSERT(lexeme.type == TOK_FN || lexeme.type == TOK_LET,
-               "Line: %"PRIu16", Col: %"PRIu16" `fn` or `let` expected but %s was found\n%s",
-               EXPAND_LEXEME);
+               "`fn` or `let` expected but %s was found", token_type_to_string(lexeme.type));
         // reject it
         if(lexeme.type == TOK_FN){
             parser_reject(parser);
             Statement * stmt = parser_parseStmtFn(parser, node, currentScope);
             // assert stmt != NULL
-            PARSER_ASSERT(stmt != NULL, "Line: %"PRIu16", Col: %"PRIu16" invalid token `%s`.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(stmt != NULL, "invalid token `%s`", token_type_to_string(lexeme.type));
 
             FnDeclStatement * fnDecl = stmt->fnDecl;
             // add method name
@@ -780,7 +718,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
     // accept variant
     ACCEPT;
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // make sure we have an ID next
     CURRENT;
@@ -790,13 +728,13 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
     while(can_loop) {
         // we get the name of the variant
         // assert we have an ID
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found", token_type_to_string(lexeme.type));
 
         char* variantName = lexeme.string;
         // make sure the variant doesn't have constructor with same name, by checking variantType->variantType->constructors
         // using map_get
         PARSER_ASSERT(map_get(&variantType->variantType->constructors, variantName) == NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" near `%s` variant constructor with name %s already exists.", EXPAND_LEXEME);
+               "variant constructor with name %s already exists.", variantName);
 
         // we create a new VariantConstructor
         VariantConstructor* variantConstructor = ast_type_makeVariantConstructor();
@@ -815,7 +753,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
             uint8_t can_loop_2 = lexeme.type == TOK_IDENTIFIER;
             while(can_loop_2) {
                 // assert identifier
-                PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" identifier expected but %s was found.", EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
                 // we get the name of the argument
                 char* argName = lexeme.string;
@@ -825,7 +763,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
                 CURRENT;
 
                 // make sure we have a colon
-                PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
                 // we parse the type
@@ -837,7 +775,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
                 // add to argument list
 
                 // make sure arg name doesn't already exist
-                PARSER_ASSERT(map_get(&variantConstructor->args, argName) == NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, argument name `%s` already exists.", EXPAND_LEXEME, argName);
+                PARSER_ASSERT(map_get(&variantConstructor->args, argName) == NULL, "Argument name `%s` already exists.", argName);
                 vec_push(&variantConstructor->argNames, argName);
                 map_set(&variantConstructor->args, argName, arg);
 
@@ -854,7 +792,7 @@ DataType* parser_parseTypeVariant(Parser* parser, ASTNode* node, DataType* paren
                 }
                 else {
                     // throw error, we need either a comma or a ")"
-                    PARSER_ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" near %s, `,` or `)` expected but %s was found.", EXPAND_LEXEME);
+                    PARSER_ASSERT(0, "`,` or `)` expected but %s was found.", token_type_to_string(lexeme.type));
                 }
             }
         }
@@ -896,7 +834,7 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
     else {
         //parser_reject(parser);
     }
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
     // prepare to loop
@@ -907,14 +845,14 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
         StructAttribute* attr = ast_type_makeStructAttribute();
         // parse identifier
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+               "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         attr->name = strdup(lexeme.string);
         ACCEPT;
         CURRENT;
         // parse :
 
         PARSER_ASSERT(lexeme.type == TOK_COLON,
-               "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+               "`:` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
         // parse type
@@ -923,7 +861,7 @@ DataType* parser_parseTypeStruct(Parser* parser, ASTNode* node, DataType* parent
         // add to struct
         // make sure type doesn't exist first
         PARSER_ASSERT(map_get(&structType->structType->attributes, attr->name) == NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" near %s, attribute `%s` already exists in struct.", EXPAND_LEXEME, attr->name);
+               "attribute `%s` already exists in struct.", attr->name);
 
         vec_push(&structType->structType->attributeNames, attr->name);
         map_set(&structType->structType->attributes, attr->name, attr);
@@ -952,7 +890,7 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope* currentS
     // current position: enum
     ACCEPT;
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
 
@@ -961,14 +899,12 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope* currentS
 
     while(can_loop) {
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+               "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         char* name = lexeme.string;
         // TODO: make sure index doesn't exeed some limit?
 
         if (map_get(&enum_->enums, name) != NULL) {
-            PARSER_ASSERT(1==0,
-                   "Line: %"PRIu16", Col: %"PRIu16", enum value duplicated: %s",
-                   lexeme.line, lexeme.col, lexeme.string);
+            PARSER_ASSERT(1==0, "enum value duplicated: %s", token_type_to_string(lexeme.type));
         }
         map_set(&enum_->enums, name, index++);
         vec_push(&enum_->enumNames, name);
@@ -985,7 +921,7 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTNode* node, ASTScope* currentS
             can_loop = 0;
         }
     }
-    PARSER_ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     DataType * enumType = ast_type_makeType();
     enumType->kind = DT_ENUM;
@@ -1002,7 +938,7 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope)
     PackageID* source = parser_parsePackage(parser, node, currentScope);
     Lexeme lexeme = parser_peek(parser);
     // next we need an import
-    PARSER_ASSERT(lexeme.type == TOK_IMPORT, "Line: %"PRIu16", Col: %"PRIu16" `import` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_IMPORT, "`import` expected but %s was found.", token_type_to_string(lexeme.type));
 
     ACCEPT;
 
@@ -1018,7 +954,7 @@ void parser_parseFromStmt(Parser* parser, ASTNode* node, ASTScope* currentScope)
             hasAlias = 1;
             ACCEPT;
             lexeme = parser_peek(parser);
-            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
             alias = strdup(lexeme.string);
             ACCEPT;
         }
@@ -1045,7 +981,7 @@ void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee,
     while(can_loop) {
         // we don't look out for id because it might be an anonymous type
         //PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-        //       "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
+        //       "identifier expected but %s was found.",
         //       EXPAND_LEXEME);
         // parse type
         parser_reject(parser);
@@ -1060,9 +996,7 @@ void parser_parseExtends(Parser* parser, ASTNode* node, DataType* parentReferee,
         }
         else {
             // if no comma, we assert ")"
-            PARSER_ASSERT(lexeme.type == TOK_RPAREN,
-                   "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
             ACCEPT;
             can_loop = 0;
         }
@@ -1073,7 +1007,7 @@ DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentRefe
     // current position: fn
     ACCEPT;
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
 
@@ -1090,7 +1024,7 @@ DataType* parser_parseTypeFn(Parser* parser, ASTNode* node, DataType* parentRefe
         // parse return type
         fnType->fnType->returnType = parser_parseTypeUnion(parser, node, fnType, currentScope);
         // assert return type is not null
-        PARSER_ASSERT(fnType->fnType->returnType != NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, return type null detected, this is a parser issue.", EXPAND_LEXEME);
+        PARSER_ASSERT(fnType->fnType->returnType != NULL, "Unexpected symbol while parsing data type `%s`.", token_type_to_string(lexeme.type));
     }
     else {
         parser_reject(parser);
@@ -1108,15 +1042,15 @@ DataType* parser_parseTypePtr(Parser* parser, ASTNode* node, DataType* parentRef
     // currently at ptr
     ACCEPT;
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LESS, "Line: %"PRIu16", Col: %"PRIu16" `<` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LESS, "`<` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse type
     ptrType->ptrType->target = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
     // assert type is not null
-    PARSER_ASSERT(ptrType->ptrType->target != NULL, "Line: %"PRIu16", Col: %"PRIu16" near %s, type null detected, this is a parser issue.", EXPAND_LEXEME);
+    PARSER_ASSERT(ptrType->ptrType->target != NULL, "Invalid symbol `%s` while parsing pointer target", token_type_to_string(lexeme.type));
     // assert we have a ">"
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_GREATER, "`>` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     return ptrType;
 }
@@ -1128,22 +1062,22 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
     ACCEPT;
     // assert we have a "<"
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LESS, "Line: %"PRIu16", Col: %"PRIu16" `<` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LESS, "`<` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse type
     processType->processType->inputType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
     CURRENT;
     // assert we have a ","
-    PARSER_ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     processType->processType->outputType = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
     CURRENT;
     // assert we have a ">"
-    PARSER_ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_GREATER, "`>` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // assert "("
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
     uint8_t loop = lexeme.type != TOK_RPAREN;
@@ -1151,12 +1085,12 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
         // create argument
         FnArgument* fnarg = ast_type_makeFnArgument();
         // assert ID
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         fnarg->name = strdup(lexeme.string);
         ACCEPT;
         CURRENT;
         // assert ":"
-        PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // parse type
         fnarg->type = parser_parseTypeUnion(parser, node, parentReferee, currentScope);
@@ -1167,7 +1101,7 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
             CURRENT;
         }
         else {
-            PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
 
             loop = 0;
         }
@@ -1178,7 +1112,7 @@ DataType * parser_parseTypeProcess(Parser* parser, ASTNode* node, DataType* pare
     ACCEPT;
     CURRENT;
     // assert "{"
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     parser_reject(parser);
     // parse block
     processType->processType->body = parser_parseStmtBlock(parser, node, currentScope);
@@ -1201,17 +1135,17 @@ void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentT
             CURRENT;
         }
         // assert an id
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         fnarg->name = strdup(lexeme.string);
         ACCEPT;
         // assert ":"
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // parse type
         fnarg->type = parser_parseTypeUnion(parser, node, parentType, currentScope);
         // assert type is not null
-        PARSER_ASSERT(fnarg->type != NULL, "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.", EXPAND_LEXEME);
+        PARSER_ASSERT(fnarg->type != NULL, "Invalid symbol `%s` while parsing function argument type", token_type_to_string(lexeme.type));
         // add to args
         map_set(args, fnarg->name, fnarg);
         vec_push(argsNames, fnarg->name);
@@ -1223,8 +1157,7 @@ void parser_parseFnDefArguments(Parser* parser, ASTNode* node, DataType* parentT
         else {
             // if no comma, we assert ")"
             PARSER_ASSERT(lexeme.type == TOK_RPAREN,
-                   "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.",
-                   EXPAND_LEXEME);
+                   "`)` expected but %s was found.", token_type_to_string(lexeme.type));
             ACCEPT;
             loop = 0;
         }
@@ -1246,7 +1179,7 @@ void parser_parseImportStmt(Parser* parser, ASTNode* node, ASTScope* currentScop
         hasAlias = 1;
         ACCEPT;
         lexeme = parser_peek(parser);
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         alias = strdup(lexeme.string);
         ACCEPT;
     }
@@ -1281,8 +1214,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
         expr->letExpr = let;
 
         // assert let
-        PARSER_ASSERT(lexeme.type == TOK_LET, "Line: %"PRIu16", Col: %"PRIu16" `let` expected but %s was found.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_LET, "`let` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
         CURRENT;
@@ -1318,21 +1250,18 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 }
                 // assert ID
                 PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-                       "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+                       "identifier expected but %s was found.", token_type_to_string(lexeme.type));
                 var->name = strdup(lexeme.string);
                 ACCEPT;
                 CURRENT;
                 // assert ":"
                 if(lexeme.type == TOK_COLON) {
-                    PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
-                           EXPAND_LEXEME);
+                    PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
                     // parse type
                     var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
                     // assert type is not null
-                    PARSER_ASSERT(var->type != NULL,
-                           "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
-                           EXPAND_LEXEME);
+                    PARSER_ASSERT(var->type != NULL, "Invalid symbol `%s` while parsing variable type", token_type_to_string(lexeme.type));
 
                     // check if we have a comma
                     CURRENT;
@@ -1356,14 +1285,12 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 if (expect[0] == '[') {
                     // assert "]"
                     PARSER_ASSERT(lexeme.type == TOK_RBRACKET,
-                           "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
-                           EXPAND_LEXEME);
+                           "`]` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
                     CURRENT;
                 } else if (expect[0] == '{') {
                     // assert "]"
-                    PARSER_ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
-                           EXPAND_LEXEME);
+                    PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`]` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
                     CURRENT;
                 }
@@ -1371,16 +1298,13 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
             CURRENT;
             // assert "="
-            PARSER_ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_EQUAL, "`=` expected but %s was found.", token_type_to_string(lexeme.type));
             ACCEPT;
 
             Expr *initializer = parser_parseExpr(parser, node, currentScope);
             letDecl->initializer = initializer;
             // assert initializer is not null
-            PARSER_ASSERT(initializer != NULL,
-                   "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(initializer != NULL, "Invalid symbol `%s` while parsing variable init value", token_type_to_string(lexeme.type));
             // add the decl to the let uhs
             vec_push(&let->letList, letDecl);
 
@@ -1398,16 +1322,14 @@ Expr* parser_parseLetExpr(Parser* parser, ASTNode* node, ASTScope* currentScope)
 
         // assert "in"
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_IN, "Line: %"PRIu16", Col: %"PRIu16" `in` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IN, "`in` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
         // parse in uhs
         Expr *inExpr = parser_parseExpr(parser, node, currentScope);
         let->inExpr = inExpr;
         // assert in uhs is not null
-        PARSER_ASSERT(inExpr != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(inExpr != NULL, "Invalid symbol `%s` while parsing `in` expression", token_type_to_string(lexeme.type));
 
         return expr;
     }
@@ -1429,7 +1351,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
     expr->matchExpr = match;
     // assert "{"
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     uint8_t loop = 1;
@@ -1438,15 +1360,15 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
 
         Expr* condition = parser_parseExpr(parser, node, currentScope);
         // assert condition is not null
-        PARSER_ASSERT(condition != NULL, "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.", EXPAND_LEXEME);
+        PARSER_ASSERT(condition != NULL, "Invalid symbol `%s` while parsing match condition", token_type_to_string(lexeme.type));
 
         CURRENT;
         // assert "=>"
-        PARSER_ASSERT(lexeme.type == TOK_CASE_EXPR, "Line: %"PRIu16", Col: %"PRIu16" `=>` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_CASE_EXPR, "`=>` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         Expr* result = parser_parseExpr(parser, node, currentScope);
         // assert result is not null
-        PARSER_ASSERT(result != NULL, "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.", EXPAND_LEXEME);
+        PARSER_ASSERT(result != NULL, "Invalid symbol `%s` while parsing case expression", token_type_to_string(lexeme.type));
         CaseExpr* case_ = ast_expr_makeCaseExpr(condition, result);
 
         CURRENT;
@@ -1465,7 +1387,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTNode* node, ASTScope* currentScop
     }
     // assert "}"
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     return expr;
 }
@@ -1499,7 +1421,7 @@ Expr* parser_parseOpAssign(Parser* parser, ASTNode* node, ASTScope* currentScope
             binaryExpr->binaryExpr->type = BET_DIV_ASSIGN;
         else
             // assert 0==1
-            PARSER_ASSERT(0==1, "Line: %"PRIu16", Col: %"PRIu16" This is a parser error", EXPAND_LEXEME);
+            PARSER_ASSERT(0==1, "This is a parser error");
 
 
         Expr* rhs = parser_parseOpAssign(parser, node, currentScope);
@@ -1732,7 +1654,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
                     ACCEPT;
                 }
                 else {
-                    PARSER_ASSERT(lexeme.type == TOK_GREATER, "Line: %"PRIu16", Col: %"PRIu16" `>` expected but %s was found.", EXPAND_LEXEME);
+                    PARSER_ASSERT(lexeme.type == TOK_GREATER, "`>` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
                     can_loop = 0;
                 }
@@ -1740,7 +1662,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
 
             // assert that the next token is a (
             CURRENT;
-            PARSER_ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
 
             ACCEPT;
             CURRENT;
@@ -1754,7 +1676,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTNode* node, ASTScope* currentScop
                     ACCEPT;
                 }
                 else {
-                    PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+                    PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
                     can_loop = 0;
                 }
@@ -1924,7 +1846,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
         new->newExpr = ast_expr_makeNewExpr(dt);
 
         // assert dt not NULL
-        PARSER_ASSERT(dt != NULL, "Line: %"PRIu16", Col: %"PRIu16" `new` datatype returned NULL, this is a parser issue", lexeme.line, lexeme.col);
+        PARSER_ASSERT(dt != NULL, "Invalid symbol `%s` while parsing `new` expression", token_type_to_string(lexeme.type));
         CURRENT;
         // check for "("
         if(lexeme.type == TOK_LPAREN) {
@@ -1934,7 +1856,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
             while(can_loop){
                 Expr* arg = parser_parseExpr(parser, node, currentScope);
                 // assert arg not null
-                PARSER_ASSERT(arg != NULL, "Line: %"PRIu16", Col: %"PRIu16" `new` argument returned NULL, this is a parser issue", lexeme.line, lexeme.col);
+                PARSER_ASSERT(arg != NULL, "Invalid symbol `%s` while parsing `new` expression arguments", token_type_to_string(lexeme.type));
 
                 vec_push(&new->newExpr->args, arg);
 
@@ -1944,7 +1866,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
                 }
                 else {
                     // check for ")"
-                    PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but `%s` was found", lexeme.line, lexeme.col);
+                    PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but `%s` was found", token_type_to_string(lexeme.type));
                     can_loop = 0;
                 }
             }
@@ -1973,7 +1895,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
             parser_reject(parser);
             spawn->spawnExpr->callback = parser_parseExpr(parser, node, currentScope);
             CURRENT;
-            PARSER_ASSERT(lexeme.type == TOK_PROCESS_LINK, "Line: %"PRIu16", Col: %"PRIu16" `->` expected but `%s` was found", lexeme.line, lexeme.col);
+            PARSER_ASSERT(lexeme.type == TOK_PROCESS_LINK, "`->` expected but `%s` was found", token_type_to_string(lexeme.type));
             ACCEPT;
             spawn->spawnExpr->expr = parser_parseExpr(parser, node, currentScope);
             // TODO: assert callback is valid and expr is of type process
@@ -1995,7 +1917,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTNode* node, ASTScope* currentScope)
             parser_reject(parser);
             emit->emitExpr->process = parser_parseExpr(parser, node, currentScope);
             CURRENT;
-            PARSER_ASSERT(lexeme.type == TOK_PROCESS_LINK, "Line: %"PRIu16", Col: %"PRIu16" `->` expected but `%s` was found", lexeme.line, lexeme.col);
+            PARSER_ASSERT(lexeme.type == TOK_PROCESS_LINK, "`->` expected but `%s` was found", token_type_to_string(lexeme.type));
             ACCEPT;
             emit->emitExpr->msg = parser_parseExpr(parser, node, currentScope);
             return  emit;
@@ -2061,7 +1983,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
         }
         // assert ]
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_RBRACKET, "`]` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         Expr* expr = ast_expr_makeExpr(ET_INDEX_ACCESS);
         expr->indexAccessExpr = idx;
@@ -2085,7 +2007,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTNode* node, ASTScope* currentScop
                 ACCEPT;
             }
             else {
-                PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 can_loop = 0;
             }
@@ -2132,7 +2054,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         }
         else{
             // assert {
-            PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` or `=` expected but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` or `=` expected but %s was found.", token_type_to_string(lexeme.type));
             expr->lambdaExpr->bodyType = FBT_BLOCK;
             parser_reject(parser);
             expr->lambdaExpr->block = parser_parseStmtBlock(parser, node, expr->lambdaExpr->scope);
@@ -2146,7 +2068,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         Expr* expr = parser_parseExpr(parser, node, currentScope);
         // assert )
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         return expr;
     }
@@ -2171,7 +2093,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
             }
         }
         // assert ]
-        PARSER_ASSERT(lexeme.type == TOK_RBRACKET, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_RBRACKET, "`]` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         Expr* expr = ast_expr_makeExpr(ET_ARRAY_CONSTRUCTION);
         expr->arrayConstructionExpr = arrayConstructionExpr;
@@ -2200,12 +2122,12 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
                     CURRENT;
                     // we make sure format is <id>":"<expr> (","<id>":"<expr>)*
                     // we parse the id
-                    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+                    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
                     char* argName = strdup(lexeme.string);
                     ACCEPT;
                     // we assert ":"
                     CURRENT;
-                    PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.", EXPAND_LEXEME);
+                    PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
                     ACCEPT;
 
                     Expr* value = parser_parseExpr(parser, node, currentScope);
@@ -2247,7 +2169,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
             }
             else {
                 // assert }
-                PARSER_ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 can_loop = 0;
                 parser_reject(parser);
@@ -2265,12 +2187,12 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         ACCEPT;
         // assert "("
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         expr->unsafeExpr->expr = parser_parseExpr(parser, node, currentScope);
         // assert ")"
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
         return expr;
@@ -2282,25 +2204,25 @@ Expr* parser_parseOpValue(Parser* parser, ASTNode* node, ASTScope* currentScope)
         ifElseExpr->condition = parser_parseExpr(parser, node, currentScope);
         // assert {
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         ifElseExpr->ifExpr = parser_parseExpr(parser, node, currentScope);
         // assert }
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         CURRENT;
         // assert else
-        PARSER_ASSERT(lexeme.type == TOK_ELSE, "Line: %"PRIu16", Col: %"PRIu16" `else` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_ELSE, "`else` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // assert {
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         ifElseExpr->elseExpr = parser_parseExpr(parser, node, currentScope);
         CURRENT;
         // assert }
-        PARSER_ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `}` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // build expr
         Expr* expr = ast_expr_makeExpr(ET_IF_ELSE);
@@ -2382,7 +2304,7 @@ Expr* parser_parseLiteral(Parser* parser, ASTNode* node, ASTScope* currentScope)
 PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope* currentScope) {
     PackageID * package = ast_makePackageID();
     Lexeme lexeme = parser_peek(parser);
-    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier/package` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "`identifier/package` expected but %s was found.", token_type_to_string(lexeme.type));
     vec_push(&package->ids, strdup(lexeme.string));
 
     ACCEPT;
@@ -2391,7 +2313,7 @@ PackageID* parser_parsePackage(Parser* parser, ASTNode* node, ASTScope* currentS
     uint8_t can_go = lexeme.type == TOK_DOT;
     while(can_go) {
         lexeme = parser_peek(parser);
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier/package` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "`identifier/package` expected but %s was found.", token_type_to_string(lexeme.type));
         vec_push(&package->ids, strdup(lexeme.string));
         ACCEPT;
 
@@ -2412,11 +2334,11 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
     header->type = ast_type_makeFn();
     // assert we are at "fn"
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_FN, "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_FN, "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
     // assert we got a name
-    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
     header->name = strdup(lexeme.string);
     // accept name
     ACCEPT;
@@ -2434,11 +2356,11 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
         uint32_t idx = 0;
         while(can_loop) {
             // assert its an ID
-            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected in function header but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected in function header but %s was found.", token_type_to_string(lexeme.type));
 
             // add it to our generic list
             // make sure we do not have duplicates by getting the element of the map with the name and asserting it is null
-            PARSER_ASSERT(map_get(&header->generics, lexeme.string) == NULL, "Line: %"PRIu16", Col: %"PRIu16" generic name `%s` already defined.", EXPAND_LEXEME);
+            PARSER_ASSERT(map_get(&header->generics, lexeme.string) == NULL, "generic name `%s` already defined.", lexeme.string);
 
             vec_push(&header->genericNames, strdup(lexeme.string));
             map_set(&header->generics, lexeme.string, idx++);
@@ -2453,14 +2375,14 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
                 ACCEPT;
             }
             else {
-                PARSER_ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `>` expected in generic list but %s was found.", EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` or `>` expected in generic list but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
             }
         }
     }
     // assert we have "("
-    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected after function name but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected after function name but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     // we are going to parse the arguments
@@ -2469,20 +2391,20 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
     // create fnHeader object
     while(can_loop) {
         // PARSER_ASSERT ID
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected for arg declaration but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected for arg declaration but %s was found.", token_type_to_string(lexeme.type));
         // accept ID
         char* name = strdup(lexeme.string);
         ACCEPT;
         CURRENT;
         // assert ":"
-        PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected after arg name but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected after arg name but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         CURRENT;
         // assert type
         DataType* type = parser_parseTypeUnion(parser, node, NULL, currentScope);
 
         // make sure arg doesn't already exist
-        PARSER_ASSERT(map_get(&header->type->args, name) == NULL, "Line: %"PRIu16", Col: %"PRIu16" argument name `%s` already exists.", EXPAND_LEXEME);
+        PARSER_ASSERT(map_get(&header->type->args, name) == NULL, "argument name `%s` already exists.", name);
 
         // make FnArg
         FnArgument * arg = ast_type_makeFnArgument();
@@ -2501,7 +2423,7 @@ FnHeader* parser_parseFnHeader(Parser* parser, ASTNode* node, ASTScope* currentS
 
         }
         else {
-            PARSER_ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `)` expected after arg declaration but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` or `)` expected after arg declaration but %s was found.", token_type_to_string(lexeme.type));
             ACCEPT;
             CURRENT;
         }
@@ -2527,7 +2449,7 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
     header->type = ast_type_makeFn();
     // assert we are at "fn"
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_FN, "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_FN, "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     // if we have "<" it's a generic
@@ -2543,11 +2465,11 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
         uint32_t idx = 0;
         while(can_loop) {
             // assert its an ID
-            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected in function header but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected in function header but %s was found.", token_type_to_string(lexeme.type));
 
             // add it to our generic list
             // make sure we do not have duplicates by getting the element of the map with the name and asserting it is null
-            PARSER_ASSERT(map_get(&header->generics, lexeme.string) == NULL, "Line: %"PRIu16", Col: %"PRIu16" generic name `%s` already defined.", EXPAND_LEXEME);
+            PARSER_ASSERT(map_get(&header->generics, lexeme.string) == NULL, "generic name `%s` already defined.", lexeme.string);
 
             vec_push(&header->genericNames, strdup(lexeme.string));
             map_set(&header->generics, lexeme.string, idx++);
@@ -2563,14 +2485,14 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
                 CURRENT;
             }
             else {
-                PARSER_ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `>` expected in generic list but %s was found.", EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` or `>` expected in generic list but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
             }
         }
     }
     // assert we have "("
-    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected after function name but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected after function name but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     // we are going to parse the arguments
@@ -2579,20 +2501,20 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
     // create fnHeader object
     while(can_loop) {
         // PARSER_ASSERT ID
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected for arg declaration but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected for arg declaration but %s was found.", token_type_to_string(lexeme.type));
         // accept ID
         char* name = strdup(lexeme.string);
         ACCEPT;
         CURRENT;
         // assert ":"
-        PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected after arg name but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected after arg name but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         CURRENT;
         // assert type
         DataType* type = parser_parseTypeUnion(parser, node, NULL, currentScope);
 
         // make sure arg doesn't already exist
-        PARSER_ASSERT(map_get(&header->type->args, name) == NULL, "Line: %"PRIu16", Col: %"PRIu16" argument name `%s` already exists.", EXPAND_LEXEME);
+        PARSER_ASSERT(map_get(&header->type->args, name) == NULL, "argument name `%s` already exists.");
 
         // make FnArg
         FnArgument * arg = ast_type_makeFnArgument();
@@ -2611,7 +2533,7 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, ASTNode* node, DataType* pa
             ACCEPT;
         }
         else {
-            PARSER_ASSERT(lexeme.type == TOK_COMMA, "Line: %"PRIu16", Col: %"PRIu16" `,` or `)` expected after arg declaration but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_COMMA, "`,` or `)` expected after arg declaration but %s was found.", token_type_to_string(lexeme.type));
             ACCEPT;
             CURRENT;
         }
@@ -2710,7 +2632,7 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
     stmt->varDecl = ast_stmt_makeVarDeclStatement(currentScope);
     Lexeme CURRENT;
     // assert let
-    PARSER_ASSERT(lexeme.type == TOK_LET, "Line: %"PRIu16", Col: %"PRIu16" `let` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LET, "`let` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     CURRENT;
@@ -2746,21 +2668,18 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
             }
             // assert ID
             PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+                   "identifier expected but %s was found.", token_type_to_string(lexeme.type));
             var->name = strdup(lexeme.string);
             ACCEPT;
             CURRENT;
             if(lexeme.type == TOK_COLON){
                 // assert ":"
-                PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
-                       EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 // parse type
                 var->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
                 // assert type is not null
-                PARSER_ASSERT(var->type != NULL,
-                       "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
-                       EXPAND_LEXEME);
+                PARSER_ASSERT(var->type != NULL,"Invalid symbol %s while parsing variable data type", var->name);
                 CURRENT;
             }
             // add to args
@@ -2784,14 +2703,12 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
             if (expect[0] == '[') {
                 // assert "]"
                 PARSER_ASSERT(lexeme.type == TOK_RBRACKET,
-                       "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
-                       EXPAND_LEXEME);
+                       "`]` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
             } else if (expect[0] == '{') {
                 // assert "]"
-                PARSER_ASSERT(lexeme.type == TOK_RBRACE, "Line: %"PRIu16", Col: %"PRIu16" `]` expected but %s was found.",
-                       EXPAND_LEXEME);
+                PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`]` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
             }
@@ -2799,16 +2716,13 @@ Statement* parser_parseStmtLet(Parser* parser, ASTNode* node, ASTScope* currentS
 
         CURRENT;
         // assert "="
-        PARSER_ASSERT(lexeme.type == TOK_EQUAL, "Line: %"PRIu16", Col: %"PRIu16" `=` expected but %s was found.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_EQUAL, "`=` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
         Expr *initializer = parser_parseExpr(parser, node, currentScope);
         letDecl->initializer = initializer;
         // assert initializer is not null
-        PARSER_ASSERT(initializer != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `uhs` near %s, generated a NULL uhs. This is a parser issue.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(initializer != NULL, "Invalid symbol %s while parsing variable initializer", token_type_to_string(lexeme.type));
         // add the decl to the let uhs
         vec_push(&stmt->varDecl->letList, letDecl);
 
@@ -2833,13 +2747,12 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
 
     Lexeme CURRENT;
     // assert fn
-    PARSER_ASSERT(lexeme.type == TOK_FN, "Line: %"PRIu16", Col: %"PRIu16" `fn` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_FN, "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     CURRENT;
     // assert ID
-    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
     stmt->fnDecl->header->name = strdup(lexeme.string);
     ACCEPT;
     CURRENT;
@@ -2852,7 +2765,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         CURRENT;
         uint8_t can_loop = 1;
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-               "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.", EXPAND_LEXEME);
+               "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
         while(can_loop) {
             // init generic param
@@ -2861,8 +2774,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
 
             // in a type declaration, all given templates in the referee are generic and not concrete.
             PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
-                   "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
-                   EXPAND_LEXEME);
+                   "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
             // get generic name
             genericParam->name = strdup(lexeme.string);
@@ -2891,8 +2803,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
 
             else {
                 PARSER_ASSERT(lexeme.type == TOK_COMMA,
-                       "Line: %"PRIu16", Col: %"PRIu16" `,` expected but %s was found.",
-                       EXPAND_LEXEME);
+                       "`,` expected but %s was found.", token_type_to_string(lexeme.type));
                 ACCEPT;
                 CURRENT;
             }
@@ -2900,7 +2811,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
     }
 
     // assert "("
-    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "Line: %"PRIu16", Col: %"PRIu16" `(` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     CURRENT;
@@ -2914,21 +2825,18 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
             CURRENT;
         }
         // assert ID
-        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "Line: %"PRIu16", Col: %"PRIu16" `identifier` expected but %s was found.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         arg->name = strdup(lexeme.string);
         ACCEPT;
         CURRENT;
         // assert ":"
-        PARSER_ASSERT(lexeme.type == TOK_COLON, "Line: %"PRIu16", Col: %"PRIu16" `:` expected but %s was found.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // parse type
         arg->type = parser_parseTypeUnion(parser, node, NULL, currentScope);
         // assert type is not null
         PARSER_ASSERT(arg->type != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
-               EXPAND_LEXEME);
+               "`type` near %s, generated a NULL type. This is a parser issue.");
         // add to args
         map_set(&stmt->fnDecl->header->type->args, arg->name, arg);
         vec_push(&stmt->fnDecl->header->type->argNames, arg->name);
@@ -2939,7 +2847,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
             ACCEPT;
             CURRENT;
         } else {
-            PARSER_ASSERT(lexeme.type == TOK_RPAREN, "Line: %"PRIu16", Col: %"PRIu16" `)` expected but %s was found.", EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
             loop = 0;
         }
     }
@@ -2953,8 +2861,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         stmt->fnDecl->header->type->returnType = parser_parseTypeUnion(parser, node, NULL, currentScope);
         // assert type is not null
         PARSER_ASSERT(stmt->fnDecl->header->type->returnType != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `type` near %s, generated a NULL type. This is a parser issue.",
-               EXPAND_LEXEME);
+               "`type` near %s, generated a NULL type. This is a parser issue.");
         ACCEPT;
         CURRENT;
 
@@ -2970,9 +2877,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
         // TODO: update current
         stmt->fnDecl->expr = parser_parseExpr(parser, node, stmt->fnDecl->scope);
         // assert body is not null
-        PARSER_ASSERT(stmt->fnDecl->expr != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `body` near %s, generated a NULL body. This is a parser issue.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(stmt->fnDecl->expr != NULL, "Invalid synbol %s while parsing function expression.");
         ACCEPT;
         CURRENT;
     } else if (lexeme.type == TOK_LBRACE) {
@@ -2982,7 +2887,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTNode* node, ASTScope* currentSc
     } else {
         parser_reject(parser);
         // assert false
-        PARSER_ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" `=` or `{` expected but %s was found.", EXPAND_LEXEME);
+        PARSER_ASSERT(0, "`=` or `{` expected but %s was found.", token_type_to_string(lexeme.type));
     }
     return stmt;
 }
@@ -2993,14 +2898,14 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTNode* node, ASTScope* curren
     stmt->blockStmt = ast_stmt_makeBlockStatement(currentScope);
     // assert {
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
 
     uint8_t loop = 1;
 
     while(loop) {
         Statement * s = parser_parseStmt(parser, node, stmt->blockStmt->scope);
-        PARSER_ASSERT(s != NULL, "Line: %"PRIu16", Col: %"PRIu16" `statement` near %s, generated a NULL statement. This is a parser issue.", EXPAND_LEXEME);
+        PARSER_ASSERT(s != NULL, "Invalid symbol %s while parsing block statement.", token_type_to_string(lexeme.type));
         vec_push(&stmt->blockStmt->stmts, s);
         // TODO: free s
 
@@ -3024,7 +2929,7 @@ Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentSc
     stmt->ifChain = ast_stmt_makeIfChainStatement();
     // assert if
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_IF, "Line: %"PRIu16", Col: %"PRIu16" `if` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_IF, "`if` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
     // prepare to loop
@@ -3036,9 +2941,7 @@ Statement* parser_parseStmtIf(Parser* parser, ASTNode* node, ASTScope* currentSc
     while (loop) {
         Expr* condition = parser_parseExpr(parser, node, currentScope);
         // assert condition is not null
-        PARSER_ASSERT(condition != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(condition != NULL, "Invalid symbol %s while parsing if condition", token_type_to_string(lexeme.type));
         // next token
 
 
@@ -3075,7 +2978,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
     // get current token
     Lexeme CURRENT;
     // assert match
-    PARSER_ASSERT(lexeme.type == TOK_MATCH, "Line: %"PRIu16", Col: %"PRIu16" `match` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_MATCH, "`match` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // create statement instance
     Statement* stmt = ast_stmt_makeStatement(ST_MATCH);
@@ -3083,12 +2986,10 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
     // parse the main expression to be matched
     stmt->match->expr = parser_parseExpr(parser, node, currentScope);
     // assert expr is not null
-    PARSER_ASSERT(stmt->match->expr != NULL,
-           "Line: %"PRIu16", Col: %"PRIu16" `expr` near %s, generated a NULL expr. This is a parser issue.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(stmt->match->expr != NULL, "Invalid symbol %s while parsing match expression.", token_type_to_string(lexeme.type));
     // assert {
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // prepare to loop
     uint8_t loop = 1;
@@ -3106,21 +3007,16 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTNode* node, ASTScope* curren
             CaseStatement *caseStmt = ast_stmt_makeCaseStatement();
             // parse the condition
             caseStmt->condition = parser_parseExpr(parser, node, currentScope);
-            PARSER_ASSERT(caseStmt->condition != NULL,
-                   "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(caseStmt->condition != NULL,"Invalid symbol %s while parsing match case condition.", token_type_to_string(lexeme.type));
             // next token
             CURRENT;
             // assert {
-            PARSER_ASSERT(lexeme.type == TOK_LBRACE, "Line: %"PRIu16", Col: %"PRIu16" `{` expected but %s was found.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
             parser_reject(parser);
             // parse the block
             caseStmt->block = parser_parseStmtBlock(parser, node, currentScope);
             // assert block is not null
-            PARSER_ASSERT(caseStmt->block != NULL,
-                   "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(caseStmt->block != NULL,"Invalid symbol %s while parsing match case block.", token_type_to_string(lexeme.type));
             vec_push(&stmt->match->cases, caseStmt);
         }
 
@@ -3142,20 +3038,16 @@ Statement* parser_parseStmtWhile(Parser* parser, ASTNode* node, ASTScope* curren
     stmt->whileLoop = ast_stmt_makeWhileStatement();
     // assert while
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_WHILE, "Line: %"PRIu16", Col: %"PRIu16" `while` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_WHILE, "`while` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse condition
     stmt->whileLoop->condition = parser_parseExpr(parser, node, currentScope);
     // assert condition is not null
-    PARSER_ASSERT(stmt->whileLoop->condition != NULL,
-           "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(stmt->whileLoop->condition != NULL, "Invalid symbol %s while parsing while condition.", token_type_to_string(lexeme.type));
     // parse block
     stmt->whileLoop->block = parser_parseStmtBlock(parser, node, currentScope);
     // assert block is not null
-    PARSER_ASSERT(stmt->whileLoop->block != NULL,
-           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(stmt->whileLoop->block != NULL, "Invalid symbol %s while parsing while block.", token_type_to_string(lexeme.type));
 
     return stmt;
 }
@@ -3166,25 +3058,20 @@ Statement* parser_parseStmtDoWhile(Parser* parser, ASTNode* node, ASTScope* curr
     stmt->doWhileLoop = ast_stmt_makeDoWhileStatement();
     // assert do
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_DO, "Line: %"PRIu16", Col: %"PRIu16" `do` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_DO, "`do` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
     stmt->doWhileLoop->block = parser_parseStmtBlock(parser, node, currentScope);
     // assert block is not null
-    PARSER_ASSERT(stmt->doWhileLoop->block != NULL,
-           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(stmt->doWhileLoop->block != NULL, "Invalid symbol %s while parsing do-while block.", token_type_to_string(lexeme.type));
     // assert while
     CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_WHILE, "Line: %"PRIu16", Col: %"PRIu16" `while` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_WHILE, "`while` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse condition
     stmt->doWhileLoop->condition = parser_parseExpr(parser, node, currentScope);
     // assert condition is not null
-    PARSER_ASSERT(stmt->doWhileLoop->condition != NULL,
-           "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
-           EXPAND_LEXEME);
-
+    PARSER_ASSERT(stmt->doWhileLoop->condition != NULL, "Invalid symbol %s while parsing do-while condition.", token_type_to_string(lexeme.type));
     return stmt;
 }
 
@@ -3194,7 +3081,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
     stmt->forLoop = ast_stmt_makeForStatement(currentScope);
     // assert for
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_FOR, "Line: %"PRIu16", Col: %"PRIu16" `for` expected but %s was found.", EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_FOR, "`for` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // make sure we have initializer, i.e token is not ";"
     CURRENT;
@@ -3204,13 +3091,10 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
         stmt->forLoop->initializer = parser_parseStmtLet(parser, node, currentScope);
 
         // assert initializer is not null
-        PARSER_ASSERT(stmt->forLoop->initializer != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `initializer` near %s, generated a NULL initializer. This is a parser issue.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(stmt->forLoop->initializer != NULL, "Invalid symbol %s while parsing for-loop initializer.", token_type_to_string(lexeme.type));
         // assert token is ";"
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_SEMICOLON, "Line: %"PRIu16", Col: %"PRIu16" `;` expected but %s was found.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_SEMICOLON, "`;` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
     }
     else{
@@ -3224,12 +3108,10 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
         stmt->forLoop->condition = parser_parseExpr(parser, node, currentScope);
         // assert condition is not null
         PARSER_ASSERT(stmt->forLoop->condition != NULL,
-               "Line: %"PRIu16", Col: %"PRIu16" `condition` near %s, generated a NULL condition. This is a parser issue.",
-               EXPAND_LEXEME);
+               "Invalid symbol %s while parsing for-loop condition.", token_type_to_string(lexeme.type));
         // assert token is ";"
         CURRENT;
-        PARSER_ASSERT(lexeme.type == TOK_SEMICOLON, "Line: %"PRIu16", Col: %"PRIu16" `;` expected but %s was found.",
-               EXPAND_LEXEME);
+        PARSER_ASSERT(lexeme.type == TOK_SEMICOLON, "`;` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
     }
     else
@@ -3247,9 +3129,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
             // parse one increment
             Expr* increment = parser_parseExpr(parser, node, currentScope);
             // assert increment is not null
-            PARSER_ASSERT(increment != NULL,
-                   "Line: %"PRIu16", Col: %"PRIu16" `increment` near %s, generated a NULL increment. This is a parser issue.",
-                   EXPAND_LEXEME);
+            PARSER_ASSERT(increment != NULL, "Invalid symbol %s while parsing for-loop increment.", token_type_to_string(lexeme.type));
             // add increment to list
             vec_push(&stmt->forLoop->increments, increment);
             // check if we have a comma
@@ -3265,16 +3145,14 @@ Statement* parser_parseStmtFor(Parser* parser, ASTNode* node, ASTScope* currentS
     // current
     stmt->forLoop->block = parser_parseStmtBlock(parser, node, currentScope);
     // assert block is not null
-    PARSER_ASSERT(stmt->forLoop->block != NULL,
-           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(stmt->forLoop->block != NULL, "Invalid symbol %s while parsing for-loop block.", token_type_to_string(lexeme.type));
     return stmt;
 }
 
 Statement* parser_parseStmtForEach(Parser* parser, ASTNode* node, ASTScope* currentScope){
     // throw not implemented error
     Lexeme CURRENT;
-    PARSER_ASSERT(0, "Line: %"PRIu16", Col: %"PRIu16" `foreach` is not implemented yet.");
+    PARSER_ASSERT(0, "`foreach` is not implemented yet.");
 }
 
 Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* currentScope){
@@ -3283,8 +3161,7 @@ Statement* parser_parseStmtContinue(Parser* parser, ASTNode* node, ASTScope* cur
     stmt->continueStmt = ast_stmt_makeContinueStatement();
     // assert continue
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_CONTINUE, "Line: %"PRIu16", Col: %"PRIu16" `continue` expected but %s was found.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_CONTINUE, "`continue` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     return stmt;
 }
@@ -3295,8 +3172,7 @@ Statement* parser_parseStmtReturn(Parser* parser, ASTNode* node, ASTScope* curre
     stmt->returnStmt = ast_stmt_makeReturnStatement();
     // assert return
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_RETURN, "Line: %"PRIu16", Col: %"PRIu16" `return` expected but %s was found.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_RETURN, "`return` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse expression
     stmt->returnStmt->expr = parser_parseExpr(parser, node, currentScope);
@@ -3311,8 +3187,7 @@ Statement* parser_parseStmtBreak(Parser* parser, ASTNode* node, ASTScope* curren
     stmt->breakStmt = ast_stmt_makeBreakStatement();
     // assert break
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_BREAK, "Line: %"PRIu16", Col: %"PRIu16" `break` expected but %s was found.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_BREAK, "`break` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     return stmt;
 }
@@ -3323,15 +3198,12 @@ Statement* parser_parseStmtUnsafe(Parser* parser, ASTNode* node, ASTScope* curre
     stmt->unsafeStmt = ast_stmt_makeUnsafeStatement();
     // assert unsafe
     Lexeme CURRENT;
-    PARSER_ASSERT(lexeme.type == TOK_UNSAFE, "Line: %"PRIu16", Col: %"PRIu16" `unsafe` expected but %s was found.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(lexeme.type == TOK_UNSAFE, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
     stmt->unsafeStmt->block = parser_parseStmtBlock(parser, node, currentScope);
     // assert block is not null
-    PARSER_ASSERT(stmt->unsafeStmt->block != NULL,
-           "Line: %"PRIu16", Col: %"PRIu16" `block` near %s, generated a NULL block. This is a parser issue.",
-           EXPAND_LEXEME);
+    PARSER_ASSERT(stmt->unsafeStmt->block != NULL, "Invalid symbol %s while parsing unsafe block.", token_type_to_string(lexeme.type));
     return stmt;
 }
 Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* currentScope){
@@ -3354,4 +3226,3 @@ Statement* parser_parseStmtExpr(Parser* parser, ASTNode* node, ASTScope* current
 
 #undef CURRENT
 #undef ACCEPT
-#undef TTTS
