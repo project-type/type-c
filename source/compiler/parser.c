@@ -836,7 +836,7 @@ DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTSco
     // if we have "(", means interface extends other interfaces
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
-        parser_parseExtends(parser, parentReferee, &structType->structType->extends, currentScope, DT_CLASS);
+        parser_parseExtends(parser, parentReferee, &structType->structType->extends, currentScope, DT_STRUCT);
         CURRENT;
     }
     else {

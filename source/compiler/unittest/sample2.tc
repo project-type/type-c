@@ -18,6 +18,17 @@ type Instance3 = class(Instance, interface{fn cools() -> Instance3 }) {
     fn inits(){print("HAYYA")}
 }
 
+type s1 = struct {
+    name: string
+}
+
+type s2 = struct(s1) {
+    name: string
+}
+
+type s3 = struct(s2) {
+    name: string
+}
 
 type C = C
 

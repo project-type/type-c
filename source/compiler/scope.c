@@ -70,7 +70,10 @@ uint8_t scope_canExtend(DataType* parent, DataTypeKind childKind){
 char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* parent){
     map_int_t map;
     map_init(&map);
-    tc_accumulate_type_methods_attribute(parent, &map);
+    char* res1 = tc_accumulate_type_methods_attribute(parent, &map);
+    if(res1 != NULL){
+        return res1;
+    }
 
     if(parent->kind == DT_TYPE_JOIN){
         char* duplicate = tc_check_canJoin(parent->joinType->left, parent->joinType->right);

@@ -69,6 +69,14 @@ char* tc_accumulate_type_methods_attribute(DataType* type, map_int_t * map){
             }
             map_set(map, attributeName, 1);
         }
+
+        DataType * parent;
+        vec_foreach(&structType->extends, parent, i){
+            char* parentOk = tc_accumulate_type_methods_attribute(parent, map);
+            if(parentOk != NULL){
+                return parentOk;
+            }
+        }
     }
 
     if(type->kind == DT_INTERFACE){
@@ -81,6 +89,13 @@ char* tc_accumulate_type_methods_attribute(DataType* type, map_int_t * map){
                 return methodName;
             }
             map_set(map, methodName, 1);
+        }
+        DataType * parent;
+        vec_foreach(&interfaceType->extends, parent, i){
+            char* parentOk = tc_accumulate_type_methods_attribute(parent, map);
+            if(parentOk != NULL){
+                return parentOk;
+            }
         }
     }
 
@@ -113,29 +128,6 @@ char* tc_check_canJoin(DataType* left, DataType* right) {
 
     char* leftOk = tc_accumulate_type_methods_attribute(left, &map);
     char* rightOk = tc_accumulate_type_methods_attribute(right, &map);
-
-    DataTypeKind kind = tc_gettype_base(left);
-
-    if(kind == DT_INTERFACE){
-        DataType *parent = NULL;
-        uint32_t i = 0;
-        vec_foreach(&left->interfaceType->extends, parent, i) {
-            char* parentOk = tc_accumulate_type_methods_attribute(parent, &map);
-            if(parentOk != NULL){
-                return parentOk;
-            }
-        }
-    }
-    else if (kind == DT_STRUCT) {
-        DataType *parent = NULL;
-        uint32_t i = 0;
-        vec_foreach(&left->structType->extends, parent, i) {
-            char* parentOk = tc_accumulate_type_methods_attribute(parent, &map);
-            if(parentOk != NULL){
-                return parentOk;
-            }
-        }
-    }
 
     map_deinit(&map);
     return leftOk!=NULL?(leftOk):(rightOk!=NULL?(rightOk):(NULL));
