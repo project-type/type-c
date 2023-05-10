@@ -136,15 +136,17 @@ UnionType* ast_type_makeUnion();
 typedef struct VariantType {
     map_variantconstructor_t constructors;
     vec_str_t  constructorNames;
+    struct ASTScope* scope;
 }VariantType;
-VariantType* ast_type_makeVariant();
+VariantType* ast_type_makeVariant(struct ASTScope* parentScope);
 
 typedef struct InterfaceType {
     map_interfacemethod_t methods;
     vec_str_t  methodNames;
     vec_dtype_t extends;
+    struct ASTScope* scope;
 }InterfaceType;
-InterfaceType* ast_type_makeInterface();
+InterfaceType* ast_type_makeInterface(struct ASTScope* parentScope);
 
 typedef struct ClassType {
     //map_classattribute_t attributes;
@@ -172,8 +174,9 @@ typedef struct StructType {
     // important for layout management
     vec_str_t attributeNames;
     vec_dtype_t extends;
+    struct ASTScope* scope;
 }StructType;
-StructType* ast_type_makeStruct();
+StructType* ast_type_makeStruct(struct ASTScope* parentScope);
 
 
 typedef struct GenericParam {

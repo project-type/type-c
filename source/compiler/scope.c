@@ -73,6 +73,45 @@ ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType){
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
+ScopeRegResult scope_interface_addMethod(InterfaceType * interface, FnHeader* method){
+    // make sure function name doesn't exist already
+    if(map_get(&interface->methods, method->name) == NULL){
+        vec_push(&interface->methodNames, method->name);
+        map_set(&interface->methods, method->name, method);
+        return SRRT_SUCCESS;
+    }
+
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
+
+
+ScopeRegResult scope_variantConstructor_addArg(VariantConstructor* constructor, VariantConstructorArgument* arg){
+    // make sure argument name doesn't exist already
+    if(map_get(&constructor->args, arg->name) == NULL){
+        vec_push(&constructor->argNames, arg->name);
+        map_set(&constructor->args, arg->name, arg);
+        return SRRT_SUCCESS;
+    }
+
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
+ScopeRegResult scope_variant_addConstructor(VariantType * variant, VariantConstructor * constructor){
+    // make sure constructor name doesn't exist already
+    if(map_get(&variant->constructors, constructor->name) == NULL){
+        vec_push(&variant->constructorNames, constructor->name);
+        map_set(&variant->constructors, constructor->name, constructor);
+        return SRRT_SUCCESS;
+    }
+
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
+
+
+
+
+
+
+
 ScopeRegResult scope_registerFFI(ASTScope* scope, ExternDecl* ffi){
     // make sure no shadowing allowed
     if(resolveElement(ffi->name, scope, 0) == NULL) {

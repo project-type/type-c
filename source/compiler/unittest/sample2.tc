@@ -1,19 +1,24 @@
 
+type Tree = variant {
+    Binary(lhs: Tree, rhs: Tree),
+    Unary(child: Tree),
+    Leaf(value: u32),
+    Empty()
+}
 
 type Instance = class {
-    fn init() {
+    fn init() -> Instance{
         return Instance()
     }
 }
 
 type Instance2 = interface {
-    fn init()
 }
 
 type Instance3 = interface {
-    fn init()
+    fn inits()
 }
 
 
-type C = Instance2 & Instance
+type C = C
 

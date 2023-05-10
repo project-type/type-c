@@ -40,11 +40,15 @@ typedef enum ScopeRegResult {
 ScopeRegResult scope_program_addImport(ASTProgramNode* program, ImportStmt * import);
 
 ScopeRegResult scope_ffi_addMethod(ExternDecl* ffi, FnHeader* method);
+
 ScopeRegResult scope_fnheader_addGeneric(FnHeader* fn, GenericParam * genericParam);
 ScopeRegResult scope_fnheader_addArg(FnHeader* fn, FnArgument* arg);
 ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericParam);
 
+ScopeRegResult scope_interface_addMethod(InterfaceType * interface, FnHeader* method);
 
+ScopeRegResult scope_variantConstructor_addArg(VariantConstructor* constructor, VariantConstructorArgument* arg);
+ScopeRegResult scope_variant_addConstructor(VariantType * variant, VariantConstructor * constructor);
 
 ScopeRegResult scope_registerFFI(ASTScope* scope, ExternDecl* ffi);
 ScopeRegResult scope_registerVariable(ASTScope* scope, FnArgument* variable);

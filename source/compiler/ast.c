@@ -96,16 +96,18 @@ UnionType* ast_type_makeUnion() {
     return uni;
 }
 
-VariantType* ast_type_makeVariant() {
+VariantType* ast_type_makeVariant(struct ASTScope* parentScope){
     ALLOC(data, VariantType);
     map_init(&data->constructors);
     vec_init(&data->constructorNames);
+    data->scope = ast_scope_makeScope(parentScope);
 
     return data;
 }
 
-InterfaceType* ast_type_makeInterface() {
+InterfaceType* ast_type_makeInterface(ASTScope* parentScope) {
     ALLOC(interface, InterfaceType);
+    interface->scope = ast_scope_makeScope(parentScope);
     map_init(&interface->methods);
     vec_init(&interface->methodNames);
     vec_init(&interface->extends);
@@ -134,8 +136,9 @@ FnType* ast_type_makeFn() {
     return fn;
 }
 
-StructType* ast_type_makeStruct() {
+StructType* ast_type_makeStruct(ASTScope* parentScope) {
     ALLOC(struct_, StructType);
+    struct_->scope = ast_scope_makeScope(parentScope);
     map_init(&struct_->attributes);
     vec_init(&struct_->attributeNames);
     vec_init(&struct_->extends);

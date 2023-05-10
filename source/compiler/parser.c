@@ -547,7 +547,7 @@ DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope*
     // check if the type is simple id
     if (refType->refType->pkg->ids.length == 1){
         if((parentReferee != NULL) && (strcmp(parentReferee->name, refType->refType->pkg->ids.data[0]) == 0)) {
-            printf("Type `%s` is resolved by itself\n", refType->refType->pkg->ids.data[0]);
+            PARSER_ASSERT(0, "Type `%s` cannot reference itself.", refType->refType->pkg->ids.data[0]);
         }
 
         // TODO: change this once we have imports running
@@ -555,15 +555,6 @@ DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope*
         PARSER_ASSERT(t != NULL, "Type `%s` is not defined.", refType->refType->pkg->ids.data[0]);
         refType->refType->ref = t;
 
-        /*
-         *
-        if(t != NULL) {
-            printf("Type `%s` is resolved!\n", refType->refType->pkg->ids.data[0]);
-        }
-        else {
-            printf("Type `%s` NOT is resolved!\n", refType->refType->pkg->ids.data[0]);
-        }
-         */
     }
 
     return refType;
@@ -574,7 +565,13 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
     // create base type
     DataType* interfaceType = ast_type_makeType(parser->stack.data[0]);
     interfaceType->kind = DT_INTERFACE;
-    interfaceType->interfaceType = ast_type_makeInterface();
+    interfaceType->interfaceType = ast_type_makeInterface(currentScope);
+
+    // add the parent type to scope if it exists
+    if(parentReferee != NULL) {
+        scope_registerType(interfaceType->interfaceType->scope, parentReferee);
+    }
+
     // accept interface
     ACCEPT;
     Lexeme CURRENT;
@@ -585,11 +582,9 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
         parser_parseExtends(parser, parentReferee, &interfaceType->interfaceType->extends, currentScope);
         CURRENT;
     }
-    else {
-
+    /*else {
         //parser_reject(parser);
-    }
-
+    }*/
 
     PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
@@ -597,6 +592,12 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
     // now we expect an interface method
     // prepare to loop
     uint8_t can_loop = lexeme.type == TOK_FN;
+    if(!can_loop) {
+        // ASSERT }
+        PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
+        ACCEPT;
+        return interfaceType;
+    }
     while(can_loop) {
         // parse interface method
         // we assert "fn"
@@ -604,14 +605,10 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
                "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
         // reject it
         parser_reject(parser);
-        FnHeader * header = parser_parseFnHeader(parser, currentScope);
-        // make sure fn doesn't already exist
-        PARSER_ASSERT(map_get(&interfaceType->interfaceType->methods, header->name) == NULL,
-               "`%s` already exists in interface.", header->name);
-
-        // else we add it
-        map_set(&interfaceType->interfaceType->methods, header->name, header);
-        vec_push(&interfaceType->interfaceType->methodNames, header->name);
+        FnHeader * header = parser_parseFnHeader(parser, interfaceType->interfaceType->scope);
+        PARSER_ASSERT(scope_interface_addMethod(interfaceType->interfaceType, header),
+                     "Method `%s` is already defined in interface.",
+                     header->name);
         // skip "," if any
         CURRENT;
         if(lexeme.type == TOK_COMMA) {
@@ -633,6 +630,11 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
     DataType * classType = ast_type_makeType(parser->stack.data[0]);
     classType->kind = DT_CLASS;
     classType->classType = ast_type_makeClass(currentScope);
+    // add the parent type to scope if it exists
+    if(parentReferee != NULL) {
+        scope_registerType(classType->classType->scope, parentReferee);
+    }
+
     // accept class
     ACCEPT;
     Lexeme CURRENT;
@@ -652,9 +654,17 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
     PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
-    // now we expect an interface method
+
+
     // prepare to loop
     uint8_t can_loop = lexeme.type == TOK_FN || lexeme.type == TOK_LET;
+    if(!can_loop) {
+        // ASSERT }
+        PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found", token_type_to_string(lexeme.type));
+        ACCEPT;
+        return classType;
+    }
+
     while(can_loop) {
         // parse interface method
         // we assert "fn"
@@ -664,7 +674,7 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
         // reject it
         if(lexeme.type == TOK_FN){
             parser_reject(parser);
-            Statement * stmt = parser_parseStmtFn(parser, currentScope);
+            Statement * stmt = parser_parseStmtFn(parser, classType->classType->scope);
             // assert stmt != NULL
             PARSER_ASSERT(stmt != NULL, "invalid token `%s`", token_type_to_string(lexeme.type));
 
@@ -677,7 +687,7 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
         }
         else {
             parser_reject(parser);
-            Statement *stmt = parser_parseStmtLet(parser, currentScope);
+            Statement *stmt = parser_parseStmtLet(parser, classType->classType->scope);
             VarDeclStatement* varDecl = stmt->varDecl;
             uint32_t i = 0; LetExprDecl* letDecl;
             vec_foreach(&varDecl->letList, letDecl, i){
@@ -709,7 +719,12 @@ DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTSc
     //create base type
     DataType * variantType = ast_type_makeType(parser->stack.data[0]);
     variantType->kind = DT_VARIANT;
-    variantType->variantType = ast_type_makeVariant();
+    variantType->variantType = ast_type_makeVariant(currentScope);
+    // add the parent type to scope if it exists
+    if(parentReferee != NULL) {
+        scope_registerType(variantType->variantType->scope, parentReferee);
+    }
+
     // accept variant
     ACCEPT;
     Lexeme CURRENT;
@@ -734,66 +749,60 @@ DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTSc
         // we create a new VariantConstructor
         VariantConstructor* variantConstructor = ast_type_makeVariantConstructor();
         variantConstructor->name = strdup(variantName);
+        // we add the constructor to the variant
+        PARSER_ASSERT(scope_variant_addConstructor(variantType->variantType, variantConstructor),
+               "variant constructor with name %s already exists.", variantName);
         // accept the name
         ACCEPT;
 
         CURRENT;
-        // check if we have parenthesis
-        if(lexeme.type == TOK_LPAREN) {
-            // we parse the arguments
-            // format: "(" <id>":" <type> (","? <id> ":"<type>)* ")"
+        // assert we have a "("
+        PARSER_ASSERT(lexeme.type == TOK_LPAREN, "`(` expected but %s was found.", token_type_to_string(lexeme.type));
+        // we parse the arguments
+        // format: "(" <id>":" <type> (","? <id> ":"<type>)* ")"
+        ACCEPT;
+        CURRENT;
+        // prepare to loop
+        uint8_t can_loop_2 = lexeme.type == TOK_IDENTIFIER;
+        while(can_loop_2) {
+            // assert identifier
+            PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
+
+            // we get the name of the argument
+            char* argName = lexeme.string;
+            VariantConstructorArgument * arg = ast_type_makeVariantConstructorArgument();
+            arg->name = strdup(argName);
+            PARSER_ASSERT(scope_variantConstructor_addArg(variantConstructor, arg), "Argument name `%s` already exists in variant constructor", argName);
+
+            // accept the name
             ACCEPT;
             CURRENT;
-            // prepare to loop
-            uint8_t can_loop_2 = lexeme.type == TOK_IDENTIFIER;
-            while(can_loop_2) {
-                // assert identifier
-                PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
 
-                // we get the name of the argument
-                char* argName = lexeme.string;
+            // make sure we have a colon
+            PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
+            ACCEPT;
+            CURRENT;
+            // we parse the type
+            DataType* argType = parser_parseTypeUnion(parser, NULL, variantType->variantType->scope);
+            arg->type = argType;
 
-                // accept the name
+            CURRENT;
+
+            // check if we have a comma
+            if(lexeme.type == TOK_COMMA) {
                 ACCEPT;
                 CURRENT;
-
-                // make sure we have a colon
-                PARSER_ASSERT(lexeme.type == TOK_COLON, "`:` expected but %s was found.", token_type_to_string(lexeme.type));
+            }
+            else if(lexeme.type == TOK_RPAREN) {
+                can_loop_2 = 0;
                 ACCEPT;
-                CURRENT;
-                // we parse the type
-                DataType* argType = parser_parseTypeUnion(parser, parentReferee, currentScope);
-                // we create a new argument
-                VariantConstructorArgument * arg = ast_type_makeVariantConstructorArgument();
-                arg->name = strdup(argName);
-                arg->type = argType;
-                // add to argument list
-
-                // make sure arg name doesn't already exist
-                PARSER_ASSERT(map_get(&variantConstructor->args, argName) == NULL, "Argument name `%s` already exists.", argName);
-                vec_push(&variantConstructor->argNames, argName);
-                map_set(&variantConstructor->args, argName, arg);
-
-                CURRENT;
-                // check if we have a comma
-
-                if(lexeme.type == TOK_COMMA) {
-                    ACCEPT;
-                    CURRENT;
-                }
-                else if(lexeme.type == TOK_RPAREN) {
-                    can_loop_2 = 0;
-                    ACCEPT;
-                }
-                else {
-                    // throw error, we need either a comma or a ")"
-                    PARSER_ASSERT(0, "`,` or `)` expected but %s was found.", token_type_to_string(lexeme.type));
-                }
+            }
+            else {
+                // throw error, we need either a comma or a ")"
+                PARSER_ASSERT(0, "`,` or `)` expected but %s was found.", token_type_to_string(lexeme.type));
             }
         }
-        // add constructor to map and its name to the vector
-        map_set(&variantType->variantType->constructors, variantName, variantConstructor);
-        vec_push(&variantType->variantType->constructorNames, variantName);
+
         // skip comma if any
         lexeme = parser_peek(parser);
         if(lexeme.type == TOK_COMMA) {
@@ -814,7 +823,11 @@ DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTSc
 DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     DataType * structType = ast_type_makeType(parser->stack.data[0]);
     structType->kind = DT_STRUCT;
-    structType->structType = ast_type_makeStruct();
+    structType->structType = ast_type_makeStruct(currentScope);
+
+    if(parentReferee != NULL) {
+        scope_registerType(structType->structType->scope, parentReferee);
+    }
 
     // currently at struct
     // we skip struct and make sure we have { after

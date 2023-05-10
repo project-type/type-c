@@ -92,7 +92,6 @@ uint8_t tc_check_canJoinOrUnion(DataType* left, DataType* right){
     DataTypeKind leftKind = tc_gettype_base(left);
     DataTypeKind rightKind = tc_gettype_base(right);
 
-    printf("left: %d, right: %d\n", leftKind, rightKind);
 
     if(leftKind == DT_INVALID || rightKind == DT_INVALID){
         return 0;
@@ -114,7 +113,6 @@ char* tc_check_canJoin(DataType* left, DataType* right) {
     return leftOk!=NULL?(leftOk):(rightOk!=NULL?(rightOk):(NULL));
 }
 
-
 char* tc_check_canUnion(DataType* left, DataType* right) {
     map_int_t mapLeft;
     map_init(&mapLeft);
@@ -126,3 +124,4 @@ char* tc_check_canUnion(DataType* left, DataType* right) {
 
     return leftOk!=NULL?(leftOk):(rightOk!=NULL?(rightOk):(NULL));
 }
+
