@@ -606,9 +606,10 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
         // reject it
         parser_reject(parser);
         FnHeader * header = parser_parseFnHeader(parser, interfaceType->interfaceType->scope);
-        PARSER_ASSERT(scope_interface_addMethod(interfaceType->interfaceType, header),
+        char* duplicate = scope_interface_addMethod(interfaceType, header);
+        PARSER_ASSERT(duplicate == NULL,
                      "Method `%s` is already defined in interface.",
-                     header->name);
+                     duplicate);
         // skip "," if any
         CURRENT;
         if(lexeme.type == TOK_COMMA) {
@@ -682,8 +683,11 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
             // add method name
             ClassMethod * classMethod = ast_type_makeClassMethod();
             classMethod->decl = fnDecl;
-            map_set(&classType->classType->methods, fnDecl->header->name, classMethod);
-            vec_push(&classType->classType->methodNames, fnDecl->header->name);
+            char* duplicated = scope_class_addMethod(classType, classMethod);
+            PARSER_ASSERT(duplicated == NULL,
+                         "Method `%s` is already defined in class.",
+                         duplicated);
+
         }
         else {
             parser_reject(parser);
@@ -691,7 +695,10 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
             VarDeclStatement* varDecl = stmt->varDecl;
             uint32_t i = 0; LetExprDecl* letDecl;
             vec_foreach(&varDecl->letList, letDecl, i){
-                vec_push(&classType->classType->letList, letDecl);
+                char* duplicated = scope_class_addAttribute(classType, letDecl);
+                PARSER_ASSERT(duplicated == NULL,
+                                            "Attribute `%s` is already defined in class.",
+                                            duplicated)
             }
 
             free(varDecl);
@@ -855,6 +862,8 @@ DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTSco
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
                "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         attr->name = strdup(lexeme.string);
+        char* dup = scope_struct_addAttribute(structType, attr);
+        PARSER_ASSERT(dup == NULL, "attribute with name %s already exists in struct.", dup)
         ACCEPT;
         CURRENT;
         // parse :
@@ -865,15 +874,6 @@ DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTSco
 
         // parse type
         attr->type = parser_parseTypeUnion(parser, parentReferee, currentScope);
-
-        // add to struct
-        // make sure type doesn't exist first
-        PARSER_ASSERT(map_get(&structType->structType->attributes, attr->name) == NULL,
-               "attribute `%s` already exists in struct.", attr->name);
-
-        vec_push(&structType->structType->attributeNames, attr->name);
-        map_set(&structType->structType->attributes, attr->name, attr);
-
 
         // check if we reached the end, means we do not have an ID anymore
         CURRENT;

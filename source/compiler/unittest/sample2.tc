@@ -14,8 +14,10 @@ type Instance2 = interface {
     fn cool() -> Instance2
 }
 
-type Instance3 = class(Instance, interface{fn cools() -> Instance3 }) {
+type Instance3 = class(Instance, interface{fn haha() -> Instance3 }) {
     fn inits(){print("HAYYA")}
+    let x: u32 = 1
+    let x2: string = "hello"
 }
 
 type s1 = struct {

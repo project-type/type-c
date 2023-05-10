@@ -46,9 +46,12 @@ ScopeRegResult scope_fnheader_addArg(FnHeader* fn, FnArgument* arg);
 ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericParam);
 
 uint8_t scope_canExtend(DataType* parent, DataTypeKind childKind);
-char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* parent);
 
-ScopeRegResult scope_interface_addMethod(InterfaceType * interface, FnHeader* method);
+char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* parent);
+char* scope_interface_addMethod(DataType * interface, FnHeader* method);
+char* scope_class_addMethod(DataType * class, ClassMethod* fnDecl);
+char* scope_class_addAttribute(DataType * class, LetExprDecl* decl);
+char* scope_struct_addAttribute(DataType * struct_, StructAttribute* attr);
 
 ScopeRegResult scope_variantConstructor_addArg(VariantConstructor* constructor, VariantConstructorArgument* arg);
 ScopeRegResult scope_variant_addConstructor(VariantType * variant, VariantConstructor * constructor);

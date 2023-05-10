@@ -5,6 +5,7 @@
 #include "scope.h"
 #include "ast.h"
 #include "type_checker.h"
+#include "error.h"
 
 ScopeRegResult scope_program_addImport(ASTProgramNode* program, ImportStmt * import){
     // make sure lookup name doesn't exist already
@@ -95,6 +96,7 @@ char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* 
     return NULL;
 }
 
+
 ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType){
     // make sure no shadowing allowed
     if(resolveElement(dataType->name, scope, 0) == NULL) {
@@ -105,15 +107,71 @@ ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType){
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
-ScopeRegResult scope_interface_addMethod(InterfaceType * interface, FnHeader* method){
-    // make sure function name doesn't exist already
-    if(map_get(&interface->methods, method->name) == NULL){
-        vec_push(&interface->methodNames, method->name);
-        map_set(&interface->methods, method->name, method);
-        return SRRT_SUCCESS;
+char* scope_interface_addMethod(DataType * interface, FnHeader* method){
+    ASSERT(interface->kind == DT_INTERFACE, "Input is not an interface");
+
+    map_set(&interface->interfaceType->methods, method->name, method);
+    vec_push(&interface->interfaceType->methodNames, method->name);
+
+    map_int_t map;
+    map_init(&map);
+    // check current interface
+    char* res = tc_accumulate_type_methods_attribute(interface, &map);
+    if(res != NULL){
+        return res;
     }
 
-    return SRRT_TOKEN_ALREADY_REGISTERED;
+    return NULL;
+}
+
+char* scope_class_addMethod(DataType * class, ClassMethod* fnDecl){
+    ASSERT(class->kind == DT_CLASS, "Input is not an interface");
+
+    map_int_t map;
+    map_init(&map);
+
+    vec_push(&class->classType->methodNames, fnDecl->decl->header->name);
+    map_set(&class->classType->methods, fnDecl->decl->header->name, fnDecl);
+
+    // check current interface
+    char* dup = tc_accumulate_type_methods_attribute(class, &map);
+    if(dup != NULL) {
+        return dup;
+    }
+
+    return NULL;
+}
+
+char* scope_class_addAttribute(DataType * class, LetExprDecl* decl){
+    ASSERT(class->kind == DT_CLASS, "Input is not an interface");
+    vec_push(&class->classType->letList, decl);
+
+    map_int_t map;
+    map_init(&map);
+    // check current interface
+    char* dup = tc_accumulate_type_methods_attribute(class, &map);
+    if(dup != NULL) {
+        return dup;
+    }
+
+    return NULL;
+}
+
+char* scope_struct_addAttribute(DataType * struct_, StructAttribute* attr){
+    ASSERT(struct_->kind == DT_STRUCT, "Input is not a struct");
+
+    vec_push(&struct_->structType->attributeNames, attr->name);
+    map_set(&struct_->structType->attributes, attr->name, attr);
+
+    map_int_t map;
+    map_init(&map);
+    // check current interface
+    char* dup = tc_accumulate_type_methods_attribute(struct_, &map);
+    if(dup != NULL) {
+        return dup;
+    }
+
+    return NULL;
 }
 
 
