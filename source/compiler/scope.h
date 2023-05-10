@@ -9,11 +9,15 @@
 #include "parser.h"
 
 typedef enum ASTScopeResultType {
+    SCOPE_UNDEFINED, // This is an error
     SCOPE_VARIABLE,
+    SCOPE_METHOD,
+    SCOPE_ATTRIBUTE,
+    SCOPE_ARGUMENT,
     SCOPE_FUNCTION,
     SCOPE_TYPE,
     SCOPE_FFI,
-    SCOPE_MODULE
+    SCOPE_MODULE,
 }ASTScopeResultType;
 
 typedef struct ASTScopeResult {
@@ -27,6 +31,8 @@ typedef struct ASTScopeResult {
     };
 }ASTScopeResult;
 
+
+
 /**
  * Creating data
  */
@@ -35,6 +41,11 @@ typedef enum ScopeRegResult {
     SRRT_TOKEN_ALREADY_REGISTERED=0,
     SRRT_SUCCESS=1,
 }ScopeRegResult;
+
+typedef enum ScopeLookResult {
+    SLRT_TOKEN_NOT_DEFINED=0,
+    SLRT_SUCCESS=1,
+}ScopeLookResult;
 
 uint8_t scope_isSafe(ASTScope* scope);
 
@@ -65,11 +76,15 @@ ScopeRegResult scope_fntype_addArg(FnType* fn, FnArgument* arg);
 
 ScopeRegResult scope_registerFFI(ASTScope* scope, ExternDecl* ffi);
 ScopeRegResult scope_registerVariable(ASTScope* scope, FnArgument* variable);
-ScopeRegResult scope_registerFunction(ASTScope* scope, FnHeader* function);
+ScopeRegResult scope_registerFunction(ASTScope* scope, FnDeclStatement* fnDecl);
+
 ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType);
 
 //void scope_registerModule(ASTScope* scope, ASTModuleDecl* module);
 
+// data lookup
+ASTScopeResultType scope_lookupSymbol(ASTScope* scope, char* name);
+DataType* scope_lookupVariable(ASTScope* scope, char* name);
 /**
  * Validating data
  */

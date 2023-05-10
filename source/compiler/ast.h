@@ -41,6 +41,7 @@ struct BlockStatement;
 struct CaseStatement;
 struct ASTScope;
 struct ExternDecl;
+struct FnDeclStatement;
 
 /* Data types */
 typedef map_t(uint32_t) u32_map_t;
@@ -51,6 +52,7 @@ typedef map_t(struct ClassMethod*) map_classmethod_t;
 typedef map_t(struct ClassAttribute*) map_classattribute_t;
 typedef map_t(struct StructAttribute*) map_structattribute_t;
 typedef map_t(struct FnArgument*) map_fnargument_t;
+typedef map_t(struct FnDeclStatement*) map_fndecl_t;
 typedef map_t(struct VariantConstructorArgument*) map_variantconstructorarg_t;
 typedef map_t(struct VariantConstructor*) map_variantconstructor_t;
 typedef map_t(struct Expr*) mat_expr_t;
@@ -311,13 +313,16 @@ typedef struct ExternDecl {
 ExternDecl* ast_externdecl_make();
 
 typedef struct ASTScope {
+    uint8_t isFn;                            // is  a function
     uint8_t isSafe;                          // block is safe
     uint8_t withinClass;                     // is within a class
     uint8_t withinSync;                      // is within a sync block
     map_fnargument_t variables;              // variables declared in this scope
-    mat_fnheader_t functions;                // functions declared in this scope
+    map_fndecl_t functions;                  // functions declared in this scope
     map_dtype_t dataTypes;                   // data types declared in this scope
     map_externdecl_t externDecls;            // extern declarations
+    FnHeader* fnHeader;                      // function header, if is a function
+    ClassType* classRef;                     // class reference, if within a class
     struct ASTScope* parentScope;            // parent scope
 } ASTScope;
 ASTScope * ast_scope_makeScope(ASTScope* parentScope);

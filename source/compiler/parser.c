@@ -1277,6 +1277,9 @@ Expr* parser_parseLetExpr(Parser* parser, ASTScope* currentScope) {
                     CURRENT;
                 }
                 // add to args
+                // add vars to scope
+                PARSER_ASSERT(scope_registerVariable(currentScope, var), "Variable `%s` already exists", var->name);
+
                 map_set(&letDecl->variables, var->name, var);
                 vec_push(&letDecl->variableNames, var->name);
 
@@ -1329,14 +1332,13 @@ Expr* parser_parseLetExpr(Parser* parser, ASTScope* currentScope) {
             }
         }
 
-
         // assert "in"
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_IN, "`in` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
 
         // parse in uhs
-        Expr *inExpr = parser_parseExpr(parser, currentScope);
+        Expr *inExpr = parser_parseExpr(parser, let->scope);
         let->inExpr = inExpr;
         // assert in uhs is not null
         PARSER_ASSERT(inExpr != NULL, "Invalid symbol `%s` while parsing `in` expression", token_type_to_string(lexeme.type));
@@ -2031,6 +2033,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     if(lexeme.type == TOK_IDENTIFIER){
         Expr* expr = ast_expr_makeExpr(ET_ELEMENT);
         expr->elementExpr = ast_expr_makeElementExpr(lexeme.string);
+        PARSER_ASSERT(scope_lookupSymbol(currentScope, lexeme.string), "Symbol `%s` is not defined.", lexeme.string);
         ACCEPT;
 
         return expr;
@@ -2551,6 +2554,12 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, DataType* parentReferee, AS
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected for arg declaration but %s was found.", token_type_to_string(lexeme.type));
         // accept ID
         char* name = strdup(lexeme.string);
+
+        // make FnArg
+        FnArgument * arg = ast_type_makeFnArgument();
+        arg->name = name;
+        PARSER_ASSERT(scope_fnheader_addArg(header, arg), "argument name `%s` already exists.", name);
+
         ACCEPT;
         CURRENT;
         // assert ":"
@@ -2560,18 +2569,8 @@ FnHeader* parser_parseLambdaFnHeader(Parser* parser, DataType* parentReferee, AS
         // assert type
         DataType* type = parser_parseTypeUnion(parser, NULL, currentScope);
 
-        // make sure arg doesn't already exist
-        PARSER_ASSERT(map_get(&header->type->args, name) == NULL, "argument name `%s` already exists.");
-
-        // make FnArg
-        FnArgument * arg = ast_type_makeFnArgument();
         arg->type = type;
         arg->isMutable = 0;
-        arg->name = name;
-
-        // add arg to header
-        vec_push(&header->type->argNames, name);
-        map_set(&header->type->args, name, arg);
 
         // check if we reached ")"
         CURRENT;
@@ -2794,7 +2793,6 @@ Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
     Statement* stmt = ast_stmt_makeStatement(ST_FN_DECL);
     stmt->fnDecl = ast_stmt_makeFnDeclStatement(currentScope);
     // create the header
-    stmt->fnDecl->header = ast_makeFnHeader();
 
     Lexeme CURRENT;
     // assert fn
@@ -2942,6 +2940,8 @@ Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
         // assert false
         PARSER_ASSERT(0, "`=` or `{` expected but %s was found.", token_type_to_string(lexeme.type));
     }
+    PARSER_ASSERT(scope_registerFunction(currentScope, stmt->fnDecl),
+           "Function %s already exists in scope", stmt->fnDecl->header->name);
     return stmt;
 }
 

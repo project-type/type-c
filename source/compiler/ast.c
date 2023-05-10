@@ -116,15 +116,18 @@ InterfaceType* ast_type_makeInterface(ASTScope* parentScope) {
 }
 
 ClassType* ast_type_makeClass(ASTScope* parentScope) {
-    ALLOC(class_, ClassType);
-    class_->scope = ast_scope_makeScope(parentScope);
-    map_init(&class_->methods);
-    //map_init(&class_->attributes);
-    //vec_init(&class_->attributeNames);
-    vec_init(&class_->methodNames);
-    vec_init(&class_->letList);
+    ALLOC(class, ClassType);
+    class->scope = ast_scope_makeScope(parentScope);
+    class->scope->withinClass = 1;
+    class->scope->classRef = class;
 
-    return class_;
+    map_init(&class->methods);
+    //map_init(&class->attributes);
+    //vec_init(&class->attributeNames);
+    vec_init(&class->methodNames);
+    vec_init(&class->letList);
+
+    return class;
 }
 
 FnType* ast_type_makeFn() {
@@ -503,10 +506,12 @@ VarDeclStatement* ast_stmt_makeVarDeclStatement(ASTScope* parentScope) {
 
 FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope){
     ALLOC(fnDecl, FnDeclStatement);
-    fnDecl->header = NULL;
+    fnDecl->header = ast_makeFnHeader();;
     fnDecl->scope = ast_scope_makeScope(parentScope);
     fnDecl->bodyType = FBT_BLOCK;
     fnDecl->expr = NULL;
+    fnDecl->scope->isFn = 1;
+    fnDecl->scope->fnHeader = fnDecl->header;
 
     return fnDecl;
 }

@@ -248,6 +248,28 @@ ScopeRegResult scope_registerFFI(ASTScope* scope, ExternDecl* ffi){
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
+ScopeRegResult scope_registerVariable(ASTScope* scope, FnArgument* variable){
+    // make sure no shadowing allowed
+    if(resolveElement(variable->name, scope, 0) == NULL) {
+        map_set(&scope->variables, variable->name, variable);
+        return SRRT_SUCCESS;
+    }
+
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
+
+ScopeRegResult scope_registerFunction(ASTScope* scope, FnDeclStatement* fnDecl){
+    // make sure no shadowing allowed
+    if(resolveElement(fnDecl->header->name, scope, 0) == NULL) {
+        map_set(&scope->functions, fnDecl->header->name, fnDecl);
+        return SRRT_SUCCESS;
+    }
+
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
+
+
+
 ASTScopeResult* scope_result_init(ASTScopeResultType type, void* data){
     ASTScopeResult* result = malloc(sizeof(ASTScopeResult));
     result->type = type;
@@ -305,4 +327,71 @@ ASTScopeResult* resolveElement(char* e, ASTScope* scope, uint8_t recursive) {
     }
 
     return NULL;
+}
+
+/**
+* Lookup
+*/
+
+
+ASTScopeResultType scope_lookupSymbol(ASTScope* scope, char* name){
+    // check if scope is NULL
+    if(scope == NULL){
+        return SCOPE_UNDEFINED;
+    }
+
+    // check if variable is defined in current scope
+    if(map_get(&scope->variables, name) != NULL){
+        return SCOPE_VARIABLE;
+    }
+
+    // check if function is defined in current scope
+    if(map_get(&scope->functions, name) != NULL){
+        return SCOPE_FUNCTION;
+    }
+
+    // check if type is defined in current scope
+    if(map_get(&scope->dataTypes, name) != NULL){
+        return SCOPE_TYPE;
+    }
+
+    // check if extern is defined in current scope
+    if(map_get(&scope->externDecls, name) != NULL){
+        return SCOPE_FFI;
+    }
+
+
+    // if scope is function we check its args
+    if(scope->isFn){
+        // fetch args
+        FnArgument ** arg = map_get(&scope->fnHeader->type->args, name);
+        if(arg != NULL){
+            return SCOPE_ARGUMENT;
+        }
+    }
+
+    if((scope->withinClass) && (scope->classRef!=NULL) && (scope == scope->classRef->scope)){
+        // check methods
+        ClassMethod ** method = map_get(&scope->classRef->methods, name);
+        if(method != NULL){
+            return SCOPE_METHOD;
+        }
+        // iterate through letList
+        for(uint32_t i = 0; i < scope->classRef->letList.length; i++){
+            struct LetExprDecl * let = scope->classRef->letList.data[i];
+            // look up let->variableNames
+            for(uint32_t j = 0; j < let->variableNames.length; j++){
+                char * varName = let->variableNames.data[j];
+                if(strcmp(varName, name) == 0){
+                    return SCOPE_ATTRIBUTE;
+                }
+            }
+        }
+    }
+    // check if variable is defined in parent scope
+    if(scope->parentScope != NULL) {
+        return scope_lookupSymbol(scope->parentScope, name);
+    }
+
+    return SCOPE_UNDEFINED;
 }
