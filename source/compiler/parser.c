@@ -579,7 +579,7 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
     // if we have "(", means interface extends other interfaces
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
-        parser_parseExtends(parser, parentReferee, &interfaceType->interfaceType->extends, currentScope);
+        parser_parseExtends(parser, parentReferee, &interfaceType->interfaceType->extends, currentScope, DT_INTERFACE);
         CURRENT;
     }
     /*else {
@@ -642,7 +642,7 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
     // if we have "(", means interface extends other interfaces
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
-        parser_parseExtends(parser, parentReferee, &classType->classType->extends, currentScope);
+        parser_parseExtends(parser, parentReferee, &classType->classType->extends, currentScope, DT_INTERFACE);
         CURRENT;
     }
     else {
@@ -836,7 +836,7 @@ DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTSco
     // if we have "(", means interface extends other interfaces
     if(lexeme.type == TOK_LPAREN) {
         ACCEPT;
-        parser_parseExtends(parser, parentReferee, &structType->structType->extends, currentScope);
+        parser_parseExtends(parser, parentReferee, &structType->structType->extends, currentScope, DT_CLASS);
         CURRENT;
     }
     else {
@@ -984,7 +984,7 @@ void parser_parseFromStmt(Parser* parser, ASTScope* currentScope){
 }
 
 // parses extends list, must start from first symbol after "("
-void parser_parseExtends(Parser* parser, DataType* parentReferee, vec_dtype_t* extends, ASTScope* currentScope){
+void parser_parseExtends(Parser* parser, DataType* parentReferee, vec_dtype_t* extends, ASTScope* currentScope, DataTypeKind kind){
     Lexeme lexeme = parser_peek(parser);
     uint8_t can_loop = lexeme.type != TOK_RPAREN;
     while(can_loop) {
@@ -996,7 +996,11 @@ void parser_parseExtends(Parser* parser, DataType* parentReferee, vec_dtype_t* e
         parser_reject(parser);
         DataType* interfaceParentType = parser_parseTypePrimary(parser, parentReferee, currentScope);
         // add to extends
-        vec_push(extends, interfaceParentType);
+        //vec_push(extends, interfaceParentType);
+        PARSER_ASSERT(scope_canExtend(interfaceParentType, kind), "Parent category `%s` doesn't match child category.",
+                      dataTypeKindToString(interfaceParentType));
+        char* pushRes = scope_extends_addParent(currentScope, extends, interfaceParentType);
+        PARSER_ASSERT(pushRes == NULL, "Duplicate field `%s` in parent already exists.", pushRes);
 
         // check if we have a comma
         lexeme = parser_peek(parser);
@@ -2952,9 +2956,13 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
-
-    uint8_t loop = 1;
-
+    CURRENT;
+    uint8_t loop = lexeme.type != TOK_RBRACE;
+    if(!loop) {
+        ACCEPT;
+        return stmt;
+    }
+    parser_reject(parser);
     while(loop) {
         Statement * s = parser_parseStmt(parser, stmt->blockStmt->scope);
         PARSER_ASSERT(s != NULL, "Invalid symbol %s while parsing block statement.", token_type_to_string(lexeme.type));

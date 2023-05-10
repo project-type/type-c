@@ -6,17 +6,16 @@ type Tree = variant {
     Empty()
 }
 
-type Instance = class {
-    fn init() -> Instance{
-        return Instance()
-    }
+type Instance = interface {
+    fn cool() -> Instance
 }
 
 type Instance2 = interface {
+    fn cool() -> Instance2
 }
 
-type Instance3 = interface {
-    fn inits()
+type Instance3 = class(Instance, interface{fn cools() -> Instance3 }) {
+    fn inits(){print("HAYYA")}
 }
 
 

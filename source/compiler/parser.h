@@ -80,7 +80,7 @@ DataType * parser_parseTypeProcess(Parser* parser, DataType* parentReferee, ASTS
 
 void parser_parseTypeTemplate(Parser* parser, DataType* parentType, ASTScope* currentScope);
 
-void parser_parseExtends(Parser* parser, DataType* parentType, vec_dtype_t* extends, ASTScope* currentScope);
+void parser_parseExtends(Parser* parser, DataType* parentType, vec_dtype_t* extends, ASTScope* currentScope, DataTypeKind kind);
 void parser_parseFnDefArguments(Parser* parser, DataType* parentType, map_fnargument_t* args, vec_str_t* argsNames, ASTScope* currentScope);
 PackageID* parser_parsePackage(Parser* parser, ASTScope* currentScope);
 FnHeader* parser_parseFnHeader(Parser* parser, ASTScope* currentScope);

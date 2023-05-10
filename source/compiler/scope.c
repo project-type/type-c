@@ -4,6 +4,7 @@
 
 #include "scope.h"
 #include "ast.h"
+#include "type_checker.h"
 
 ScopeRegResult scope_program_addImport(ASTProgramNode* program, ImportStmt * import){
     // make sure lookup name doesn't exist already
@@ -62,6 +63,34 @@ ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericPar
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
+uint8_t scope_canExtend(DataType* parent, DataTypeKind childKind){
+    return tc_gettype_base(parent) == childKind;
+}
+
+char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* parent){
+    map_int_t map;
+    map_init(&map);
+    tc_accumulate_type_methods_attribute(parent, &map);
+
+    if(parent->kind == DT_TYPE_JOIN){
+        char* duplicate = tc_check_canJoin(parent->joinType->left, parent->joinType->right);
+        if(duplicate != NULL){
+            return duplicate;
+        }
+    }
+
+    uint32_t i = 0;
+    DataType * type = NULL;
+    vec_foreach(extends, type, i){
+        char* res = tc_accumulate_type_methods_attribute(type, &map);
+        if(res != NULL){
+            return res;
+        }
+    }
+
+    vec_push(extends, parent);
+    return NULL;
+}
 
 ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType){
     // make sure no shadowing allowed
