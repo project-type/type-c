@@ -1029,7 +1029,7 @@ DataType* parser_parseTypeFn(Parser* parser, DataType* parentReferee, ASTScope* 
     fnType->kind = DT_FN;
     fnType->fnType = ast_type_makeFn();
     // parse parameters
-    parser_parseFnDefArguments(parser, parentReferee, &fnType->fnType->args, &fnType->fnType->argNames, currentScope);
+    parser_parseFnDefArguments(parser, parentReferee, fnType->fnType, currentScope);
     // check if we have `->`
     lexeme = parser_peek(parser);
     if(lexeme.type == TOK_FN_RETURN_TYPE) {
@@ -1100,6 +1100,7 @@ DataType * parser_parseTypeProcess(Parser* parser, DataType* parentReferee, ASTS
         // assert ID
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         fnarg->name = strdup(lexeme.string);
+        PARSER_ASSERT(scope_process_AddArg(processType->processType, fnarg), "Duplicate argument `%s` in process constructor.", fnarg->name);
         ACCEPT;
         CURRENT;
         // assert ":"
@@ -1115,12 +1116,9 @@ DataType * parser_parseTypeProcess(Parser* parser, DataType* parentReferee, ASTS
         }
         else {
             PARSER_ASSERT(lexeme.type == TOK_RPAREN, "`)` expected but %s was found.", token_type_to_string(lexeme.type));
-
             loop = 0;
         }
         // add argument
-        vec_push(&processType->processType->argNames, fnarg->name);
-        map_set(&processType->processType->args, fnarg->name, fnarg);
     }
     ACCEPT;
     CURRENT;
@@ -1129,11 +1127,12 @@ DataType * parser_parseTypeProcess(Parser* parser, DataType* parentReferee, ASTS
     parser_reject(parser);
     // parse block
     processType->processType->body = parser_parseStmtBlock(parser, currentScope);
+    PARSER_ASSERT(scope_process_hasReceive(processType->processType), "Scope must have only one statement, a function, called `receive`.")
     return processType;
 }
 
 // starts from the first argument
-void parser_parseFnDefArguments(Parser* parser, DataType* parentType, map_fnargument_t* args, vec_str_t* argsNames, ASTScope* currentScope){
+void parser_parseFnDefArguments(Parser* parser, DataType* parentType, FnType* fnType, ASTScope* currentScope){
     Lexeme CURRENT;
     uint8_t loop = lexeme.type != TOK_RPAREN;
     while(loop) {
@@ -1150,6 +1149,7 @@ void parser_parseFnDefArguments(Parser* parser, DataType* parentType, map_fnargu
         // assert an id
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         fnarg->name = strdup(lexeme.string);
+        PARSER_ASSERT(scope_fntype_addArg(fnType, fnarg), "Duplicate argument `%s` in function type definition.", fnarg->name);
         ACCEPT;
         // assert ":"
         CURRENT;
@@ -1159,10 +1159,7 @@ void parser_parseFnDefArguments(Parser* parser, DataType* parentType, map_fnargu
         fnarg->type = parser_parseTypeUnion(parser, parentType, currentScope);
         // assert type is not null
         PARSER_ASSERT(fnarg->type != NULL, "Invalid symbol `%s` while parsing function argument type", token_type_to_string(lexeme.type));
-        // add to args
-        map_set(args, fnarg->name, fnarg);
-        vec_push(argsNames, fnarg->name);
-        // check if we have a comma
+
         lexeme = parser_peek(parser);
         if(lexeme.type == TOK_COMMA) {
             ACCEPT;

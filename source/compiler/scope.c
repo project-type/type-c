@@ -7,6 +7,10 @@
 #include "type_checker.h"
 #include "error.h"
 
+uint8_t scope_isSafe(ASTScope* scope){
+    return scope->isSafe;
+}
+
 ScopeRegResult scope_program_addImport(ASTProgramNode* program, ImportStmt * import){
     // make sure lookup name doesn't exist already
     ImportStmt* imp; uint32_t i;
@@ -96,7 +100,6 @@ char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* 
     return NULL;
 }
 
-
 ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType){
     // make sure no shadowing allowed
     if(resolveElement(dataType->name, scope, 0) == NULL) {
@@ -174,7 +177,6 @@ char* scope_struct_addAttribute(DataType * struct_, StructAttribute* attr){
     return NULL;
 }
 
-
 ScopeRegResult scope_variantConstructor_addArg(VariantConstructor* constructor, VariantConstructorArgument* arg){
     // make sure argument name doesn't exist already
     if(map_get(&constructor->args, arg->name) == NULL){
@@ -185,6 +187,7 @@ ScopeRegResult scope_variantConstructor_addArg(VariantConstructor* constructor, 
 
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
+
 ScopeRegResult scope_variant_addConstructor(VariantType * variant, VariantConstructor * constructor){
     // make sure constructor name doesn't exist already
     if(map_get(&variant->constructors, constructor->name) == NULL){
@@ -196,10 +199,43 @@ ScopeRegResult scope_variant_addConstructor(VariantType * variant, VariantConstr
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
+ScopeRegResult scope_process_AddArg(ProcessType * process, FnArgument * arg){
+    // make sure argument name doesn't exist already
+    if(map_get(&process->args, arg->name) == NULL){
+        vec_push(&process->argNames, arg->name);
+        map_set(&process->args, arg->name, arg);
+        return SRRT_SUCCESS;
+    }
 
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
 
+ScopeRegResult scope_process_hasReceive(ProcessType * process){
+    // scope must have one statement only, and it must be a function called receive
+    if(process->body->blockStmt->stmts.length == 1){
+        Statement * stmt = vec_last(&process->body->blockStmt->stmts);
+        if(stmt->type == ST_FN_DECL){
+            FnDeclStatement* fn = stmt->fnDecl;
+            if(strcmp(fn->header->name, "receive") == 0){
+                return SRRT_SUCCESS;
+            }
 
+        }
+    }
 
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
+
+ScopeRegResult scope_fntype_addArg(FnType* fn, FnArgument* arg){
+    // make sure argument name doesn't exist already
+    if(map_get(&fn->args, arg->name) == NULL){
+        vec_push(&fn->argNames, arg->name);
+        map_set(&fn->args, arg->name, arg);
+        return SRRT_SUCCESS;
+    }
+
+    return SRRT_TOKEN_ALREADY_REGISTERED;
+}
 
 
 ScopeRegResult scope_registerFFI(ASTScope* scope, ExternDecl* ffi){

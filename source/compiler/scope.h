@@ -36,6 +36,7 @@ typedef enum ScopeRegResult {
     SRRT_SUCCESS=1,
 }ScopeRegResult;
 
+uint8_t scope_isSafe(ASTScope* scope);
 
 ScopeRegResult scope_program_addImport(ASTProgramNode* program, ImportStmt * import);
 
@@ -52,9 +53,15 @@ char* scope_interface_addMethod(DataType * interface, FnHeader* method);
 char* scope_class_addMethod(DataType * class, ClassMethod* fnDecl);
 char* scope_class_addAttribute(DataType * class, LetExprDecl* decl);
 char* scope_struct_addAttribute(DataType * struct_, StructAttribute* attr);
+ScopeRegResult scope_process_AddArg(ProcessType * process, FnArgument * arg);
+ScopeRegResult scope_process_hasReceive(ProcessType * process);
+ScopeRegResult scope_process_receiveMatches(ProcessType * process);
 
 ScopeRegResult scope_variantConstructor_addArg(VariantConstructor* constructor, VariantConstructorArgument* arg);
 ScopeRegResult scope_variant_addConstructor(VariantType * variant, VariantConstructor * constructor);
+
+ScopeRegResult scope_fntype_addArg(FnType* fn, FnArgument* arg);
+
 
 ScopeRegResult scope_registerFFI(ASTScope* scope, ExternDecl* ffi);
 ScopeRegResult scope_registerVariable(ASTScope* scope, FnArgument* variable);

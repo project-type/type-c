@@ -25,12 +25,26 @@ type s1 = struct {
 }
 
 type s2 = struct(s1) {
-    name: string
+    name2: string
 }
 
-type s3 = struct(s2) {
-    name: string
+/*
+type s3 = struct(s1, s2) {
+    name2: string
 }
+*/
+
+/*
+type P = process<s1, s2>(x: u32, x: string) {
+    fn receive(){
+        print("got a jar of dirt!")
+    }
+}
+
+type RudeFN = fn(x: u32, x: string) -> u32
+*/
+
+
 
 type C = C
 
