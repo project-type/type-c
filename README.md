@@ -53,13 +53,9 @@ fn main() {
 - When will the project be finished? Never. It will always be a work in progress.
 
 ## TODO:
-- [ ] Finish parsing expressions and statements
+- [x] Finish parsing expressions and statements
 - [ ] Fully unittest the AST
-- [ ] Think about decorators, especially to preserve struct layout, useful for ffi
-- [ ] Think about mutability
-- [ ] Think about partial function applications
-- [ ] Think about async/await and coroutines
-- [ ] Improve error handling
+- [x] Establish draft for implementing decorators
 - [ ] Improve memory management
 
 ## Global Roadmap:
@@ -71,6 +67,7 @@ fn main() {
 6. Improving `type-v`: JIT, GC, etc.
 7. More `type-v` optimizations.
 8. Package Manager
+
 ## How to contribute
 Well, not much you can do now in terms of code, but you can try lifting my spirit by giving me a star and maybe sharing your thoughts.
 I would rather keep working on this project alone for now as its a learning experience, but if you want to help me
