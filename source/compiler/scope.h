@@ -85,6 +85,8 @@ ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType);
 // data lookup
 ASTScopeResultType scope_lookupSymbol(ASTScope* scope, char* name);
 DataType* scope_lookupVariable(ASTScope* scope, char* name);
+DataType* scope_lookupFunction(ASTScope* scope, char* name);
+DataType* scope_getClassRef(ASTScope* scope);
 /**
  * Validating data
  */

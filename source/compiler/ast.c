@@ -115,11 +115,11 @@ InterfaceType* ast_type_makeInterface(ASTScope* parentScope) {
     return interface;
 }
 
-ClassType* ast_type_makeClass(ASTScope* parentScope) {
+ClassType* ast_type_makeClass(ASTScope* parentScope, DataType * classType) {
     ALLOC(class, ClassType);
     class->scope = ast_scope_makeScope(parentScope);
     class->scope->withinClass = 1;
-    class->scope->classRef = class;
+    class->scope->classRef = classType;
 
     map_init(&class->methods);
     //map_init(&class->attributes);
@@ -467,6 +467,8 @@ ASTScope * ast_scope_makeScope(ASTScope* parentScope){
     scope->isSafe = (parentScope == NULL) ? 1 : parentScope->isSafe;
     scope->withinClass = (parentScope == NULL) ? 0 : parentScope->withinClass;
     scope->withinSync = (parentScope == NULL) ? 0 : parentScope->withinSync;
+    scope->withinLoop = (parentScope == NULL) ? 0 : parentScope->withinLoop;
+    scope->withinFn = (parentScope == NULL) ? 0 : parentScope->withinFn;
 
     scope->parentScope = parentScope;
 
@@ -511,7 +513,9 @@ FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope){
     fnDecl->bodyType = FBT_BLOCK;
     fnDecl->expr = NULL;
     fnDecl->scope->isFn = 1;
+    fnDecl->scope->withinFn = 1;
     fnDecl->scope->fnHeader = fnDecl->header;
+    fnDecl->dataType = NULL;
 
     return fnDecl;
 }
@@ -542,20 +546,24 @@ MatchStatement* ast_stmt_makeMatchStatement(){
     return match;
 }
 
-WhileStatement* ast_stmt_makeWhileStatement(){
+WhileStatement* ast_stmt_makeWhileStatement(ASTScope* parentScope){
     ALLOC(whileStmt, WhileStatement);
+    whileStmt->scope = ast_scope_makeScope(parentScope);
     whileStmt->condition = NULL;
     whileStmt->block = NULL;
     whileStmt->label = NULL;
+    whileStmt->scope->withinLoop = 1;
 
     return whileStmt;
 }
 
-DoWhileStatement* ast_stmt_makeDoWhileStatement(){
+DoWhileStatement* ast_stmt_makeDoWhileStatement(ASTScope* parentScope){
     ALLOC(doWhileStmt, DoWhileStatement);
+    doWhileStmt->scope = ast_scope_makeScope(parentScope);
     doWhileStmt->condition = NULL;
     doWhileStmt->block = NULL;
     doWhileStmt->label = NULL;
+    doWhileStmt->scope->withinLoop = 1;
     return doWhileStmt;
 }
 
@@ -565,6 +573,7 @@ ForStatement* ast_stmt_makeForStatement(ASTScope* parentScope){
     forStmt->initializer = NULL;
     forStmt->condition = NULL;
     forStmt->block = NULL;
+    forStmt->scope->withinLoop = 1;
     // init increments
     vec_init(&forStmt->increments);
     forStmt->label = NULL;

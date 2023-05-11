@@ -162,7 +162,7 @@ typedef struct ClassType {
     vec_letexprlist_t letList;
     struct ASTScope* scope;
 }ClassType;
-ClassType* ast_type_makeClass(struct ASTScope* parentScope);
+ClassType* ast_type_makeClass(struct ASTScope* parentScope, struct DataType * classType);
 
 typedef struct FnType {
     map_fnargument_t args;
@@ -317,12 +317,14 @@ typedef struct ASTScope {
     uint8_t isSafe;                          // block is safe
     uint8_t withinClass;                     // is within a class
     uint8_t withinSync;                      // is within a sync block
+    uint8_t withinLoop;                      // is within a loop
+    uint8_t withinFn;                        // is within a function
     map_fnargument_t variables;              // variables declared in this scope
     map_fndecl_t functions;                  // functions declared in this scope
     map_dtype_t dataTypes;                   // data types declared in this scope
     map_externdecl_t externDecls;            // extern declarations
     FnHeader* fnHeader;                      // function header, if is a function
-    ClassType* classRef;                     // class reference, if within a class
+    DataType* classRef;                     // class type, if within a class
     struct ASTScope* parentScope;            // parent scope
 } ASTScope;
 ASTScope * ast_scope_makeScope(ASTScope* parentScope);
@@ -651,6 +653,7 @@ typedef struct FnDeclStatement {
         struct Statement *block;
     };
     ASTScope * scope;
+    DataType* dataType;
 }FnDeclStatement;
 FnDeclStatement* ast_stmt_makeFnDeclStatement(ASTScope* parentScope);
 
@@ -678,15 +681,17 @@ typedef struct WhileStatement {
     char* label;
     struct Expr *condition;
     struct Statement *block;
+    ASTScope * scope;
 }WhileStatement;
-WhileStatement* ast_stmt_makeWhileStatement();
+WhileStatement* ast_stmt_makeWhileStatement(ASTScope* parentScope);
 
 typedef struct DoWhileStatement {
     char* label;
     struct Expr *condition;
     struct Statement *block;
+    ASTScope * scope;
 }DoWhileStatement;
-DoWhileStatement* ast_stmt_makeDoWhileStatement();
+DoWhileStatement* ast_stmt_makeDoWhileStatement(ASTScope* parentScope);
 
 typedef struct ForStatement {
     char* label;

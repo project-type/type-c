@@ -15,6 +15,7 @@
 #include "parser_utils.h"
 #include "scope.h"
 #include "type_checker.h"
+#include "type_inference.h"
 
 #define ACCEPT parser_accept(parser)
 #define CURRENT lexeme = parser_peek(parser)
@@ -630,7 +631,7 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
 DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     DataType * classType = ast_type_makeType(parser->stack.data[0]);
     classType->kind = DT_CLASS;
-    classType->classType = ast_type_makeClass(currentScope);
+    classType->classType = ast_type_makeClass(currentScope, classType);
     // add the parent type to scope if it exists
     if(parentReferee != NULL) {
         scope_registerType(classType->classType->scope, parentReferee);
@@ -2033,7 +2034,18 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     if(lexeme.type == TOK_IDENTIFIER){
         Expr* expr = ast_expr_makeExpr(ET_ELEMENT);
         expr->elementExpr = ast_expr_makeElementExpr(lexeme.string);
-        PARSER_ASSERT(scope_lookupSymbol(currentScope, lexeme.string), "Symbol `%s` is not defined.", lexeme.string);
+        //PARSER_ASSERT(scope_lookupSymbol(currentScope, lexeme.string), "Symbol `%s` is not defined.", lexeme.string);
+        /*DataType* type = scope_lookupVariable(currentScope, lexeme.string);
+        if(type == NULL)
+            type = scope_lookupFunction(currentScope, lexeme.string);
+        expr->dataType = type;
+        if(type != NULL) {
+            // TODO: Remove debug
+            printf("SYMBOL %s TYPE %s\n", lexeme.string, ast_json_serializeDataType(type));
+        }
+        else {
+            printf("SYMBOL %s NO TYPE\n", lexeme.string);
+        }*/
         ACCEPT;
 
         return expr;
@@ -2041,6 +2053,9 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     if(lexeme.type == TOK_THIS){
         Expr* expr = ast_expr_makeExpr(ET_THIS);
         expr->thisExpr = ast_expr_makeThisExpr();
+        PARSER_ASSERT(currentScope->withinClass, "`this` can only be used within a class");
+        expr->dataType = scope_getClassRef(currentScope);
+        PARSER_ASSERT(expr->dataType != NULL, "couldn't get base class of `this`");
         ACCEPT;
 
         return expr;
@@ -2062,7 +2077,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
             expr->lambdaExpr->bodyType = FBT_EXPR;
             ACCEPT;
             expr->lambdaExpr->expr = parser_parseExpr(parser, expr->lambdaExpr->scope);
-
+            expr->dataType = ti_lambda_toType(parser, currentScope, expr->lambdaExpr, lexeme);
             return expr;
         }
         else{
@@ -2321,6 +2336,13 @@ Expr* parser_parseLiteral(Parser* parser, ASTScope* currentScope) {
         case TOK_TRUE:
             expr->literalExpr->type = LT_BOOLEAN;
             expr->dataType->kind = DT_BOOL;
+            expr->literalExpr->value = strdup("true");
+            return  expr;
+        case TOK_FALSE:
+            expr->literalExpr->type = LT_BOOLEAN;
+            expr->dataType->kind = DT_BOOL;
+            expr->literalExpr->value = strdup("false");
+            return expr;
         default:
             // TODO: free memory
             return NULL;
@@ -2605,7 +2627,23 @@ Statement* parser_parseStmt(Parser* parser, ASTScope* currentScope) {
     // if we have a let statement
     if(lexeme.type == TOK_LET) {
         parser_reject(parser);
-        return parser_parseStmtLet(parser, currentScope);
+        Statement *stmt = parser_parseStmtLet(parser, currentScope);
+        // register stmt
+        // iterate through stmt->varDecl->letList
+        LetExprDecl* varDecl;
+        uint32_t i = 0;
+        vec_foreach(&stmt->varDecl->letList, varDecl, i){
+            // register varDecl->name
+            // iterate through varDecl
+            char* name;
+            uint32_t j = 0;
+            vec_foreach(&varDecl->variableNames, name, j){
+                FnArgument ** arg = map_get(&varDecl->variables, name);
+                PARSER_ASSERT(scope_registerVariable(currentScope, *arg), "variable `%s` already exists in scope.", name);
+            }
+        }
+
+        return stmt;
     }
     // if we have a function declaration
     else if(lexeme.type == TOK_FN) {
@@ -2942,6 +2980,8 @@ Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
     }
     PARSER_ASSERT(scope_registerFunction(currentScope, stmt->fnDecl),
            "Function %s already exists in scope", stmt->fnDecl->header->name);
+
+    stmt->fnDecl->dataType = ti_fndect_toType(parser, currentScope, stmt->fnDecl, lexeme);
     return stmt;
 }
 
@@ -3092,7 +3132,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTScope* currentScope){
 Statement* parser_parseStmtWhile(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_WHILE);
-    stmt->whileLoop = ast_stmt_makeWhileStatement();
+    stmt->whileLoop = ast_stmt_makeWhileStatement(currentScope);
     // assert while
     Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_WHILE, "`while` expected but %s was found.", token_type_to_string(lexeme.type));
@@ -3102,7 +3142,7 @@ Statement* parser_parseStmtWhile(Parser* parser, ASTScope* currentScope){
     // assert condition is not null
     PARSER_ASSERT(stmt->whileLoop->condition != NULL, "Invalid symbol %s while parsing while condition.", token_type_to_string(lexeme.type));
     // parse block
-    stmt->whileLoop->block = parser_parseStmtBlock(parser, currentScope);
+    stmt->whileLoop->block = parser_parseStmtBlock(parser, stmt->whileLoop->scope);
     // assert block is not null
     PARSER_ASSERT(stmt->whileLoop->block != NULL, "Invalid symbol %s while parsing while block.", token_type_to_string(lexeme.type));
 
@@ -3112,13 +3152,13 @@ Statement* parser_parseStmtWhile(Parser* parser, ASTScope* currentScope){
 Statement* parser_parseStmtDoWhile(Parser* parser, ASTScope* currentScope){
     // build statement
     Statement* stmt = ast_stmt_makeStatement(ST_DO_WHILE);
-    stmt->doWhileLoop = ast_stmt_makeDoWhileStatement();
+    stmt->doWhileLoop = ast_stmt_makeDoWhileStatement(currentScope);
     // assert do
     Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_DO, "`do` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
-    stmt->doWhileLoop->block = parser_parseStmtBlock(parser, currentScope);
+    stmt->doWhileLoop->block = parser_parseStmtBlock(parser, stmt->doWhileLoop->scope);
     // assert block is not null
     PARSER_ASSERT(stmt->doWhileLoop->block != NULL, "Invalid symbol %s while parsing do-while block.", token_type_to_string(lexeme.type));
     // assert while
@@ -3162,7 +3202,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTScope* currentScope) {
     if(lexeme.type != TOK_SEMICOLON){
         parser_reject(parser);
         // parse condition
-        stmt->forLoop->condition = parser_parseExpr(parser, currentScope);
+        stmt->forLoop->condition = parser_parseExpr(parser, stmt->forLoop->scope);
         // assert condition is not null
         PARSER_ASSERT(stmt->forLoop->condition != NULL,
                "Invalid symbol %s while parsing for-loop condition.", token_type_to_string(lexeme.type));
@@ -3184,7 +3224,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTScope* currentScope) {
         uint8_t loop = 1;
         while(loop) {
             // parse one increment
-            Expr* increment = parser_parseExpr(parser, currentScope);
+            Expr* increment = parser_parseExpr(parser, stmt->forLoop->scope);
             // assert increment is not null
             PARSER_ASSERT(increment != NULL, "Invalid symbol %s while parsing for-loop increment.", token_type_to_string(lexeme.type));
             // add increment to list
@@ -3200,7 +3240,7 @@ Statement* parser_parseStmtFor(Parser* parser, ASTScope* currentScope) {
     parser_reject(parser);
 
     // current
-    stmt->forLoop->block = parser_parseStmtBlock(parser, currentScope);
+    stmt->forLoop->block = parser_parseStmtBlock(parser, stmt->forLoop->scope);
     // assert block is not null
     PARSER_ASSERT(stmt->forLoop->block != NULL, "Invalid symbol %s while parsing for-loop block.", token_type_to_string(lexeme.type));
     return stmt;
@@ -3219,6 +3259,7 @@ Statement* parser_parseStmtContinue(Parser* parser, ASTScope* currentScope){
     // assert continue
     Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_CONTINUE, "`continue` expected but %s was found.", token_type_to_string(lexeme.type));
+    PARSER_ASSERT(currentScope->withinLoop, "`continue` statement must be within a loop.");
     ACCEPT;
     return stmt;
 }
@@ -3233,6 +3274,7 @@ Statement* parser_parseStmtReturn(Parser* parser, ASTScope* currentScope){
     ACCEPT;
     // parse expression
     stmt->returnStmt->expr = parser_parseExpr(parser, currentScope);
+    PARSER_ASSERT(currentScope->withinFn, "`return` statement must be within a function.");
     // return can be NULL.
 
     return stmt;
@@ -3245,6 +3287,7 @@ Statement* parser_parseStmtBreak(Parser* parser, ASTScope* currentScope){
     // assert break
     Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_BREAK, "`break` expected but %s was found.", token_type_to_string(lexeme.type));
+    PARSER_ASSERT(currentScope->withinLoop, "`break` statement must be within a loop.");
     ACCEPT;
     return stmt;
 }

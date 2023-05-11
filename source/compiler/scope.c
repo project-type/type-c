@@ -370,15 +370,15 @@ ASTScopeResultType scope_lookupSymbol(ASTScope* scope, char* name){
         }
     }
 
-    if((scope->withinClass) && (scope->classRef!=NULL) && (scope == scope->classRef->scope)){
+    if((scope->withinClass) && (scope->classRef != NULL) && (scope == scope->classRef->classType->scope)){
         // check methods
-        ClassMethod ** method = map_get(&scope->classRef->methods, name);
+        ClassMethod ** method = map_get(&scope->classRef->classType->methods, name);
         if(method != NULL){
             return SCOPE_METHOD;
         }
         // iterate through letList
-        for(uint32_t i = 0; i < scope->classRef->letList.length; i++){
-            struct LetExprDecl * let = scope->classRef->letList.data[i];
+        for(uint32_t i = 0; i < scope->classRef->classType->letList.length; i++){
+            struct LetExprDecl * let = scope->classRef->classType->letList.data[i];
             // look up let->variableNames
             for(uint32_t j = 0; j < let->variableNames.length; j++){
                 char * varName = let->variableNames.data[j];
@@ -394,4 +394,92 @@ ASTScopeResultType scope_lookupSymbol(ASTScope* scope, char* name){
     }
 
     return SCOPE_UNDEFINED;
+}
+
+DataType* scope_lookupVariable(ASTScope* scope, char* name){
+    // searches for variables, argument or attribute and returns its type
+    if(scope == NULL){
+        return NULL;
+    }
+
+    // check if variable is defined in current scope
+    FnArgument ** variable = map_get(&scope->variables, name);
+    if(variable != NULL){
+        return (*variable)->type;
+    }
+
+    // if scope is function we check its args
+    if(scope->isFn){
+        // fetch args
+        FnArgument ** arg = map_get(&scope->fnHeader->type->args, name);
+        if(arg != NULL){
+            return (*arg)->type;
+        }
+    }
+
+    // check class attributes
+    if((scope->withinClass) && (scope->classRef != NULL) && (scope == scope->classRef->classType->scope)){
+        // iterate through letList
+        for(uint32_t i = 0; i < scope->classRef->classType->letList.length; i++){
+            struct LetExprDecl * let = scope->classRef->classType->letList.data[i];
+            // look up let->variableNames
+            for(uint32_t j = 0; j < let->variableNames.length; j++){
+                char * varName = let->variableNames.data[j];
+                if(strcmp(varName, name) == 0){
+                    FnArgument ** arg = map_get(&let->variables, name);
+                    return (*arg)->type;
+                }
+            }
+        }
+    }
+
+    // check if variable is defined in parent scope
+    if(scope->parentScope != NULL) {
+        return scope_lookupVariable(scope->parentScope, name);
+    }
+
+    return NULL;
+}
+
+DataType* scope_lookupFunction(ASTScope* scope, char* name){
+    // searches for functions and returns its type
+    if(scope == NULL){
+        return NULL;
+    }
+
+    // check if function is defined in current scope
+    FnDeclStatement ** function = map_get(&scope->functions, name);
+    if(function != NULL){
+        return (*function)->dataType;
+    }
+
+    // if class check methods
+    if((scope->withinClass) && (scope->classRef != NULL) && (scope == scope->classRef->classType->scope)){
+        // check methods
+        ClassMethod ** method = map_get(&scope->classRef->classType->methods, name);
+        if(method != NULL){
+            return (*method)->decl->dataType;
+        }
+    }
+
+    // check if function is defined in parent scope
+    if(scope->parentScope != NULL) {
+        return scope_lookupFunction(scope->parentScope, name);
+    }
+
+    return NULL;
+}
+
+DataType* scope_getClassRef(ASTScope* scope){
+    ASSERT(scope->withinClass, "Scope is not within a class");
+
+    if(scope->classRef != NULL){
+        return scope->classRef;
+    }
+
+    if((scope->parentScope != NULL) && (scope->parentScope->withinClass)){
+        return scope_getClassRef(scope->parentScope);
+    }
+
+    return NULL;
 }

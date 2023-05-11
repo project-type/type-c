@@ -3,62 +3,16 @@ fn print(x: u32){
     let y: u32 = x
 }
 
-type Tree = variant {
-    Binary(lhs: Tree, rhs: Tree),
-    Unary(child: Tree),
-    Leaf(value: u32),
-    Empty()
-}
+let x: u32 = print
 
-type Instance = interface {
-    fn cool() -> Instance
-}
+let x2: f32 = print
 
-type Instance2 = interface {
-    fn cool() -> Instance2
-}
+let z = fn(x: u32, y:u32) -> u32 = x
 
-type Instance3 = class(Instance, interface{fn haha() -> Instance3 }) {
-
-    let x: u32 = 1
-    let x2: string = "hello"
-
-
-    fn inits(){print("HAYYA")+x-doStuff()}
-    fn doStuff(){
-        print("hello")
+fn keep(){
+    while true {
+        break
+        continue
+        return
     }
 }
-
-type s1 = struct {
-    name: string
-}
-
-type s2 = struct(s1) {
-    name2: string
-}
-
-/*
-type s3 = struct(s1, s2) {
-    name2: string
-}
-*/
-
-/*
-type P = process<s1, s2>(x: u32, x: string) {
-    fn receive(){
-        print("got a jar of dirt!")
-    }
-}
-
-// fn type
-type RudeFN = fn(x: u32, x: string) -> u32
-
-// lambda
-let x = fn(x: u32, x:u32) -> u32 = 1
-
-
-print(let x = 1, x = 2 in 3)
-*/
-print(let x = 1, y = 2 in y+ x )
-type C = C
