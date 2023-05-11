@@ -169,36 +169,21 @@ JSON_Value* ast_json_serializeDataTypeRecursive(DataType* type) {
         }
         // set the generic array
         json_object_set_value(root_object, "genericParams", generic_value);
-
     }
     // check if hasGenerics
     if(type->hasGenerics){
         // create new array which holds generic
         JSON_Value* generic_value = json_value_init_array();
         JSON_Array* generic_array = json_value_get_array(generic_value);
-        // iterate over the generic
-        int uint32_t; char* val;
-        vec_foreach(&type->genericNames, val, uint32_t){
-            GenericParam ** paramRef = map_get(&type->generics, val);
-            GenericParam * param = *paramRef;
-            // create generic object
-            JSON_Value* generic_object_value = json_value_init_object();
-            JSON_Object* generic_object = json_value_get_object(generic_object_value);
+        // iterate over the generic refs
+        uint32_t i = 0; DataType *refs;
+        vec_foreach(&type->genericRefs, refs, i){
             // set the name
-            json_object_set_string(generic_object, "name", param->name);
-            // set the constraint if it's not null
-            if (param->constraint != NULL)
-                json_object_set_value(generic_object, "constraint", ast_json_serializeDataTypeRecursive(param->constraint));
-            else
-                // set constraint to null
-                json_object_set_null(generic_object, "constraint");
-
-            // append to array
-            json_array_append_value(generic_array, generic_object_value);
+            // push ast_json_serializeDataTypeRecursive(refs) to generic value;
+            json_array_append_value(generic_array, ast_json_serializeDataTypeRecursive(refs));
         }
         // set the generic array
-        json_object_set_value(root_object, "concreteGenerics", generic_value);
-
+        json_object_set_value(root_object, "genericRefs", generic_value);
     }
 
 

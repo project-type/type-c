@@ -22,6 +22,11 @@ DataType* resolver_resolveType(Parser* parser, ASTScope* currentScope, char* typ
         return *dtptr;
     }
     else {
+        /*
+        GenericParam ** param = map_get(&currentScope->generics, typeName);
+        if(param != NULL) {
+            return ;
+        }*/
         return resolver_resolveType(parser, currentScope->parentScope, typeName);
     }
 

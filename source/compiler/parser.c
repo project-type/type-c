@@ -206,7 +206,7 @@ We need to generate functions to parse each of the following:
 
 */
 void parser_parseTypeDecl(Parser* parser, ASTScope* currentScope) {
-    DataType * type = ast_type_makeType(parser->stack.data[0]);
+    DataType * type = ast_type_makeType(currentScope, parser->stack.data[0]);
     type->kind = DT_REFERENCE;
     ACCEPT;
     Lexeme lexeme = parser_peek(parser);
@@ -273,7 +273,7 @@ void parser_parseTypeDecl(Parser* parser, ASTScope* currentScope) {
     type->refType = ast_type_makeReference();
     type->refType->ref = type_def;
     //printf("%s\n", ast_stringifyType(type_def));
-    //printf("%s\n", ast_json_serializeDataType(type_def));
+    printf("%s\n", ast_json_serializeDataType(type_def));
 
     PARSER_ASSERT(scope_registerType(currentScope, type), "type `%s` already exists.", type->name);
 }
@@ -300,7 +300,7 @@ DataType* parser_parseTypeUnion(Parser* parser, DataType* parentReferee, ASTScop
 
 
         // create new datatype to hold joints
-        DataType* newType = ast_type_makeType(parser->stack.data[0]);
+        DataType* newType = ast_type_makeType(currentScope, parser->stack.data[0]);
         newType->kind = DT_TYPE_UNION;
         newType->unionType = unions;
         type = newType;
@@ -330,7 +330,7 @@ DataType* parser_parseTypeIntersection(Parser* parser, DataType* parentReferee, 
         join->left = type2;
 
         // create new datatype to hold joints
-        DataType* newType = ast_type_makeType(parser->stack.data[0]);
+        DataType* newType = ast_type_makeType(currentScope, parser->stack.data[0]);
         newType->kind = DT_TYPE_JOIN;
         newType->joinType = join;
         return newType;
@@ -423,7 +423,7 @@ DataType * parser_parseTypeArray(Parser* parser, DataType* parentReferee, ASTSco
                 ACCEPT;
             }
 
-            DataType * retType = ast_type_makeType(parser->stack.data[0]);
+            DataType * retType = ast_type_makeType(currentScope, parser->stack.data[0]);
             retType->kind = DT_ARRAY;
             retType->arrayType = array;
             last_type = retType;
@@ -468,7 +468,7 @@ DataType* parser_parseTypePrimary(Parser* parser, DataType* parentReferee, ASTSc
             DataTypeKind t2 = lexeme.type - TOK_I8;
         }
         // create new type assign basic to it
-        DataType* basicType = ast_type_makeType(parser->stack.data[0]);
+        DataType* basicType = ast_type_makeType(currentScope, parser->stack.data[0]);
         basicType->kind = lexeme.type - TOK_I8;
         ACCEPT;
         type = basicType;
@@ -508,7 +508,7 @@ DataType* parser_parseTypePrimary(Parser* parser, DataType* parentReferee, ASTSc
 
 DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // we create a reference refType
-    DataType* refType = ast_type_makeType(parser->stack.data[0]);
+    DataType* refType = ast_type_makeType(currentScope, parser->stack.data[0]);
     refType->kind = DT_REFERENCE;
     refType->refType = ast_type_makeReference();
     // rollback
@@ -552,9 +552,9 @@ DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope*
         }
 
         // TODO: change this once we have imports running
-        DataType* t = resolver_resolveType(parser, currentScope, refType->refType->pkg->ids.data[0]);
-        PARSER_ASSERT(t != NULL, "Type `%s` is not defined.", refType->refType->pkg->ids.data[0]);
-        refType->refType->ref = t;
+        //DataType* t = resolver_resolveType(parser, currentScope, refType->refType->pkg->ids.data[0]);
+        //PARSER_ASSERT(t != NULL, "Type `%s` is not defined.", refType->refType->pkg->ids.data[0]);
+        //refType->refType->ref = t;
 
     }
 
@@ -564,7 +564,7 @@ DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope*
 // interface_tupe ::= "interface" "{" <interface_decl> (","? <interface_decl>)* "}"
 DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
     // create base type
-    DataType* interfaceType = ast_type_makeType(parser->stack.data[0]);
+    DataType* interfaceType = ast_type_makeType(currentScope, parser->stack.data[0]);
     interfaceType->kind = DT_INTERFACE;
     interfaceType->interfaceType = ast_type_makeInterface(currentScope);
 
@@ -629,7 +629,7 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
 }
 
 DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
-    DataType * classType = ast_type_makeType(parser->stack.data[0]);
+    DataType * classType = ast_type_makeType(currentScope, parser->stack.data[0]);
     classType->kind = DT_CLASS;
     classType->classType = ast_type_makeClass(currentScope, classType);
     // add the parent type to scope if it exists
@@ -725,7 +725,7 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
 // variant_type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"
 DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     //create base type
-    DataType * variantType = ast_type_makeType(parser->stack.data[0]);
+    DataType * variantType = ast_type_makeType(currentScope, parser->stack.data[0]);
     variantType->kind = DT_VARIANT;
     variantType->variantType = ast_type_makeVariant(currentScope);
     // add the parent type to scope if it exists
@@ -829,7 +829,7 @@ DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTSc
 
 // struct_type ::= "struct" "{" <struct_decl> ("," <struct_decl>)* "}"
 DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
-    DataType * structType = ast_type_makeType(parser->stack.data[0]);
+    DataType * structType = ast_type_makeType(currentScope, parser->stack.data[0]);
     structType->kind = DT_STRUCT;
     structType->structType = ast_type_makeStruct(currentScope);
 
@@ -932,7 +932,7 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTScope* currentScope) {
     }
     PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
-    DataType * enumType = ast_type_makeType(parser->stack.data[0]);
+    DataType * enumType = ast_type_makeType(currentScope, parser->stack.data[0]);
     enumType->kind = DT_ENUM;
     enumType->enumType = enum_;
     return enumType;
@@ -1026,7 +1026,7 @@ DataType* parser_parseTypeFn(Parser* parser, DataType* parentReferee, ASTScope* 
     CURRENT;
 
     // create function type
-    DataType* fnType = ast_type_makeType(parser->stack.data[0]);
+    DataType* fnType = ast_type_makeType(currentScope, parser->stack.data[0]);
     fnType->kind = DT_FN;
     fnType->fnType = ast_type_makeFn();
     // parse parameters
@@ -1050,7 +1050,7 @@ DataType* parser_parseTypeFn(Parser* parser, DataType* parentReferee, ASTScope* 
 // "ptr" "<" <type> ">"
 DataType* parser_parseTypePtr(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
     // build type
-    DataType* ptrType = ast_type_makeType(parser->stack.data[0]);
+    DataType* ptrType = ast_type_makeType(currentScope, parser->stack.data[0]);
     ptrType->kind = DT_PTR;
     ptrType->ptrType = ast_type_makePtr();
     // currently at ptr
@@ -1070,7 +1070,7 @@ DataType* parser_parseTypePtr(Parser* parser, DataType* parentReferee, ASTScope*
 }
 
 DataType * parser_parseTypeProcess(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
-    DataType * processType = ast_type_makeType(parser->stack.data[0]);
+    DataType * processType = ast_type_makeType(currentScope, parser->stack.data[0]);
     processType->kind = DT_PROCESS;
     processType->processType = ast_type_makeProcess();
     ACCEPT;
@@ -2293,7 +2293,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
  */
 Expr* parser_parseLiteral(Parser* parser, ASTScope* currentScope) {
     Expr* expr = ast_expr_makeExpr(ET_LITERAL);
-    expr->dataType = ast_type_makeType(parser->stack.data[0]);
+    expr->dataType = ast_type_makeType(currentScope, parser->stack.data[0]);
 
     expr->literalExpr = ast_expr_makeLiteralExpr(0);
     Lexeme lexeme = parser_peek(parser);
@@ -3270,11 +3270,16 @@ Statement* parser_parseStmtReturn(Parser* parser, ASTScope* currentScope){
     stmt->returnStmt = ast_stmt_makeReturnStatement();
     // assert return
     Lexeme CURRENT;
+    PARSER_ASSERT(currentScope->withinFn, "`return` statement must be within a function.");
     PARSER_ASSERT(lexeme.type == TOK_RETURN, "`return` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse expression
-    stmt->returnStmt->expr = parser_parseExpr(parser, currentScope);
-    PARSER_ASSERT(currentScope->withinFn, "`return` statement must be within a function.");
+    FnHeader * header = scope_getFnRef(currentScope);
+    if(header->type->returnType != NULL) {
+        stmt->returnStmt->expr = parser_parseExpr(parser, currentScope);
+        PARSER_ASSERT(stmt->returnStmt->expr != NULL, "Function `%s` must return an expression", header->name);
+    }
+
     // return can be NULL.
 
     return stmt;

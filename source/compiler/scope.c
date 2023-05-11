@@ -62,6 +62,11 @@ ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericPar
     if(map_get(&dtype->generics, genericParam->name) == NULL){
         vec_push(&dtype->genericNames, genericParam->name);
         map_set(&dtype->generics, genericParam->name, genericParam);
+
+        // add generic to scope to
+        vec_push(&dtype->scope->genericNames, genericParam->name);
+        map_set(&dtype->scope->generics, genericParam->name, genericParam);
+
         return SRRT_SUCCESS;
     }
 
@@ -394,6 +399,19 @@ ASTScopeResultType scope_lookupSymbol(ASTScope* scope, char* name){
     }
 
     return SCOPE_UNDEFINED;
+}
+
+FnHeader* scope_getFnRef(ASTScope* scope){
+    // returns the function of the current scope
+    if(scope == NULL){
+        return NULL;
+    }
+
+    if(scope->isFn){
+        return scope->fnHeader;
+    }
+
+    return scope_getFnRef(scope->parentScope);
 }
 
 DataType* scope_lookupVariable(ASTScope* scope, char* name){

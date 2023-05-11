@@ -9,10 +9,26 @@ let x2: f32 = print
 
 let z = fn(x: u32, y:u32) -> u32 = x
 
-fn keep(){
+fn keep() -> u32 {
     while true {
         break
         continue
-        return
+        return(1)
     }
+}
+
+type Container<T>  = struct{
+    x: T,
+    y: T,
+    h: T,
+    w: T
+}
+
+type Generator<T> = interface {
+    fn next() -> T
+    fn recursive<U>(x: U) -> U
+}
+
+type Z = struct {
+    x: Generator<u32?>?
 }

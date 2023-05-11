@@ -9,7 +9,7 @@
 DataType * ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr* lambda, Lexeme lexeme){
     // generate the datatype of a lambda expression
     // create an empty datatype
-    DataType* dt = ast_type_makeType(lexeme);
+    DataType* dt = ast_type_makeType(currentScope, lexeme);
     dt->kind = DT_FN;
     dt->fnType = ast_type_makeFn();
 
@@ -39,7 +39,7 @@ DataType * ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr
 DataType* ti_fndect_toType(Parser * parser, ASTScope * currentScope, FnDeclStatement * fndecl, Lexeme lexeme){
     // generate the datatype of a function declaration
     // create an empty datatype
-    DataType* dt = ast_type_makeType(lexeme);
+    DataType* dt = ast_type_makeType(currentScope, lexeme);
     dt->kind = DT_FN;
     dt->fnType = ast_type_makeFn();
 
@@ -65,4 +65,4 @@ DataType* ti_fndect_toType(Parser * parser, ASTScope * currentScope, FnDeclState
     return dt;
 }
 
-void ti_
+void ti_runProgram(Parser* parser, ASTProgramNode);

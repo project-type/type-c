@@ -149,8 +149,9 @@ StructType* ast_type_makeStruct(ASTScope* parentScope) {
     return struct_;
 }
 
-DataType* ast_type_makeType(Lexeme lexeme) {
+DataType* ast_type_makeType(struct ASTScope* parentScope, Lexeme lexeme) {
     ALLOC(type, DataType);
+    type->scope = ast_scope_makeScope(parentScope);
     type->name = NULL;
     type->hasGenerics = 0;
     type->isGeneric = 0;
@@ -476,6 +477,10 @@ ASTScope * ast_scope_makeScope(ASTScope* parentScope){
     map_init(&scope->functions);
     map_init(&scope->dataTypes);
     vec_init(&scope->externDecls);
+
+
+    map_init(&scope->generics);
+    vec_init(&scope->genericNames);
     return scope;
 }
 

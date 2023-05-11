@@ -225,8 +225,9 @@ typedef struct DataType {
         ProcessType* processType;
     };
     Lexeme lexeme;
+    struct ASTScope* scope;
 }DataType;
-DataType* ast_type_makeType(Lexeme lexeme);
+DataType* ast_type_makeType(struct ASTScope* parentScope, Lexeme lexeme);
 
 typedef struct VariantConstructorArgument {
     char* name;
@@ -319,12 +320,17 @@ typedef struct ASTScope {
     uint8_t withinSync;                      // is within a sync block
     uint8_t withinLoop;                      // is within a loop
     uint8_t withinFn;                        // is within a function
+
     map_fnargument_t variables;              // variables declared in this scope
     map_fndecl_t functions;                  // functions declared in this scope
     map_dtype_t dataTypes;                   // data types declared in this scope
     map_externdecl_t externDecls;            // extern declarations
+
+    vec_str_t genericNames;                  // generic names declared in this scope
+    map_genericparam_t generics;             // generic parameters declared in this scope
+
     FnHeader* fnHeader;                      // function header, if is a function
-    DataType* classRef;                     // class type, if within a class
+    DataType* classRef;                      // class type, if within a class
     struct ASTScope* parentScope;            // parent scope
 } ASTScope;
 ASTScope * ast_scope_makeScope(ASTScope* parentScope);

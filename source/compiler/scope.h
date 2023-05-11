@@ -87,6 +87,7 @@ ASTScopeResultType scope_lookupSymbol(ASTScope* scope, char* name);
 DataType* scope_lookupVariable(ASTScope* scope, char* name);
 DataType* scope_lookupFunction(ASTScope* scope, char* name);
 DataType* scope_getClassRef(ASTScope* scope);
+FnHeader* scope_getFnRef(ASTScope* scope);
 /**
  * Validating data
  */
