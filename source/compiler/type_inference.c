@@ -8,11 +8,16 @@
 #include "parser.h"
 #include "error.h"
 #include "parser_utils.h"
+#include "scope.h"
 
 DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
     // if type is reference, lookup the scope for the reference
     if(dtype->kind == DT_REFERENCE){
-        DataType ** dt = map_get(&scope->dataTypes, dtype->refType);
+        DataType ** dt = NULL;
+        if (dtype->refType->ref != NULL)
+            dt = &dtype->refType->ref;
+        else
+            dt = map_get(&scope->dataTypes, dtype->refType->pkg->ids.data[0]);
         if(dt != NULL) {
             if((*dt)->kind == DT_REFERENCE){
                 return ti_type_findBase(parser, scope, *dt);
@@ -192,6 +197,16 @@ void ti_infer_exprLiteral(Parser* parser, ASTScope* scope, Expr* expr){
     ASSERT(expr->dataType != NULL, "Literal type not set");
 }
 
+void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr) {
+    char* name = expr->elementExpr->name;
+    ASTScopeResult* res = resolveElement(name, scope, 1);
+    ASSERT(res != NULL, "Element %s not found", name);
+
+    if(res->type == SCOPE_VARIABLE){
+        expr->dataType = ti_type_findBase(parser, scope, res->variable->type);
+    }
+}
+
 void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
     switch(expr->type){
         case ET_LITERAL:
@@ -200,6 +215,7 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
         case ET_THIS:
             break;
         case ET_ELEMENT:
+            ti_infer_element(parser, scope, expr);
             break;
         case ET_ARRAY_CONSTRUCTION:
             break;
@@ -217,7 +233,7 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             break;
         case ET_CAST:
             ti_infer_expr(parser, scope, expr->castExpr->expr);
-            expr->dataType = ti_cast_check(parser, scope, expr->castExpr, expr->castExpr->type);
+            expr->dataType = ti_cast_check(parser, scope, expr->castExpr->expr, expr->castExpr->type);
             break;
         case ET_INSTANCE_CHECK:
             break;
@@ -258,13 +274,42 @@ DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, Data
     DataType* fromType = ti_type_findBase(parser, currentScope, toType);
     DataType* targetType = ti_type_findBase(parser, currentScope, expr->dataType);
 
-    if((fromType->kind == DT_STRUCT) && (toType->kind == DT_STRUCT)) {
-        //if(ti_struct_contains(parser, currentScope, fromType, toType)){
-        //    return toType;
-        //}
+    if((fromType->kind == DT_STRUCT) && (targetType->kind == DT_STRUCT)) {
+        if(ti_struct_contains(parser, currentScope, fromType, targetType)){
+            return toType;
+        }
     }
 
 
-    PARSER_ASSERT(expr->dataType->kind == toType->kind, "Cannot cast %s to %s", stringifyType(expr->dataType), stringifyType(toType));
+    PARSER_ASSERT(expr->dataType->kind == targetType->kind, "Cannot cast %s to %s", stringifyType(expr->dataType), stringifyType(toType));
     return NULL;
+}
+
+uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* bigStruct, DataType* smallStruct){
+    StructType * structB = bigStruct->structType;
+    StructType * structS = smallStruct->structType;
+
+    uint32_t i = 0;
+    char* attName = NULL;
+    vec_foreach(&structS->attributeNames, attName, i){
+        StructAttribute** attrS = map_get(&structS->attributes, attName);
+        StructAttribute** attrB = map_get(&structB->attributes, attName);
+        Lexeme lexeme = bigStruct->lexeme;
+
+        PARSER_ASSERT(ti_match_types(parser, currentScope, (*attrS)->type, (*attrB)->type), "Structs do not match, attribute `%s` missing");
+    }
+}
+
+uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right){
+
+    if((left->kind == DT_STRUCT) && (right->kind == DT_STRUCT)){
+        return ti_struct_contains(parser, currentScope, left, right);
+    }
+
+
+    if(left->kind != right->kind){
+        return 0;
+    }
+
+    return 1;
 }

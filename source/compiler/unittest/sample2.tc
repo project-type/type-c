@@ -33,4 +33,15 @@ type Z = struct {
     x: Generator<X.T.Z<u32>?>
 }
 
-1 as Z
+type User = struct {
+    name: string,
+    age: u32
+}
+
+type User2 = struct {
+    name: string,
+    age: i32
+}
+
+let x3: User2 = {"hello", 32}
+x3 as User2

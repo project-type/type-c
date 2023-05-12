@@ -15,11 +15,14 @@ void ti_runProgram(Parser* parser, ASTProgramNode* program);
 void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt);
 void ti_runExpr(Parser* parser, ASTScope* currentScope, Expr* expr);
 
+void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr);
 void ti_infer_exprLiteral(Parser* parser, ASTScope* scope, Expr* expr);
 void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr);
 
 DataType*  ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toType);
 void ti_cast(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toType);
 
-uint8_t ti_struct_contains(Parser* parser, ASTScope currentScope, DataType* bigStruct, DataType* smallStruct);
+uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* bigStruct, DataType* smallStruct);
+
+uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right);
 #endif //TYPE_C_TYPE_INFERENCE_H
