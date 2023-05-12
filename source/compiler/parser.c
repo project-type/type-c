@@ -56,6 +56,7 @@ void parser_parse(Parser* parser) {
     ASTProgramNode * node = ast_makeProgramNode();
     parser->programNode = node;
     parser_parseProgram(parser, node);
+    ti_runProgram(parser, node);
 
     return;
 }
@@ -118,6 +119,8 @@ void parser_parseProgram(Parser* parser, ASTProgramNode * node) {
                 if (stmt == NULL) {
                     PARSER_ASSERT(0, "Invalid token %s", token_type_to_string(lexeme.type));
                 }
+
+                vec_push(&node->stmts, stmt);
                 //printf("%s\n", ast_json_serializeStatement(stmt));
 
                 /*

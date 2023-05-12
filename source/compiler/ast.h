@@ -344,7 +344,7 @@ typedef struct UnresolvedType{
 
 typedef struct ASTProgramNode {
     ASTScope * scope;
-    struct Statement* stmts;
+    vec_statement_t stmts;
     import_stmt_vec importStatements;
 }ASTProgramNode;
 ASTProgramNode * ast_makeProgramNode();
@@ -747,7 +747,7 @@ SyncStatement* ast_stmt_makeSyncStatement(ASTScope * parentScope);
 
 typedef struct ExprStatement {
     struct Expr *expr;
-    ASTScope * scope;
+    //ASTScope * scope;
 }ExprStatement;
 ExprStatement* ast_stmt_makeExprStatement(ASTScope * parentScope);
 

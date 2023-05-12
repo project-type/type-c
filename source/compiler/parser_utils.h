@@ -9,6 +9,8 @@
 #include "error.h"
 #include "parser.h"
 
+char* stringifyType(DataType* type);
+
 void parser_assert(int cond, const char * rawcond, const char* func_name, int line, const char * fmt, ...);
 char* extractLine(Parser* parser, Lexeme lexeme);
 void parser_utils_raise(Parser* parser, Lexeme lexeme, const char* condition, const char* func_name, int line, const char* fmt, ...);

@@ -161,3 +161,98 @@ char* dataTypeKindToString(DataType* type){
             
     }
 }
+
+char* stringifyType(DataType* type){
+    /* returns a short string representation of the type, for example, if it a structure, returns "struct{<fields>}
+     */
+    switch (type->kind) {
+        case DT_I8:
+            return "i8";
+
+        case DT_I16:
+            return "i16";
+
+        case DT_I32:
+            return "i32";
+
+        case DT_I64:
+            return "i64";
+
+        case DT_U8:
+            return "u8";
+
+        case DT_U16:
+            return "u16";
+
+        case DT_U32:
+            return "u32";
+
+        case DT_U64:
+            return "u64";
+
+        case DT_F32:
+            return "f32";
+
+        case DT_F64:
+            return "f64";
+
+        case DT_BOOL:
+            return "bool";
+
+        case DT_VOID:
+            return "void";
+
+        case DT_STRING:
+            return "string";
+
+        case DT_CHAR:
+            return "char";
+
+        case DT_CLASS:
+            return "class";
+
+        case DT_INTERFACE:
+            return "interface";
+
+        case DT_STRUCT:
+            return "struct";
+
+        case DT_ENUM:
+            return "enum";
+
+        case DT_VARIANT:
+            return "variant";
+
+        case DT_ARRAY:
+            return "array";
+
+        case DT_FN:
+            return "fn";
+
+        case DT_PTR:
+            return "ptr";
+
+        case DT_VEC:
+            return "vec";
+
+        case DT_REFERENCE:
+            return "reference";
+
+        case DT_TYPE_JOIN:
+            return "type_join";
+
+        case DT_TYPE_UNION:
+            return "type_union";
+
+        case DT_PROCESS:
+            return "process";
+
+        case DT_UNRESOLVED:
+            return "unresolved";
+
+        case DT_INVALID:
+            return "invalid";
+        default:
+            return "unknown";
+    }
+}

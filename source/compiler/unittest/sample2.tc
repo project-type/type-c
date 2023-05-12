@@ -25,10 +25,12 @@ type Container<T>  = struct{
 }
 
 type Generator<T> = interface {
-    fn next() -> T
+    fn next() -> T.X.Z
     fn recursive<U>(x: U) -> U
 }
 
 type Z = struct {
-    x: Generator<u32?>?
+    x: Generator<X.T.Z<u32>?>
 }
+
+1 as Z
