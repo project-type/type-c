@@ -3,6 +3,7 @@
 //
 #include <assert.h>
 
+#include "parser_resolve.h"
 #include "type_inference.h"
 #include "ast.h"
 #include "parser.h"
@@ -16,8 +17,11 @@ DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
         DataType ** dt = NULL;
         if (dtype->refType->ref != NULL)
             dt = &dtype->refType->ref;
-        else
-            dt = map_get(&scope->dataTypes, dtype->refType->pkg->ids.data[0]);
+        else {
+            //dt = map_get(&scope->dataTypes, dtype->refType->pkg->ids.data[0]);
+             DataType* tmp = resolver_resolveType(parser, scope, dtype->refType->pkg->ids.data[0]);
+            dt = &tmp;
+        }
         if(dt != NULL) {
             if((*dt)->kind == DT_REFERENCE){
                 return ti_type_findBase(parser, scope, *dt);
@@ -103,6 +107,7 @@ void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt){
             ti_runExpr(parser, currentScope, stmt->expr->expr);
             break;
         case ST_VAR_DECL:
+            // todo check if variables has types, else we set it to the type of the expression
             break;
         case ST_FN_DECL:
             break;
@@ -129,12 +134,15 @@ void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt){
         case ST_CONTINUE:
             break;
         case ST_RETURN:
+            // TODO: check if return has an expression
             break;
         case ST_BREAK:
             break;
         case ST_UNSAFE:
+            ti_runStatement(parser, currentScope, stmt->unsafeStmt->block);
             break;
         case ST_SYNC:
+            ti_runStatement(parser, currentScope, stmt->syncStmt->block);
             break;
         case ST_SPAWN:
             break;

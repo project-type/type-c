@@ -3296,7 +3296,7 @@ Statement* parser_parseStmtUnsafe(Parser* parser, ASTScope* currentScope){
     PARSER_ASSERT(lexeme.type == TOK_UNSAFE, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
-    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, currentScope);
+    stmt->unsafeStmt->block = parser_parseStmtBlock(parser, stmt->unsafeStmt->scope);
     // assert block is not null
     PARSER_ASSERT(stmt->unsafeStmt->block != NULL, "Invalid symbol %s while parsing unsafe block.", token_type_to_string(lexeme.type));
     return stmt;

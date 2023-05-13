@@ -17,3 +17,4 @@ type Bot = class(Serializable) {
 
 let X: User = new User("hello", 32)
 unsafe{X as Serializable}
+
