@@ -24,6 +24,11 @@ DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
             }
             return *dt;
         }
+
+        else {
+            Lexeme lexeme = dtype->lexeme;
+            PARSER_ASSERT(0, "Could not find reference to type %s", dtype->refType->pkg->ids.data[0])
+        }
     }
     return dtype;
 }
@@ -31,8 +36,7 @@ DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
 DataType * ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr* lambda, Lexeme lexeme){
     // generate the datatype of a lambda expression
     // create an empty datatype
-    DataType* dt = ast_type_makeType(currentScope, lexeme);
-    dt->kind = DT_FN;
+    DataType* dt = ast_type_makeType(currentScope, lexeme, DT_FN);
     dt->fnType = ast_type_makeFn();
 
     // copy args
@@ -61,8 +65,7 @@ DataType * ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr
 DataType* ti_fndect_toType(Parser * parser, ASTScope * currentScope, FnDeclStatement * fndecl, Lexeme lexeme){
     // generate the datatype of a function declaration
     // create an empty datatype
-    DataType* dt = ast_type_makeType(currentScope, lexeme);
-    dt->kind = DT_FN;
+    DataType* dt = ast_type_makeType(currentScope, lexeme, DT_FN);
     dt->fnType = ast_type_makeFn();
 
     // copy args
@@ -250,6 +253,8 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
         case ET_LAMBDA:
             break;
         case ET_UNSAFE:
+            ti_infer_expr(parser, expr->unsafeExpr->scope, expr->unsafeExpr->expr);
+            expr->dataType = expr->unsafeExpr->expr->dataType;
             break;
         case ET_SYNC:
             break;
@@ -281,7 +286,7 @@ DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, Data
     }
 
 
-    PARSER_ASSERT(expr->dataType->kind == targetType->kind, "Cannot cast %s to %s", stringifyType(expr->dataType), stringifyType(toType));
+    PARSER_ASSERT(ti_match_types(parser, currentScope, fromType, targetType), "Cannot cast %s to %s", stringifyType(fromType), stringifyType(targetType));
     return NULL;
 }
 
@@ -306,6 +311,18 @@ uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, D
         return ti_struct_contains(parser, currentScope, left, right);
     }
 
+    if((left->kind == DT_INTERFACE) && (right->kind == DT_CLASS)){
+        Lexeme lexeme = left->lexeme;
+        if(currentScope->isSafe) {
+            PARSER_ASSERT(0, "Cannot cast interface to class outside `unsafe` expression/block");
+        }
+        else
+            return 1;
+    }
+
+    if((left->kind == DT_CLASS) && (right->kind == DT_INTERFACE)){
+        return 1;
+    }
 
     if(left->kind != right->kind){
         return 0;

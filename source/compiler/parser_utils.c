@@ -142,7 +142,11 @@ char* dataTypeKindToString(DataType* type){
             return "vec";
             
         case DT_REFERENCE:
-            return dataTypeKindToString(type->refType->ref);
+            if(type->refType->ref != NULL)
+                return dataTypeKindToString(type->refType->ref);
+            else
+                // concatenate the name of the reference with ref(<name>)
+                return "ref";
             
         case DT_TYPE_JOIN:
             return "type_join";

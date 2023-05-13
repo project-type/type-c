@@ -224,10 +224,10 @@ typedef struct DataType {
         ReferenceType* refType;
         ProcessType* processType;
     };
-    Lexeme lexeme;
     struct ASTScope* scope;
+    Lexeme lexeme;
 }DataType;
-DataType* ast_type_makeType(struct ASTScope* parentScope, Lexeme lexeme);
+DataType* ast_type_makeType(struct ASTScope* parentScope, Lexeme lexeme, DataTypeKind kind);
 
 typedef struct VariantConstructorArgument {
     char* name;
@@ -636,8 +636,9 @@ typedef struct Expr {
         EmitExpr* emitExpr;
         ThisExpr* thisExpr;
     };
+    Lexeme lexeme;
 }Expr;
-Expr* ast_expr_makeExpr(ExpressionType type);
+Expr* ast_expr_makeExpr(ExpressionType type, Lexeme lexeme);
 
 typedef struct BlockStatement {
     vec_statement_t stmts;
@@ -802,9 +803,10 @@ typedef struct Statement {
         SyncStatement * syncStmt;
 
         //void* withStmt;
+        Lexeme lexeme;
     };
 }Statement;
-Statement* ast_stmt_makeStatement(StatementType type);
+Statement* ast_stmt_makeStatement(StatementType type, Lexeme lexeme);
 
 PackageID* ast_makePackageID();
 

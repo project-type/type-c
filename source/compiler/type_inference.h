@@ -8,6 +8,8 @@
 #include "ast.h"
 #include "parser.h"
 
+DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype);
+
 DataType* ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr* lambda, Lexeme lexeme);
 DataType* ti_fndect_toType(Parser * parser, ASTScope * currentScope, FnDeclStatement * fndecl, Lexeme lexeme);
 

@@ -6,6 +6,7 @@
 #include "ast.h"
 #include "type_checker.h"
 #include "error.h"
+#include "type_inference.h"
 
 uint8_t scope_isSafe(ASTScope* scope){
     return scope->isSafe;
@@ -73,14 +74,19 @@ ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericPar
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
-uint8_t scope_canExtend(DataType* parent, DataTypeKind childKind){
-    return tc_gettype_base(parent) == childKind;
+uint8_t scope_canExtend(Parser * parser, ASTScope *parentScope,DataType* parent, DataTypeKind childKind){
+    DataType* bareparent = ti_type_findBase(parser, parentScope, parent);
+    if((bareparent->kind == DT_CLASS) && (childKind == DT_INTERFACE)){
+        return 1;
+    }
+    return tc_gettype_base(bareparent) == childKind;
 }
 
 char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* parent){
+    DataType* bareparent = ti_type_findBase(NULL, scope, parent);
     map_int_t map;
     map_init(&map);
-    char* res1 = tc_accumulate_type_methods_attribute(parent, &map);
+    char* res1 = tc_accumulate_type_methods_attribute(bareparent, &map);
     if(res1 != NULL){
         return res1;
     }

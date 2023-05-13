@@ -209,8 +209,7 @@ We need to generate functions to parse each of the following:
 
 */
 void parser_parseTypeDecl(Parser* parser, ASTScope* currentScope) {
-    DataType * type = ast_type_makeType(currentScope, parser->stack.data[0]);
-    type->kind = DT_REFERENCE;
+    DataType * type = ast_type_makeType(currentScope, parser->stack.data[0], DT_REFERENCE);
     ACCEPT;
     Lexeme lexeme = parser_peek(parser);
     PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER, "identifier expected but %s was found.", token_type_to_string(lexeme.type));
@@ -303,8 +302,7 @@ DataType* parser_parseTypeUnion(Parser* parser, DataType* parentReferee, ASTScop
 
 
         // create new datatype to hold joints
-        DataType* newType = ast_type_makeType(currentScope, parser->stack.data[0]);
-        newType->kind = DT_TYPE_UNION;
+        DataType* newType = ast_type_makeType(currentScope, parser->stack.data[0], DT_TYPE_UNION);
         newType->unionType = unions;
         type = newType;
     }
@@ -333,8 +331,7 @@ DataType* parser_parseTypeIntersection(Parser* parser, DataType* parentReferee, 
         join->left = type2;
 
         // create new datatype to hold joints
-        DataType* newType = ast_type_makeType(currentScope, parser->stack.data[0]);
-        newType->kind = DT_TYPE_JOIN;
+        DataType* newType = ast_type_makeType(currentScope, parser->stack.data[0], DT_TYPE_JOIN);
         newType->joinType = join;
         return newType;
     }
@@ -426,8 +423,7 @@ DataType * parser_parseTypeArray(Parser* parser, DataType* parentReferee, ASTSco
                 ACCEPT;
             }
 
-            DataType * retType = ast_type_makeType(currentScope, parser->stack.data[0]);
-            retType->kind = DT_ARRAY;
+            DataType * retType = ast_type_makeType(currentScope, parser->stack.data[0], DT_ARRAY);
             retType->arrayType = array;
             last_type = retType;
             CURRENT;
@@ -471,8 +467,7 @@ DataType* parser_parseTypePrimary(Parser* parser, DataType* parentReferee, ASTSc
             DataTypeKind t2 = lexeme.type - TOK_I8;
         }
         // create new type assign basic to it
-        DataType* basicType = ast_type_makeType(currentScope, parser->stack.data[0]);
-        basicType->kind = lexeme.type - TOK_I8;
+        DataType* basicType = ast_type_makeType(currentScope, parser->stack.data[0], lexeme.type - TOK_I8);
         ACCEPT;
         type = basicType;
     }
@@ -511,8 +506,7 @@ DataType* parser_parseTypePrimary(Parser* parser, DataType* parentReferee, ASTSc
 
 DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     // we create a reference refType
-    DataType* refType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    refType->kind = DT_REFERENCE;
+    DataType* refType = ast_type_makeType(currentScope, parser->stack.data[0], DT_REFERENCE);
     refType->refType = ast_type_makeReference();
     // rollback
     parser_reject(parser);
@@ -567,8 +561,7 @@ DataType* parser_parseTypeRef(Parser* parser, DataType* parentReferee, ASTScope*
 // interface_tupe ::= "interface" "{" <interface_decl> (","? <interface_decl>)* "}"
 DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
     // create base type
-    DataType* interfaceType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    interfaceType->kind = DT_INTERFACE;
+    DataType* interfaceType = ast_type_makeType(currentScope, parser->stack.data[0], DT_INTERFACE);
     interfaceType->interfaceType = ast_type_makeInterface(currentScope);
 
     // add the parent type to scope if it exists
@@ -632,8 +625,7 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
 }
 
 DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
-    DataType * classType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    classType->kind = DT_CLASS;
+    DataType * classType = ast_type_makeType(currentScope, parser->stack.data[0], DT_CLASS);
     classType->classType = ast_type_makeClass(currentScope, classType);
     // add the parent type to scope if it exists
     if(parentReferee != NULL) {
@@ -728,8 +720,7 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
 // variant_type ::= "variant" "{" <variant_decl> (","? <variant_decl>)* "}"
 DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
     //create base type
-    DataType * variantType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    variantType->kind = DT_VARIANT;
+    DataType * variantType = ast_type_makeType(currentScope, parser->stack.data[0], DT_VARIANT);
     variantType->variantType = ast_type_makeVariant(currentScope);
     // add the parent type to scope if it exists
     if(parentReferee != NULL) {
@@ -832,8 +823,7 @@ DataType* parser_parseTypeVariant(Parser* parser, DataType* parentReferee, ASTSc
 
 // struct_type ::= "struct" "{" <struct_decl> ("," <struct_decl>)* "}"
 DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTScope* currentScope) {
-    DataType * structType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    structType->kind = DT_STRUCT;
+    DataType * structType = ast_type_makeType(currentScope, parser->stack.data[0], DT_STRUCT);
     structType->structType = ast_type_makeStruct(currentScope);
 
     if(parentReferee != NULL) {
@@ -935,8 +925,7 @@ DataType* parser_parseTypeEnum(Parser* parser, ASTScope* currentScope) {
     }
     PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
-    DataType * enumType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    enumType->kind = DT_ENUM;
+    DataType * enumType = ast_type_makeType(currentScope, parser->stack.data[0], DT_ENUM);
     enumType->enumType = enum_;
     return enumType;
 }
@@ -1001,7 +990,7 @@ void parser_parseExtends(Parser* parser, DataType* parentReferee, vec_dtype_t* e
         DataType* interfaceParentType = parser_parseTypePrimary(parser, parentReferee, currentScope);
         // add to extends
         //vec_push(extends, interfaceParentType);
-        PARSER_ASSERT(scope_canExtend(interfaceParentType, kind), "Parent category `%s` doesn't match child category.",
+        PARSER_ASSERT(scope_canExtend(parser, currentScope, interfaceParentType, kind), "Parent category `%s` doesn't match child category.",
                       dataTypeKindToString(interfaceParentType));
         char* pushRes = scope_extends_addParent(currentScope, extends, interfaceParentType);
         PARSER_ASSERT(pushRes == NULL, "Duplicate field `%s` in parent already exists.", pushRes);
@@ -1029,8 +1018,7 @@ DataType* parser_parseTypeFn(Parser* parser, DataType* parentReferee, ASTScope* 
     CURRENT;
 
     // create function type
-    DataType* fnType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    fnType->kind = DT_FN;
+    DataType* fnType = ast_type_makeType(currentScope, parser->stack.data[0], DT_FN);
     fnType->fnType = ast_type_makeFn();
     // parse parameters
     parser_parseFnDefArguments(parser, parentReferee, fnType->fnType, currentScope);
@@ -1053,8 +1041,7 @@ DataType* parser_parseTypeFn(Parser* parser, DataType* parentReferee, ASTScope* 
 // "ptr" "<" <type> ">"
 DataType* parser_parseTypePtr(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
     // build type
-    DataType* ptrType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    ptrType->kind = DT_PTR;
+    DataType* ptrType = ast_type_makeType(currentScope, parser->stack.data[0], DT_PTR);
     ptrType->ptrType = ast_type_makePtr();
     // currently at ptr
     ACCEPT;
@@ -1073,8 +1060,7 @@ DataType* parser_parseTypePtr(Parser* parser, DataType* parentReferee, ASTScope*
 }
 
 DataType * parser_parseTypeProcess(Parser* parser, DataType* parentReferee, ASTScope* currentScope){
-    DataType * processType = ast_type_makeType(currentScope, parser->stack.data[0]);
-    processType->kind = DT_PROCESS;
+    DataType * processType = ast_type_makeType(currentScope, parser->stack.data[0], DT_PROCESS);
     processType->processType = ast_type_makeProcess();
     ACCEPT;
     // assert we have a "<"
@@ -1222,7 +1208,7 @@ Expr* parser_parseLetExpr(Parser* parser, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_LET)
     {
-        Expr *expr = ast_expr_makeExpr(ET_LET);
+        Expr *expr = ast_expr_makeExpr(ET_LET, lexeme);
         LetExpr *let = ast_expr_makeLetExpr(currentScope);
 
         expr->letExpr = let;
@@ -1362,7 +1348,7 @@ Expr* parser_parseMatchExpr(Parser* parser, ASTScope* currentScope){
     }
 
     ACCEPT;
-    Expr* expr = ast_expr_makeExpr(ET_MATCH);
+    Expr* expr = ast_expr_makeExpr(ET_MATCH, lexeme);
     MatchExpr* match = ast_expr_makeMatchExpr(parser_parseExpr(parser, currentScope));
     expr->matchExpr = match;
     // assert "{"
@@ -1422,7 +1408,7 @@ Expr* parser_parseOpAssign(Parser* parser, ASTScope* currentScope){
             lexeme.type == TOK_DIV_EQUAL
     ) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_ASSIGN, NULL, NULL);
 
         if(lexeme.type == TOK_EQUAL)
@@ -1461,7 +1447,7 @@ Expr* parser_parseOpOr(Parser* parser, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_LOGICAL_OR) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_OR, NULL, NULL);
 
         Expr* rhs = parser_parseOpOr(parser, currentScope);
@@ -1486,7 +1472,7 @@ Expr* parser_parseOpAnd(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type == TOK_LOGICAL_AND) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_AND, NULL, NULL);
 
         Expr* rhs = parser_parseOpAnd(parser, currentScope);
@@ -1511,7 +1497,7 @@ Expr* parser_parseOpBinOr(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_OR) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_BIT_OR, NULL, NULL);
 
         Expr* rhs = parser_parseOpBinOr(parser, currentScope);
@@ -1536,7 +1522,7 @@ Expr* parser_parseOpBinXor(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_XOR) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr =ast_expr_makeBinaryExpr(BET_BIT_XOR, NULL, NULL);
 
         Expr* rhs = parser_parseOpBinXor(parser, currentScope);
@@ -1561,7 +1547,7 @@ Expr* parser_parseOpBinAnd(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type == TOK_BITWISE_AND) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_BIT_AND, NULL, NULL);
 
         Expr* rhs = parser_parseOpBinAnd(parser, currentScope);
@@ -1586,7 +1572,7 @@ Expr* parser_parseOpEq(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type == TOK_EQUAL_EQUAL || lexeme.type == TOK_NOT_EQUAL) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_EQUAL_EQUAL?BET_EQ:BET_NEQ, NULL, NULL);
 
         Expr* rhs = parser_parseOpEq(parser, currentScope);
@@ -1655,7 +1641,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTScope* currentScope) {
             //ACCEPT;
 
             // make call expression
-            Expr* callExpr = ast_expr_makeExpr(ET_CALL);
+            Expr* callExpr = ast_expr_makeExpr(ET_CALL, lexeme);
             callExpr->callExpr = ast_expr_makeCallExpr(lhs);
             callExpr->callExpr->hasGenerics = 1;
 
@@ -1704,7 +1690,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTScope* currentScope) {
         }
 
 
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(BET_LT, NULL, NULL);
 
         if(lexeme.type == TOK_GREATER)
@@ -1727,7 +1713,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTScope* currentScope) {
 
     else if (lexeme.type == TOK_TYPE_CONVERSION) {
         ACCEPT;
-        Expr* castExpr = ast_expr_makeExpr(ET_CAST);
+        Expr* castExpr = ast_expr_makeExpr(ET_CAST, lexeme);
         castExpr->castExpr = ast_expr_makeCastExpr(NULL, NULL);
         castExpr->castExpr->expr = lhs;
         castExpr->castExpr->type = parser_parseTypeUnion(parser, NULL, currentScope);
@@ -1736,7 +1722,7 @@ Expr* parser_parseOpCompare(Parser* parser, ASTScope* currentScope) {
 
     else if (lexeme.type == TOK_IS) {
         ACCEPT;
-        Expr* checkExpr = ast_expr_makeExpr(ET_INSTANCE_CHECK);
+        Expr* checkExpr = ast_expr_makeExpr(ET_INSTANCE_CHECK, lexeme);
         checkExpr->instanceCheckExpr = ast_expr_makeInstanceCheckExpr(NULL, NULL);
         checkExpr->instanceCheckExpr->expr = lhs;
         checkExpr->instanceCheckExpr->type = parser_parseTypeUnion(parser, NULL, currentScope);
@@ -1755,7 +1741,7 @@ Expr* parser_parseOpShift(Parser* parser, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_RIGHT_SHIFT || lexeme.type == TOK_LEFT_SHIFT) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_RIGHT_SHIFT?BET_RSHIFT:BET_LSHIFT, NULL, NULL);
 
         Expr* rhs = parser_parseOpShift(parser, currentScope);
@@ -1780,7 +1766,7 @@ Expr* parser_parseAdd(Parser* parser, ASTScope* currentScope){
     Lexeme CURRENT;
     if(lexeme.type == TOK_PLUS || lexeme.type == TOK_MINUS) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_PLUS?BET_ADD:BET_SUB, NULL, NULL);
 
         Expr* rhs = parser_parseAdd(parser, currentScope);
@@ -1805,7 +1791,7 @@ Expr* parser_parseOpMult(Parser* parser, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_STAR || lexeme.type == TOK_DIV || lexeme.type == TOK_PERCENT) {
         ACCEPT;
-        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY);
+        Expr *binaryExpr = ast_expr_makeExpr(ET_BINARY, lexeme);
         binaryExpr->binaryExpr = ast_expr_makeBinaryExpr(lexeme.type == TOK_STAR?BET_MUL:BET_DIV, NULL, NULL);
         if(lexeme.type == TOK_PERCENT)
             binaryExpr->binaryExpr->type = BET_MOD;
@@ -1831,7 +1817,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope) {
         lexeme.type == TOK_NOT || lexeme.type == TOK_INCREMENT || lexeme.type == TOK_DECREMENT ||
         lexeme.type == TOK_DENULL || lexeme.type == TOK_BITWISE_AND) {
         ACCEPT;
-        Expr *unaryExpr = ast_expr_makeExpr(ET_UNARY);
+        Expr *unaryExpr = ast_expr_makeExpr(ET_UNARY, lexeme);
 
         unaryExpr->unaryExpr = ast_expr_makeUnaryExpr(UET_DEREF, NULL);
         if(lexeme.type == TOK_MINUS)
@@ -1855,7 +1841,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope) {
         return unaryExpr;
     }
     else if (lexeme.type == TOK_NEW) {
-        Expr* new = ast_expr_makeExpr(ET_NEW);
+        Expr* new = ast_expr_makeExpr(ET_NEW, lexeme);
         ACCEPT;
         // parse type
         DataType* dt = parser_parseTypeUnion(parser, NULL, currentScope);
@@ -1897,7 +1883,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope) {
     }
     else if (lexeme.type == TOK_SPAWN){
         // prepare expr
-        Expr* spawn = ast_expr_makeExpr(ET_SPAWN);
+        Expr* spawn = ast_expr_makeExpr(ET_SPAWN, lexeme);
         ACCEPT;
         // prepare spawn struct
         spawn->spawnExpr = ast_expr_makeSpawnExpr();
@@ -1920,7 +1906,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope) {
         }
     }
     else if (lexeme.type == TOK_EMIT){
-        Expr* emit = ast_expr_makeExpr(ET_EMIT);
+        Expr* emit = ast_expr_makeExpr(ET_EMIT, lexeme);
         ACCEPT;
         emit->emitExpr = ast_expr_makeEmitExpr();
         CURRENT;
@@ -1942,7 +1928,7 @@ Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope) {
 
     parser_reject(parser);
     Expr* uhs = parser_parseOpPointer(parser, currentScope);
-    Expr *unaryExpr = ast_expr_makeExpr(ET_UNARY);
+    Expr *unaryExpr = ast_expr_makeExpr(ET_UNARY, lexeme);
     CURRENT;
 
     if(lexeme.type == TOK_INCREMENT || lexeme.type == TOK_DECREMENT) {
@@ -1969,7 +1955,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
         Expr* rhs = parser_parseOpPointer(parser, currentScope);
         MemberAccessExpr *memberAccessExpr = ast_expr_makeMemberAccessExpr(lhs, rhs);
 
-        Expr* memberExpr = ast_expr_makeExpr(ET_MEMBER_ACCESS);
+        Expr* memberExpr = ast_expr_makeExpr(ET_MEMBER_ACCESS, lexeme);
         memberExpr->memberAccessExpr = memberAccessExpr;
         return memberExpr;
     }
@@ -1994,7 +1980,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_RBRACKET, "`]` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
-        Expr* expr = ast_expr_makeExpr(ET_INDEX_ACCESS);
+        Expr* expr = ast_expr_makeExpr(ET_INDEX_ACCESS, lexeme);
         expr->indexAccessExpr = idx;
 
         // todo check datatype
@@ -2022,7 +2008,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
             }
         }
         ACCEPT;
-        Expr* expr = ast_expr_makeExpr(ET_CALL);
+        Expr* expr = ast_expr_makeExpr(ET_CALL, lexeme);
         expr->callExpr = call;
 
         // todo check datatype
@@ -2035,7 +2021,7 @@ Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
 Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     Lexeme CURRENT;
     if(lexeme.type == TOK_IDENTIFIER){
-        Expr* expr = ast_expr_makeExpr(ET_ELEMENT);
+        Expr* expr = ast_expr_makeExpr(ET_ELEMENT, lexeme);
         expr->elementExpr = ast_expr_makeElementExpr(lexeme.string);
         //PARSER_ASSERT(scope_lookupSymbol(currentScope, lexeme.string), "Symbol `%s` is not defined.", lexeme.string);
         /*DataType* type = scope_lookupVariable(currentScope, lexeme.string);
@@ -2054,7 +2040,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
         return expr;
     }
     if(lexeme.type == TOK_THIS){
-        Expr* expr = ast_expr_makeExpr(ET_THIS);
+        Expr* expr = ast_expr_makeExpr(ET_THIS, lexeme);
         expr->thisExpr = ast_expr_makeThisExpr();
         PARSER_ASSERT(currentScope->withinClass, "`this` can only be used within a class");
         expr->dataType = scope_getClassRef(currentScope);
@@ -2068,7 +2054,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
         parser_reject(parser);
         FnHeader * fnHeader= parser_parseLambdaFnHeader(parser, NULL, currentScope);
 
-        Expr* expr = ast_expr_makeExpr(ET_LAMBDA);
+        Expr* expr = ast_expr_makeExpr(ET_LAMBDA, lexeme);
         expr->lambdaExpr = ast_expr_makeLambdaExpr(currentScope);
         expr->lambdaExpr->header = fnHeader;
         /**
@@ -2126,7 +2112,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
         // assert ]
         PARSER_ASSERT(lexeme.type == TOK_RBRACKET, "`]` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
-        Expr* expr = ast_expr_makeExpr(ET_ARRAY_CONSTRUCTION);
+        Expr* expr = ast_expr_makeExpr(ET_ARRAY_CONSTRUCTION, lexeme);
         expr->arrayConstructionExpr = arrayConstructionExpr;
 
         // todo check datatype
@@ -2143,7 +2129,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
             if(lexeme.type == TOK_COLON){
                 // build expressions
                 NamedStructConstructionExpr* namedStruct = ast_expr_makeNamedStructConstructionExpr();
-                Expr* expr = ast_expr_makeExpr(ET_NAMED_STRUCT_CONSTRUCTION);
+                Expr* expr = ast_expr_makeExpr(ET_NAMED_STRUCT_CONSTRUCTION, lexeme);
                 expr->namedStructConstructionExpr = namedStruct;
 
                 parser_reject(parser);
@@ -2188,7 +2174,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
 
         // unnamed struct
         UnnamedStructConstructionExpr* unnamedStruct = ast_expr_makeUnnamedStructConstructionExpr();
-        Expr* expr = ast_expr_makeExpr(ET_UNNAMED_STRUCT_CONSTRUCTION);
+        Expr* expr = ast_expr_makeExpr(ET_UNNAMED_STRUCT_CONSTRUCTION, lexeme);
         // prepare loop
         uint8_t can_loop = 1;
         while(can_loop) {
@@ -2212,7 +2198,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     if(lexeme.type == TOK_UNSAFE){
         // build unsafe expr
         UnsafeExpr* unsafeExpr = ast_expr_makeUnsafeExpr(currentScope);
-        Expr* expr = ast_expr_makeExpr(ET_UNSAFE);
+        Expr* expr = ast_expr_makeExpr(ET_UNSAFE, lexeme);
         expr->unsafeExpr = unsafeExpr;
 
         ACCEPT;
@@ -2231,7 +2217,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     if(lexeme.type == TOK_SYNC){
         // build unsafe expr
         SyncExpr * syncExpr = ast_expr_makeSyncExpr(currentScope);
-        Expr* expr = ast_expr_makeExpr(ET_SYNC);
+        Expr* expr = ast_expr_makeExpr(ET_SYNC, lexeme);
         expr->syncExpr = syncExpr;
 
         ACCEPT;
@@ -2275,7 +2261,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
         PARSER_ASSERT(lexeme.type == TOK_RBRACE, "`}` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
         // build expr
-        Expr* expr = ast_expr_makeExpr(ET_IF_ELSE);
+        Expr* expr = ast_expr_makeExpr(ET_IF_ELSE, lexeme);
         expr->ifElseExpr = ifElseExpr;
         return expr;
     }
@@ -2295,8 +2281,8 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
     TOK_DOUBLE,
  */
 Expr* parser_parseLiteral(Parser* parser, ASTScope* currentScope) {
-    Expr* expr = ast_expr_makeExpr(ET_LITERAL);
-    expr->dataType = ast_type_makeType(currentScope, parser->stack.data[0]);
+    Expr* expr = ast_expr_makeExpr(ET_LITERAL,  parser->stack.data[0]);
+    expr->dataType = ast_type_makeType(currentScope, parser->stack.data[0], DT_UNRESOLVED);
 
     expr->literalExpr = ast_expr_makeLiteralExpr(0);
     Lexeme lexeme = parser_peek(parser);
@@ -2719,9 +2705,9 @@ Statement* parser_parseStmt(Parser* parser, ASTScope* currentScope) {
 }
 
 Statement* parser_parseStmtLet(Parser* parser, ASTScope* currentScope){
-    Statement* stmt = ast_stmt_makeStatement(ST_VAR_DECL);
-    stmt->varDecl = ast_stmt_makeVarDeclStatement(currentScope);
     Lexeme CURRENT;
+    Statement* stmt = ast_stmt_makeStatement(ST_VAR_DECL, lexeme);
+    stmt->varDecl = ast_stmt_makeVarDeclStatement(currentScope);
     // assert let
     PARSER_ASSERT(lexeme.type == TOK_LET, "`let` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
@@ -2831,11 +2817,12 @@ Statement* parser_parseStmtLet(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
-    Statement* stmt = ast_stmt_makeStatement(ST_FN_DECL);
+    Lexeme CURRENT;
+
+    Statement* stmt = ast_stmt_makeStatement(ST_FN_DECL, lexeme);
     stmt->fnDecl = ast_stmt_makeFnDeclStatement(currentScope);
     // create the header
 
-    Lexeme CURRENT;
     // assert fn
     PARSER_ASSERT(lexeme.type == TOK_FN, "`fn` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
@@ -2989,11 +2976,11 @@ Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
 }
 
 Statement* parser_parseStmtBlock(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // create statement instance
-    Statement* stmt = ast_stmt_makeStatement(ST_BLOCK);
+    Statement* stmt = ast_stmt_makeStatement(ST_BLOCK, lexeme);
     stmt->blockStmt = ast_stmt_makeBlockStatement(currentScope);
     // assert {
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_LBRACE, "`{` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
@@ -3024,11 +3011,11 @@ Statement* parser_parseStmtBlock(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtIf(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // create statement instance
-    Statement* stmt = ast_stmt_makeStatement(ST_IF_CHAIN);
+    Statement* stmt = ast_stmt_makeStatement(ST_IF_CHAIN, lexeme);
     stmt->ifChain = ast_stmt_makeIfChainStatement();
     // assert if
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_IF, "`if` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     CURRENT;
@@ -3081,7 +3068,7 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTScope* currentScope){
     PARSER_ASSERT(lexeme.type == TOK_MATCH, "`match` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // create statement instance
-    Statement* stmt = ast_stmt_makeStatement(ST_MATCH);
+    Statement* stmt = ast_stmt_makeStatement(ST_MATCH, lexeme);
     stmt->match = ast_stmt_makeMatchStatement();
     // parse the main expression to be matched
     stmt->match->expr = parser_parseExpr(parser, currentScope);
@@ -3133,11 +3120,11 @@ Statement* parser_parseStmtMatch(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtWhile(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_WHILE);
+    Statement* stmt = ast_stmt_makeStatement(ST_WHILE, lexeme);
     stmt->whileLoop = ast_stmt_makeWhileStatement(currentScope);
     // assert while
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_WHILE, "`while` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse condition
@@ -3153,11 +3140,11 @@ Statement* parser_parseStmtWhile(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtDoWhile(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_DO_WHILE);
+    Statement* stmt = ast_stmt_makeStatement(ST_DO_WHILE, lexeme);
     stmt->doWhileLoop = ast_stmt_makeDoWhileStatement(currentScope);
     // assert do
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_DO, "`do` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
@@ -3176,11 +3163,11 @@ Statement* parser_parseStmtDoWhile(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtFor(Parser* parser, ASTScope* currentScope) {
+    Lexeme CURRENT;
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_FOR);
+    Statement* stmt = ast_stmt_makeStatement(ST_FOR, lexeme);
     stmt->forLoop = ast_stmt_makeForStatement(currentScope);
     // assert for
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_FOR, "`for` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // make sure we have initializer, i.e token is not ";"
@@ -3256,11 +3243,11 @@ Statement* parser_parseStmtForEach(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtContinue(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_CONTINUE);
+    Statement* stmt = ast_stmt_makeStatement(ST_CONTINUE, lexeme);
     stmt->continueStmt = ast_stmt_makeContinueStatement();
     // assert continue
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_CONTINUE, "`continue` expected but %s was found.", token_type_to_string(lexeme.type));
     PARSER_ASSERT(currentScope->withinLoop, "`continue` statement must be within a loop.");
     ACCEPT;
@@ -3268,11 +3255,11 @@ Statement* parser_parseStmtContinue(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtReturn(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_RETURN);
+    Statement* stmt = ast_stmt_makeStatement(ST_RETURN, lexeme);
     stmt->returnStmt = ast_stmt_makeReturnStatement();
     // assert return
-    Lexeme CURRENT;
     PARSER_ASSERT(currentScope->withinFn, "`return` statement must be within a function.");
     PARSER_ASSERT(lexeme.type == TOK_RETURN, "`return` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
@@ -3289,11 +3276,11 @@ Statement* parser_parseStmtReturn(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtBreak(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_BREAK);
+    Statement* stmt = ast_stmt_makeStatement(ST_BREAK, lexeme);
     stmt->breakStmt = ast_stmt_makeBreakStatement();
     // assert break
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_BREAK, "`break` expected but %s was found.", token_type_to_string(lexeme.type));
     PARSER_ASSERT(currentScope->withinLoop, "`break` statement must be within a loop.");
     ACCEPT;
@@ -3301,11 +3288,11 @@ Statement* parser_parseStmtBreak(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtUnsafe(Parser* parser, ASTScope* currentScope){
+    Lexeme CURRENT;
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_UNSAFE);
+    Statement* stmt = ast_stmt_makeStatement(ST_UNSAFE, lexeme);
     stmt->unsafeStmt = ast_stmt_makeUnsafeStatement(currentScope);
     // assert unsafe
-    Lexeme CURRENT;
     PARSER_ASSERT(lexeme.type == TOK_UNSAFE, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
@@ -3316,11 +3303,11 @@ Statement* parser_parseStmtUnsafe(Parser* parser, ASTScope* currentScope){
 }
 
 Statement* parser_parseStmtSync(Parser* parser, ASTScope* currentScope){
-    // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_SYNC);
-    stmt->syncStmt = ast_stmt_makeSyncStatement(currentScope);
-    // assert unsafe
     Lexeme CURRENT;
+    // build statement
+    Statement* stmt = ast_stmt_makeStatement(ST_SYNC, lexeme);
+    stmt->syncStmt = ast_stmt_makeSyncStatement(currentScope);
+    // assert sync
     PARSER_ASSERT(lexeme.type == TOK_SYNC, "`unsafe` expected but %s was found.", token_type_to_string(lexeme.type));
     ACCEPT;
     // parse block
@@ -3332,7 +3319,7 @@ Statement* parser_parseStmtSync(Parser* parser, ASTScope* currentScope){
 
 Statement* parser_parseStmtExpr(Parser* parser, ASTScope* currentScope){
     // build statement
-    Statement* stmt = ast_stmt_makeStatement(ST_EXPR);
+    Statement* stmt = ast_stmt_makeStatement(ST_EXPR, parser->stack.data[0]);
     stmt->expr = ast_stmt_makeExprStatement(currentScope);
     // parse expression
     stmt->expr->expr = parser_parseExpr(parser, currentScope);

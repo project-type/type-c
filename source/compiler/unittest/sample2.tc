@@ -1,47 +1,19 @@
 
-fn print(x: u32){
-    let y: u32 = x
+
+type Serializable = interface {
+    fn serialize() -> string
 }
 
-let x: u32 = print
-
-let x2: f32 = print
-
-let z = fn(x: u32, y:u32) -> u32 = x
-
-fn keep() -> u32 {
-    while true {
-        break
-        continue
-        return(1)
-    }
+type User = class(Serializable) {
+    let name: string = ""
+    let age: u32 = 20
 }
 
-type Container<T>  = struct{
-    x: T,
-    y: T,
-    h: T,
-    w: T
+type Bot = class(Serializable) {
+    let name: string = ""
+    let commands: string[] = []
 }
 
-type Generator<T> = interface {
-    fn next() -> T.X.Z
-    fn recursive<U>(x: U) -> U
-}
 
-type Z = struct {
-    x: Generator<X.T.Z<u32>?>
-}
-
-type User = struct {
-    name: string,
-    age: u32
-}
-
-type User2 = struct {
-    name: string,
-    age: i32
-}
-
-let x3: User2 = {"hello", 32}
-x3 as User2
+let X: User = new User("hello", 32)
+unsafe{X as Serializable}

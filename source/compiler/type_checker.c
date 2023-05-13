@@ -146,7 +146,9 @@ char* tc_accumulate_type_methods_attribute(DataType* type, map_int_t * map){
     }
 
     if(type->kind == DT_REFERENCE) {
-        return tc_accumulate_type_methods_attribute(type->refType->ref, map);
+        if(type->refType->ref != NULL)
+            return tc_accumulate_type_methods_attribute(type->refType->ref, map);
+        return 0;
     }
 
     return 0;

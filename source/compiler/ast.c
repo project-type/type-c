@@ -149,14 +149,14 @@ StructType* ast_type_makeStruct(ASTScope* parentScope) {
     return struct_;
 }
 
-DataType* ast_type_makeType(struct ASTScope* parentScope, Lexeme lexeme) {
+DataType* ast_type_makeType(struct ASTScope* parentScope, Lexeme lexeme, DataTypeKind kind) {
     ALLOC(type, DataType);
     type->scope = ast_scope_makeScope(parentScope);
     type->name = NULL;
     type->hasGenerics = 0;
     type->isGeneric = 0;
     type->isNullable = 0;
-    type->kind = DT_UNRESOLVED;
+    type->kind = kind;
     type->classType = NULL;
     vec_init(&type->genericRefs);
     vec_init(&type->genericNames);
@@ -454,11 +454,12 @@ ThisExpr* ast_expr_makeThisExpr(){
     return await;
 }*/
 
-Expr* ast_expr_makeExpr(ExpressionType type){
+Expr* ast_expr_makeExpr(ExpressionType type, Lexeme lexeme){
     ALLOC(expr, Expr);
     expr->type = type;
     expr->literalExpr = NULL;
     expr->dataType = NULL;
+    expr->lexeme = lexeme;
 
     return expr;
 }
@@ -643,9 +644,10 @@ ExprStatement* ast_stmt_makeExprStatement(ASTScope * parentScope){
     return exprStmt;
 }
 
-Statement* ast_stmt_makeStatement(StatementType type){
+Statement* ast_stmt_makeStatement(StatementType type, Lexeme lexeme){
     ALLOC(stmt, Statement);
     stmt->type = type;
+    stmt->lexeme = lexeme;
 
     return stmt;
 }
