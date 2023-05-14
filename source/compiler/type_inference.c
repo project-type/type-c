@@ -154,6 +154,14 @@ void ti_infer_exprLiteral(Parser* parser, ASTScope* scope, Expr* expr){
     ASSERT(expr->dataType != NULL, "Literal type not set");
 }
 
+void ti_infer_exprThis(Parser* parser, ASTScope* scope, Expr* expr){
+    ASSERT(scope->withinClass, "`this` can only be used inside a class");
+    // find class reference
+    DataType * dt = scope_getClassRef(scope);
+    ASSERT(dt != NULL, "Could not find class reference");
+    expr->dataType = dt;
+}
+
 void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr) {
     char* name = expr->elementExpr->name;
     ASTScopeResult* res = resolveElement(name, scope, 1);
@@ -174,6 +182,7 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             ti_infer_exprLiteral(parser, scope, expr);
             break;
         case ET_THIS:
+            ti_infer_exprThis(parser, scope, expr);
             break;
         case ET_ELEMENT:
             ti_infer_element(parser, scope, expr);

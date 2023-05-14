@@ -19,6 +19,7 @@ void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt);
 
 void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr);
 void ti_infer_exprLiteral(Parser* parser, ASTScope* scope, Expr* expr);
+void ti_infer_exprThis(Parser* parser, ASTScope* scope, Expr* expr);
 void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr);
 
 DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toType);
