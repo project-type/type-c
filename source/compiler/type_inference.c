@@ -38,7 +38,7 @@ DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
     return dtype;
 }
 
-DataType * ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr* lambda, Lexeme lexeme){
+DataType * ti_fnheader_toType(Parser * parser, ASTScope * currentScope, FnHeader * header, Lexeme lexeme){
     // generate the datatype of a lambda expression
     // create an empty datatype
     DataType* dt = ast_type_makeType(currentScope, lexeme, DT_FN);
@@ -48,26 +48,22 @@ DataType * ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr
     uint32_t i = 0;
     char* argName = NULL;
 
-    vec_foreach(&lambda->header->type->argNames, argName, i){
+    vec_foreach(&header->type->argNames, argName, i){
         vec_push(&dt->fnType->argNames, argName);
-        FnArgument ** arg = map_get(&lambda->header->type->args, argName);
+        FnArgument ** arg = map_get(&header->type->args, argName);
         map_set(&dt->fnType->args, argName, arg);
     }
 
     // compute type
-    if((lambda->header->type->returnType == NULL) && (lambda->bodyType == FBT_EXPR)){
-        lambda->header->type->returnType = lambda->expr->dataType;
-    }
-
-    if(lambda->header->type->returnType){
+    if(header->type->returnType){
         // TODO: deep copy?
-        dt->fnType->returnType = lambda->header->type->returnType;
+        dt->fnType->returnType = header->type->returnType;
     }
 
     return dt;
 }
 
-DataType* ti_fndect_toType(Parser * parser, ASTScope * currentScope, FnDeclStatement * fndecl, Lexeme lexeme){
+DataType* ti_fndecl_toType(Parser * parser, ASTScope * currentScope, FnDeclStatement * fndecl, Lexeme lexeme){
     // generate the datatype of a function declaration
     // create an empty datatype
     DataType* dt = ast_type_makeType(currentScope, lexeme, DT_FN);
@@ -166,6 +162,10 @@ void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr) {
     if(res->type == SCOPE_VARIABLE){
         expr->dataType = ti_type_findBase(parser, scope, res->variable->type);
     }
+    if(res->type == SCOPE_FUNCTION){
+        //expr->dataType = ti_type_findBase(parser, scope, ti_fndecl_toType(res->function->));
+        expr->dataType = ti_fndecl_toType(parser, scope, res->function, expr->lexeme);
+    }
 }
 
 void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
@@ -237,8 +237,8 @@ DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, Data
         return toType;
     }
 
-    DataType* fromType = ti_type_findBase(parser, currentScope, toType);
-    DataType* targetType = ti_type_findBase(parser, currentScope, expr->dataType);
+    DataType* fromType = ti_type_findBase(parser, currentScope, expr->dataType);
+    DataType* targetType = ti_type_findBase(parser, currentScope, toType);
 
     if((fromType->kind == DT_STRUCT) && (targetType->kind == DT_STRUCT)) {
         if(ti_struct_contains(parser, currentScope, fromType, targetType)){
@@ -246,8 +246,9 @@ DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, Data
         }
     }
 
-
-    PARSER_ASSERT(ti_match_types(parser, currentScope, fromType, targetType), "Cannot cast %s to %s", stringifyType(fromType), stringifyType(targetType));
+    // we swap because match types checks if left is compatible with right, not the other way around.
+    // this is important for example if x = y, we check match_types(x.type, y.type)
+    PARSER_ASSERT(ti_match_types(parser, currentScope, targetType, fromType), "Cannot cast %s to %s", stringifyType(fromType), stringifyType(targetType));
     return NULL;
 }
 
@@ -320,7 +321,8 @@ uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, D
             return 1;
         }
         Lexeme lexeme = left->lexeme;
-        PARSER_ASSERT(0, "Cannot cast class to interface outside `unsafe` expression/block");
+        //PARSER_ASSERT(0, "Cannot cast class to interface outside `unsafe` expression/block");
+        printf("Cannot cast class to interface outside `unsafe` expression/block\n");
         return 0;
     }
 

@@ -10,13 +10,12 @@
 
 DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype);
 
-DataType* ti_lambda_toType(Parser * parser, ASTScope * currentScope, LambdaExpr* lambda, Lexeme lexeme);
-DataType* ti_fndect_toType(Parser * parser, ASTScope * currentScope, FnDeclStatement * fndecl, Lexeme lexeme);
+DataType* ti_fnheader_toType(Parser * parser, ASTScope * currentScope, FnHeader* header, Lexeme lexeme);
+DataType* ti_fndecl_toType(Parser * parser, ASTScope * currentScope, FnDeclStatement * fndecl, Lexeme lexeme);
 
 void ti_runProgram(Parser* parser, ASTProgramNode* program);
 void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt);
-void ti_runExpr(Parser* parser, ASTScope* currentScope, Expr* expr);
-
+//void ti_runExpr(Parser* parser, ASTScope* currentScope, Expr* expr);
 
 void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr);
 void ti_infer_exprLiteral(Parser* parser, ASTScope* scope, Expr* expr);

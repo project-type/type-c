@@ -107,7 +107,7 @@ void parser_parseProgram(Parser* parser, ASTProgramNode * node) {
                 break;
             }
             case TOK_EOF: {
-                printf("EOF reached, gracefully stopping.\n");
+                printf("EOF reached, Parsing done.\n");
                 return;
             }
             default:
@@ -133,6 +133,7 @@ void parser_parseProgram(Parser* parser, ASTProgramNode * node) {
             }
         }
     }
+    printf("Gracefully exiting\n");
 }
 
 ExternDecl* parser_parseExternDecl(Parser* parser, ASTScope* currentScope){
@@ -2066,7 +2067,7 @@ Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {
             expr->lambdaExpr->bodyType = FBT_EXPR;
             ACCEPT;
             expr->lambdaExpr->expr = parser_parseExpr(parser, expr->lambdaExpr->scope);
-            expr->dataType = ti_lambda_toType(parser, currentScope, expr->lambdaExpr, lexeme);
+            expr->dataType = ti_fnheader_toType(parser, expr->lambdaExpr->scope, expr->lambdaExpr->header, lexeme);
             return expr;
         }
         else{
@@ -2971,7 +2972,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
     PARSER_ASSERT(scope_registerFunction(currentScope, stmt->fnDecl),
            "Function %s already exists in scope", stmt->fnDecl->header->name);
 
-    stmt->fnDecl->dataType = ti_fndect_toType(parser, currentScope, stmt->fnDecl, lexeme);
+    stmt->fnDecl->dataType = ti_fndecl_toType(parser, currentScope, stmt->fnDecl, lexeme);
     return stmt;
 }
 
