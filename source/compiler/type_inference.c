@@ -148,7 +148,6 @@ void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt){
     }
 }
 
-
 void ti_infer_exprLiteral(Parser* parser, ASTScope* scope, Expr* expr){
     // literal types are already setup in the parser
     ASSERT(expr->dataType != NULL, "Literal type not set");
@@ -172,8 +171,14 @@ void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr) {
     }
     if(res->type == SCOPE_FUNCTION){
         //expr->dataType = ti_type_findBase(parser, scope, ti_fndecl_toType(res->function->));
-        expr->dataType = ti_fndecl_toType(parser, scope, res->function, expr->lexeme);
+        expr->dataType = ti_fnheader_toType(parser, scope, res->function, expr->lexeme);
+        uint32_t i = 0;
+        //expr->dataType = res->dataType;
     }
+}
+
+void ti_infer_exprArrayConstruction(Parser* parser, ASTScope* scope, Expr* expr){
+
 }
 
 void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
@@ -188,6 +193,7 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             ti_infer_element(parser, scope, expr);
             break;
         case ET_ARRAY_CONSTRUCTION:
+            ti_infer_exprArrayConstruction(parser, scope, expr);
             break;
         case ET_NAMED_STRUCT_CONSTRUCTION:
             break;

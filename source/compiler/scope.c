@@ -320,9 +320,9 @@ ASTScopeResult* resolveElement(char* e, ASTScope* scope, uint8_t recursive) {
     }
 
     // check if the element is a function
-    FnHeader ** function = map_get(&scope->functions, e);
+    FnDeclStatement ** function = map_get(&scope->functions, e);
     if (function != NULL) {
-        return scope_result_init(SCOPE_FUNCTION, *function);
+        return scope_result_init(SCOPE_FUNCTION, (*function)->header);
     }
 
     // check if the element is a type
