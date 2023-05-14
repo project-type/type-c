@@ -12,6 +12,10 @@ type User = class(Serializable) {
 type Bot = class(Serializable) {
     let name: string = ""
     let commands: string[] = []
+
+    fn init(name: string) {
+        this.name = name
+    }
 }
 
 
@@ -28,5 +32,7 @@ unsafe {Y as User}
 
 fn call(x: u32) -> User2 = 1
 
-unsafe {call(32) as u32}
+unsafe {call(32) as interface{fn serialize2() -> string}}
 
+// [1, 2, 3, 4, 5] // OK
+ ["hi", "cool", 1] // Error

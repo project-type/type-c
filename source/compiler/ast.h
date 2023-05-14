@@ -518,7 +518,7 @@ typedef struct LetExpr {
 LetExpr* ast_expr_makeLetExpr(ASTScope* parentScope);
 
 typedef struct ArrayConstructionExpr {
-    DataType *type;
+    //DataType *type;
     vec_expr_t args;
 }ArrayConstructionExpr;
 ArrayConstructionExpr * ast_expr_makeArrayConstructionExpr();

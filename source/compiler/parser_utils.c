@@ -24,6 +24,7 @@ void parser_assert(int cond, const char * rawcond, const char* func_name, int li
 
 char* extractLine(Parser* parser, Lexeme lexeme){
     uint32_t token_len = lexeme.type != TOK_IDENTIFIER? strlen(token_type_to_string(lexeme.type)) : strlen(lexeme.string);
+    token_len = lexeme.string != NULL? strlen(lexeme.string) : token_len;
     char line[512] = {0};
     uint32_t lineIndex1 = lexeme.pos;
     // find new line pre pos:

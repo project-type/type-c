@@ -178,6 +178,24 @@ void ti_infer_element(Parser* parser, ASTScope* scope, Expr* expr) {
 }
 
 void ti_infer_exprArrayConstruction(Parser* parser, ASTScope* scope, Expr* expr){
+    ArrayConstructionExpr* arrExpr = expr->arrayConstructionExpr;
+    DataType* elementType = NULL;
+    if(arrExpr->args.length > 0){
+        // infer the type of the first argument
+        ti_infer_expr(parser, scope, arrExpr->args.data[0]);
+        // set the type of the array to the type of the first argument
+        elementType = arrExpr->args.data[0]->dataType;
+
+        Expr* arg; uint32_t i =0;
+        vec_foreach(&arrExpr->args, arg, i) {
+            ti_infer_expr(parser, scope, arg);
+            Lexeme lexeme = arg->lexeme;
+            PARSER_ASSERT(ti_match_types(parser, scope, elementType, arg->dataType ), "Array construction type mismatch");
+        }
+
+    } else {
+        expr->dataType = NULL;
+    }
 
 }
 
