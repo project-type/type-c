@@ -14,20 +14,20 @@
 DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
     // if type is reference, lookup the scope for the reference
     if(dtype->kind == DT_REFERENCE){
-        DataType ** dt = NULL;
+        DataType * dt = NULL;
         if (dtype->refType->ref != NULL)
-            dt = &dtype->refType->ref;
+            dt = dtype->refType->ref;
         else {
             //dt = map_get(&scope->dataTypes, dtype->refType->pkg->ids.data[0]);
              DataType* tmp = resolver_resolveType(parser, scope, dtype->refType->pkg->ids.data[0]);
              if(tmp != NULL)
-                dt = &tmp;
+                dt = tmp;
         }
         if(dt != NULL) {
-            if((*dt)->kind == DT_REFERENCE){
-                return ti_type_findBase(parser, scope, *dt);
+            if(dt->kind == DT_REFERENCE){
+                return ti_type_findBase(parser, scope, dt);
             }
-            return *dt;
+            return dt;
         }
 
         else {
