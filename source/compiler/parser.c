@@ -290,9 +290,9 @@ DataType* parser_parseTypeUnion(Parser* parser, DataType* parentReferee, ASTScop
         // we have an intersection
         ACCEPT;
         DataType* type2 = parser_parseTypeUnion(parser, parentReferee, currentScope);
-        uint8_t canJoin = tc_check_canJoinOrUnion(type, type2);
+        uint8_t canJoin = tc_check_canJoinOrUnion(parser, currentScope, type, type2);
         PARSER_ASSERT(canJoin, "Cannot create union data types of different categories `%s` and `%s`", dataTypeKindToString(type), dataTypeKindToString(type2));
-        char* unionResult = tc_check_canUnion(type, type2);
+        char* unionResult = tc_check_canUnion(parser, currentScope,type, type2);
         PARSER_ASSERT(unionResult == NULL, "Cannot create union of these types, duplicate field `%s` found. ", unionResult);
 
         // create intersection type
@@ -321,9 +321,9 @@ DataType* parser_parseTypeIntersection(Parser* parser, DataType* parentReferee, 
         // we have an intersection
         ACCEPT;
         DataType* type2 = parser_parseTypeIntersection(parser, parentReferee, currentScope);
-        uint8_t canJoin = tc_check_canJoinOrUnion(type, type2);
+        uint8_t canJoin = tc_check_canJoinOrUnion(parser, currentScope,type, type2);
         PARSER_ASSERT(canJoin, "Cannot create join data types of different categories `%s` and `%s`", dataTypeKindToString(type), dataTypeKindToString(type2));
-        char* unionResult = tc_check_canJoin(type, type2);
+        char* unionResult = tc_check_canJoin(parser, currentScope,type, type2);
         PARSER_ASSERT(unionResult == NULL, "Cannot create join of these types, duplicate field `%s` found. ", unionResult);
         // create intersection type
         JoinType * join = ast_type_makeJoin();
@@ -603,7 +603,7 @@ DataType* parser_parseTypeInterface(Parser* parser, DataType* parentReferee, AST
         // reject it
         parser_reject(parser);
         FnHeader * header = parser_parseFnHeader(parser, interfaceType->interfaceType->scope);
-        char* duplicate = scope_interface_addMethod(interfaceType, header);
+        char* duplicate = scope_interface_addMethod(parser, interfaceType->interfaceType->scope, interfaceType, header);
         PARSER_ASSERT(duplicate == NULL,
                      "Method `%s` is already defined in interface.",
                      duplicate);
@@ -679,7 +679,7 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
             // add method name
             ClassMethod * classMethod = ast_type_makeClassMethod();
             classMethod->decl = fnDecl;
-            char* duplicated = scope_class_addMethod(classType, classMethod);
+            char* duplicated = scope_class_addMethod(parser, classType->classType->scope, classType, classMethod);
             PARSER_ASSERT(duplicated == NULL,
                          "Method `%s` is already defined in class.",
                          duplicated);
@@ -691,7 +691,7 @@ DataType* parser_parseTypeClass(Parser* parser, DataType* parentReferee, ASTScop
             VarDeclStatement* varDecl = stmt->varDecl;
             uint32_t i = 0; LetExprDecl* letDecl;
             vec_foreach(&varDecl->letList, letDecl, i){
-                char* duplicated = scope_class_addAttribute(classType, letDecl);
+                char* duplicated = scope_class_addAttribute(parser, classType->classType->scope, classType, letDecl);
                 PARSER_ASSERT(duplicated == NULL,
                                             "Attribute `%s` is already defined in class.",
                                             duplicated)
@@ -856,7 +856,7 @@ DataType* parser_parseTypeStruct(Parser* parser, DataType* parentReferee, ASTSco
         PARSER_ASSERT(lexeme.type == TOK_IDENTIFIER,
                "identifier expected but %s was found.", token_type_to_string(lexeme.type));
         attr->name = strdup(lexeme.string);
-        char* dup = scope_struct_addAttribute(structType, attr);
+        char* dup = scope_struct_addAttribute(parser, structType->scope, structType, attr);
         PARSER_ASSERT(dup == NULL, "attribute with name %s already exists in struct.", dup)
         ACCEPT;
         CURRENT;
@@ -992,7 +992,7 @@ void parser_parseExtends(Parser* parser, DataType* parentReferee, vec_dtype_t* e
         //vec_push(extends, interfaceParentType);
         PARSER_ASSERT(scope_canExtend(parser, currentScope, interfaceParentType, kind), "Parent category `%s` doesn't match child category.",
                       dataTypeKindToString(interfaceParentType));
-        char* pushRes = scope_extends_addParent(currentScope, extends, interfaceParentType);
+        char* pushRes = scope_extends_addParent(parser, currentScope, extends, interfaceParentType);
         PARSER_ASSERT(pushRes == NULL, "Duplicate field `%s` in parent already exists.", pushRes);
 
         // check if we have a comma

@@ -76,23 +76,27 @@ ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericPar
 
 uint8_t scope_canExtend(Parser * parser, ASTScope *parentScope,DataType* parent, DataTypeKind childKind){
     DataType* bareparent = ti_type_findBase(parser, parentScope, parent);
-    if((bareparent->kind == DT_CLASS) && (childKind == DT_INTERFACE)){
+    if(bareparent->kind == DT_CLASS) {
+        return 0;
+    }
+
+    if(childKind == DT_INTERFACE){
         return 1;
     }
-    return tc_gettype_base(bareparent) == childKind;
+    return tc_gettype_base(parser, parentScope,bareparent) == childKind;
 }
 
-char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* parent){
+char* scope_extends_addParent(Parser* parser, ASTScope * scope, vec_dtype_t* extends, DataType* parent){
     DataType* bareparent = ti_type_findBase(NULL, scope, parent);
     map_int_t map;
     map_init(&map);
-    char* res1 = tc_accumulate_type_methods_attribute(bareparent, &map);
+    char* res1 = tc_accumulate_type_methods_attribute(parser, scope, bareparent, &map);
     if(res1 != NULL){
         return res1;
     }
 
     if(parent->kind == DT_TYPE_JOIN){
-        char* duplicate = tc_check_canJoin(parent->joinType->left, parent->joinType->right);
+        char* duplicate = tc_check_canJoin(parser, scope, parent->joinType->left, parent->joinType->right);
         if(duplicate != NULL){
             return duplicate;
         }
@@ -101,7 +105,7 @@ char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* 
     uint32_t i = 0;
     DataType * type = NULL;
     vec_foreach(extends, type, i){
-        char* res = tc_accumulate_type_methods_attribute(type, &map);
+        char* res = tc_accumulate_type_methods_attribute(parser, scope, type, &map);
         if(res != NULL){
             return res;
         }
@@ -121,7 +125,7 @@ ScopeRegResult scope_registerType(ASTScope* scope, DataType* dataType){
     return SRRT_TOKEN_ALREADY_REGISTERED;
 }
 
-char* scope_interface_addMethod(DataType * interface, FnHeader* method){
+char* scope_interface_addMethod(Parser* parser, ASTScope * scope, DataType * interface, FnHeader* method){
     ASSERT(interface->kind == DT_INTERFACE, "Input is not an interface");
 
     map_set(&interface->interfaceType->methods, method->name, method);
@@ -130,7 +134,7 @@ char* scope_interface_addMethod(DataType * interface, FnHeader* method){
     map_int_t map;
     map_init(&map);
     // check current interface
-    char* res = tc_accumulate_type_methods_attribute(interface, &map);
+    char* res = tc_accumulate_type_methods_attribute(parser, scope, interface, &map);
     if(res != NULL){
         return res;
     }
@@ -138,7 +142,7 @@ char* scope_interface_addMethod(DataType * interface, FnHeader* method){
     return NULL;
 }
 
-char* scope_class_addMethod(DataType * class, ClassMethod* fnDecl){
+char* scope_class_addMethod(Parser* parser, ASTScope * scope, DataType * class, ClassMethod* fnDecl){
     ASSERT(class->kind == DT_CLASS, "Input is not an interface");
 
     map_int_t map;
@@ -148,7 +152,7 @@ char* scope_class_addMethod(DataType * class, ClassMethod* fnDecl){
     map_set(&class->classType->methods, fnDecl->decl->header->name, fnDecl);
 
     // check current interface
-    char* dup = tc_accumulate_type_methods_attribute(class, &map);
+    char* dup = tc_accumulate_type_methods_attribute(parser, scope, class, &map);
     if(dup != NULL) {
         return dup;
     }
@@ -156,14 +160,14 @@ char* scope_class_addMethod(DataType * class, ClassMethod* fnDecl){
     return NULL;
 }
 
-char* scope_class_addAttribute(DataType * class, LetExprDecl* decl){
+char* scope_class_addAttribute(Parser* parser, ASTScope * scope, DataType * class, LetExprDecl* decl){
     ASSERT(class->kind == DT_CLASS, "Input is not an interface");
     vec_push(&class->classType->letList, decl);
 
     map_int_t map;
     map_init(&map);
     // check current interface
-    char* dup = tc_accumulate_type_methods_attribute(class, &map);
+    char* dup = tc_accumulate_type_methods_attribute(parser, scope, class, &map);
     if(dup != NULL) {
         return dup;
     }
@@ -171,7 +175,7 @@ char* scope_class_addAttribute(DataType * class, LetExprDecl* decl){
     return NULL;
 }
 
-char* scope_struct_addAttribute(DataType * struct_, StructAttribute* attr){
+char* scope_struct_addAttribute(Parser* parser, ASTScope * scope, DataType * struct_, StructAttribute* attr){
     ASSERT(struct_->kind == DT_STRUCT, "Input is not a struct");
 
     vec_push(&struct_->structType->attributeNames, attr->name);
@@ -180,7 +184,7 @@ char* scope_struct_addAttribute(DataType * struct_, StructAttribute* attr){
     map_int_t map;
     map_init(&map);
     // check current interface
-    char* dup = tc_accumulate_type_methods_attribute(struct_, &map);
+    char* dup = tc_accumulate_type_methods_attribute(parser, scope, struct_, &map);
     if(dup != NULL) {
         return dup;
     }

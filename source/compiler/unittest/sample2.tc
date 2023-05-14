@@ -15,6 +15,18 @@ type Bot = class(Serializable) {
 }
 
 
+type User2 = interface(Serializable) {
+    fn serialize() -> string
+}
+
+
 let X: User = new User("hello", 32)
-unsafe{X as Serializable}
+let Y: Serializable = 1
+
+X as Serializable
+unsafe {Y as User}
+
+fn call(x: u32) -> u32 = 1
+
+
 

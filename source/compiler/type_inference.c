@@ -20,7 +20,8 @@ DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
         else {
             //dt = map_get(&scope->dataTypes, dtype->refType->pkg->ids.data[0]);
              DataType* tmp = resolver_resolveType(parser, scope, dtype->refType->pkg->ids.data[0]);
-            dt = &tmp;
+             if(tmp != NULL)
+                dt = &tmp;
         }
         if(dt != NULL) {
             if((*dt)->kind == DT_REFERENCE){
@@ -104,7 +105,7 @@ void ti_runProgram(Parser* parser, ASTProgramNode* program) {
 void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt){
     switch(stmt->type){
         case ST_EXPR:
-            ti_runExpr(parser, currentScope, stmt->expr->expr);
+            ti_infer_expr(parser, currentScope, stmt->expr->expr);
             break;
         case ST_VAR_DECL:
             // todo check if variables has types, else we set it to the type of the expression
@@ -151,57 +152,6 @@ void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt){
     }
 }
 
-void ti_runExpr(Parser* parser, ASTScope* currentScope, Expr* expr) {
-    switch (expr->type) {
-        case ET_LITERAL:
-            break;
-        case ET_THIS:
-            break;
-        case ET_ELEMENT:
-            break;
-        case ET_ARRAY_CONSTRUCTION:
-            break;
-        case ET_NAMED_STRUCT_CONSTRUCTION:
-            break;
-        case ET_UNNAMED_STRUCT_CONSTRUCTION:
-            break;
-        case ET_NEW:
-            break;
-        case ET_CALL:
-            break;
-        case ET_MEMBER_ACCESS:
-            break;
-        case ET_INDEX_ACCESS:
-            break;
-        case ET_CAST:
-            ti_infer_expr(parser, currentScope, expr);
-            break;
-        case ET_INSTANCE_CHECK:
-            break;
-        case ET_UNARY:
-            break;
-        case ET_BINARY:
-            break;
-        case ET_IF_ELSE:
-            break;
-        case ET_MATCH:
-            break;
-        case ET_LET:
-            break;
-        case ET_LAMBDA:
-            break;
-        case ET_UNSAFE:
-            break;
-        case ET_SYNC:
-            break;
-        case ET_SPAWN:
-            break;
-        case ET_EMIT:
-            break;
-        case ET_WILDCARD:
-            break;
-    }
-}
 
 void ti_infer_exprLiteral(Parser* parser, ASTScope* scope, Expr* expr){
     // literal types are already setup in the parser
@@ -235,8 +185,11 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
         case ET_UNNAMED_STRUCT_CONSTRUCTION:
             break;
         case ET_NEW:
+            expr->dataType = expr->newExpr->type;
             break;
         case ET_CALL:
+            ti_infer_expr(parser, scope, expr->callExpr->lhs);
+            expr->dataType = ti_call_check(parser, scope, expr);
             break;
         case ET_MEMBER_ACCESS:
             break;
@@ -298,6 +251,15 @@ DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, Data
     return NULL;
 }
 
+DataType* ti_call_check(Parser* parser, ASTScope* currentScope, Expr* expr){
+    // make sure the lhs is a function
+    DataType* lhsType = ti_type_findBase(parser, currentScope, expr->callExpr->lhs->dataType);
+    Lexeme lexeme=expr->lexeme;
+    PARSER_ASSERT(lhsType->kind == DT_FN, "Cannot call non-function type %s", stringifyType(lhsType));
+
+    return expr->callExpr->lhs->dataType->fnType->returnType;
+}
+
 uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* bigStruct, DataType* smallStruct){
     StructType * structB = bigStruct->structType;
     StructType * structS = smallStruct->structType;
@@ -314,25 +276,55 @@ uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* big
 }
 
 uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right){
+    // check if any of left or right is a reference
+    DataType* L = NULL;
+    DataType* R = NULL;
 
-    if((left->kind == DT_STRUCT) && (right->kind == DT_STRUCT)){
-        return ti_struct_contains(parser, currentScope, left, right);
+    if (left->kind == DT_REFERENCE) {
+        L = ti_type_findBase(parser, currentScope, left);
+    } else {
+        L = left;
     }
 
-    if((left->kind == DT_INTERFACE) && (right->kind == DT_CLASS)){
+    if(right->kind == DT_REFERENCE){
+        R = ti_type_findBase(parser, currentScope, right);
+    } else {
+        R = right;
+    }
+
+    if((L->kind == DT_STRUCT) && (R->kind == DT_STRUCT)){
+        return ti_struct_contains(parser, currentScope, L, R);
+    }
+
+    if((L->kind == DT_INTERFACE) && (R->kind == DT_CLASS)){
+        // check if the class right extends left
+        // iterate through right class extends
+        DataType * parentType;
+        uint32_t i=0;
+        vec_foreach(&right->classType->extends, parentType, i){
+            if(ti_match_types(parser, currentScope, L, parentType))
+                return 1;
+        }
+
+        // else we the cast is only possible in unsafe block
         Lexeme lexeme = left->lexeme;
         if(currentScope->isSafe) {
-            PARSER_ASSERT(0, "Cannot cast interface to class outside `unsafe` expression/block");
+            PARSER_ASSERT(0, "Cannot cast unrelated interface to class outside `unsafe` expression/block");
         }
         else
             return 1;
     }
 
-    if((left->kind == DT_CLASS) && (right->kind == DT_INTERFACE)){
-        return 1;
+    if((L->kind == DT_CLASS) && (R->kind == DT_INTERFACE)){
+        if (!currentScope->isSafe){
+            return 1;
+        }
+        Lexeme lexeme = left->lexeme;
+        PARSER_ASSERT(0, "Cannot cast class to interface outside `unsafe` expression/block");
+        return 0;
     }
 
-    if(left->kind != right->kind){
+    if(L->kind != R->kind){
         return 0;
     }
 

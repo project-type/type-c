@@ -59,11 +59,11 @@ ScopeRegResult scope_dtype_addGeneric(DataType* dtype, GenericParam * genericPar
 
 uint8_t scope_canExtend(Parser * parser, ASTScope *parentScope,DataType* parent, DataTypeKind childKind);
 
-char* scope_extends_addParent(ASTScope * scope, vec_dtype_t* extends, DataType* parent);
-char* scope_interface_addMethod(DataType * interface, FnHeader* method);
-char* scope_class_addMethod(DataType * class, ClassMethod* fnDecl);
-char* scope_class_addAttribute(DataType * class, LetExprDecl* decl);
-char* scope_struct_addAttribute(DataType * struct_, StructAttribute* attr);
+char* scope_extends_addParent(Parser* parser, ASTScope * scope, vec_dtype_t* extends, DataType* parent);
+char* scope_interface_addMethod(Parser* parser, ASTScope * scope, DataType * interface, FnHeader* method);
+char* scope_class_addMethod(Parser* parser, ASTScope * scope, DataType * class, ClassMethod* fnDecl);
+char* scope_class_addAttribute(Parser* parser, ASTScope * scope, DataType * class, LetExprDecl* decl);
+char* scope_struct_addAttribute(Parser* parser, ASTScope * scope, DataType * struct_, StructAttribute* attr);
 ScopeRegResult scope_process_AddArg(ProcessType * process, FnArgument * arg);
 ScopeRegResult scope_process_hasReceive(ProcessType * process);
 ScopeRegResult scope_process_receiveMatches(ProcessType * process);
