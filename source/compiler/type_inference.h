@@ -30,5 +30,6 @@ void ti_cast(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toTyp
 
 uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* bigStruct, DataType* smallStruct);
 
-uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right);
+uint8_t ti_types_match(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right);
+DataType* ti_types_getCommonType(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right);
 #endif //TYPE_C_TYPE_INFERENCE_H

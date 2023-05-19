@@ -190,7 +190,8 @@ void ti_infer_exprArrayConstruction(Parser* parser, ASTScope* scope, Expr* expr)
         vec_foreach(&arrExpr->args, arg, i) {
             ti_infer_expr(parser, scope, arg);
             Lexeme lexeme = arg->lexeme;
-            PARSER_ASSERT(ti_match_types(parser, scope, elementType, arg->dataType ), "Array construction type mismatch");
+            elementType = ti_types_getCommonType(parser, scope, elementType, arg->dataType);
+            PARSER_ASSERT(elementType != NULL, "Array construction type mismatch");
         }
 
     } else {
@@ -281,7 +282,7 @@ DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, Data
 
     // we swap because match types checks if left is compatible with right, not the other way around.
     // this is important for example if x = y, we check match_types(x.type, y.type)
-    PARSER_ASSERT(ti_match_types(parser, currentScope, targetType, fromType), "Cannot cast %s to %s", stringifyType(fromType), stringifyType(targetType));
+    PARSER_ASSERT(ti_types_match(parser, currentScope, targetType, fromType), "Cannot cast %s to %s", stringifyType(fromType), stringifyType(targetType));
     return NULL;
 }
 
@@ -305,11 +306,11 @@ uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* big
         StructAttribute** attrB = map_get(&structB->attributes, attName);
         Lexeme lexeme = bigStruct->lexeme;
 
-        PARSER_ASSERT(ti_match_types(parser, currentScope, (*attrS)->type, (*attrB)->type), "Structs do not match, attribute `%s` missing");
+        PARSER_ASSERT(ti_types_match(parser, currentScope, (*attrS)->type, (*attrB)->type), "Structs do not match, attribute `%s` missing");
     }
 }
 
-uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right){
+uint8_t ti_types_match(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right){
     // check if any of left or right is a reference
     DataType* L = NULL;
     DataType* R = NULL;
@@ -336,7 +337,7 @@ uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, D
         DataType * parentType;
         uint32_t i=0;
         vec_foreach(&right->classType->extends, parentType, i){
-            if(ti_match_types(parser, currentScope, L, parentType))
+            if(ti_types_match(parser, currentScope, L, parentType))
                 return 1;
         }
 
@@ -364,4 +365,15 @@ uint8_t ti_match_types(Parser* parser, ASTScope* currentScope, DataType* left, D
     }
 
     return 1;
+}
+
+DataType* ti_types_getCommonType(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right) {
+    if(ti_types_match(parser, currentScope, left, right)){
+        return left;
+    }
+    else if (ti_types_match(parser, currentScope, right, left)){
+        return right;
+    }
+
+    return NULL;
 }

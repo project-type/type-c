@@ -34,5 +34,9 @@ fn call(x: u32) -> User2 = 1
 
 unsafe {call(32) as interface{fn serialize2() -> string}}
 
+let x1: User = new User("hello", 32)
+let x2: User2 = new User("hello", 32)
+
 // [1, 2, 3, 4, 5] // OK
- ["hi", "cool", 1] // Error
+// ["hi", "cool", 1] // Error
+[x1, x2, call(32)]
