@@ -1944,32 +1944,31 @@ Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope) {
     return uhs;
 }
 
-Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
 
-    Expr* lhs = parser_parseOpValue(parser, currentScope);
-    if(lhs == NULL){
-        return NULL;
-    }
+Expr* parser_parseMemberAccess(Parser* parser, ASTScope* currentScope, Expr* lhs) {
     Lexeme CURRENT;
-    if(lexeme.type == TOK_DOT) {
+
+    if (lexeme.type == TOK_DOT) {
         ACCEPT;
-        Expr* rhs = parser_parseOpPointer(parser, currentScope);
-        MemberAccessExpr *memberAccessExpr = ast_expr_makeMemberAccessExpr(lhs, rhs);
+        Expr* rhs = parser_parseOpValue(parser, currentScope);
+        MemberAccessExpr* memberAccessExpr = ast_expr_makeMemberAccessExpr(lhs, rhs);
 
         Expr* memberExpr = ast_expr_makeExpr(ET_MEMBER_ACCESS, lexeme);
         memberExpr->memberAccessExpr = memberAccessExpr;
-        return memberExpr;
+
+        return parser_parseMemberAccess(parser, currentScope, memberExpr);
     }
-    if(lexeme.type == TOK_LBRACKET) {
+
+    if (lexeme.type == TOK_LBRACKET) {
         ACCEPT;
         IndexAccessExpr* idx = ast_expr_makeIndexAccessExpr(lhs);
         uint8_t can_loop = 1;
 
-        while(can_loop) {
+        while (can_loop) {
             Expr* index = parser_parseExpr(parser, currentScope);
             vec_push(&idx->indexes, index);
             CURRENT;
-            if(lexeme.type == TOK_COMMA) {
+            if (lexeme.type == TOK_COMMA) {
                 ACCEPT;
             }
             else {
@@ -1977,29 +1976,30 @@ Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
                 parser_reject(parser);
             }
         }
+
         // assert ]
         CURRENT;
         PARSER_ASSERT(lexeme.type == TOK_RBRACKET, "`]` expected but %s was found.", token_type_to_string(lexeme.type));
         ACCEPT;
+
         Expr* expr = ast_expr_makeExpr(ET_INDEX_ACCESS, lexeme);
         expr->indexAccessExpr = idx;
 
-        // todo check datatype
-        return expr;
+        return parser_parseMemberAccess(parser, currentScope, expr);
     }
 
-    if(lexeme.type == TOK_LPAREN) {
+    if (lexeme.type == TOK_LPAREN) {
         ACCEPT;
         CURRENT;
         CallExpr* call = ast_expr_makeCallExpr(lhs);
         uint8_t can_loop = lexeme.type != TOK_RPAREN;
 
-        while(can_loop) {
+        while (can_loop) {
             parser_reject(parser);
             Expr* index = parser_parseExpr(parser, currentScope);
             vec_push(&call->args, index);
             CURRENT;
-            if(lexeme.type == TOK_COMMA) {
+            if (lexeme.type == TOK_COMMA) {
                 ACCEPT;
             }
             else {
@@ -2009,14 +2009,24 @@ Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope){
             }
         }
         ACCEPT;
+
         Expr* expr = ast_expr_makeExpr(ET_CALL, lexeme);
         expr->callExpr = call;
 
-        // todo check datatype
-        return expr;
+        return parser_parseMemberAccess(parser, currentScope, expr);
     }
+
     parser_reject(parser);
     return lhs;
+}
+
+Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope) {
+    Expr* lhs = parser_parseOpValue(parser, currentScope);
+    if (lhs == NULL) {
+        return NULL;
+    }
+
+    return parser_parseMemberAccess(parser, currentScope, lhs);
 }
 
 Expr* parser_parseOpValue(Parser* parser, ASTScope* currentScope) {

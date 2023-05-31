@@ -132,6 +132,8 @@ Expr* parser_parseOpUnary(Parser* parser, ASTScope* currentScope);
 
 // a.b, a[b], a(b)
 Expr* parser_parseOpPointer(Parser* parser, ASTScope* currentScope);
+// helper function to parse member access ltr order
+Expr* parser_parseMemberAccess(Parser* parser, ASTScope* currentScope, Expr* lhs);
 // fn (args_list) -> return_type { body }
 // fn (args_list) { body }
 // fn (args_list) -> return_type = uhs

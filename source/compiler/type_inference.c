@@ -10,6 +10,7 @@
 #include "error.h"
 #include "parser_utils.h"
 #include "scope.h"
+#include "ast_json.h"
 
 DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype){
     // if type is reference, lookup the scope for the reference
@@ -107,6 +108,7 @@ void ti_runStatement(Parser* parser, ASTScope* currentScope, Statement * stmt){
             // todo check if variables has types, else we set it to the type of the expression
             break;
         case ST_FN_DECL:
+            // todo check if function has return type or infer it from body/expr
             break;
         case ST_BLOCK: {
             // recursively run the statements in the block
@@ -226,6 +228,8 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             expr->dataType = ti_call_check(parser, scope, expr);
             break;
         case ET_MEMBER_ACCESS:
+            printf("%s\n", ast_json_serializeExpr(expr));
+            ti_infer_expr(parser, scope, expr->memberAccessExpr->lhs);
             break;
         case ET_INDEX_ACCESS:
             break;
@@ -356,7 +360,7 @@ uint8_t ti_types_match(Parser* parser, ASTScope* currentScope, DataType* left, D
         }
         Lexeme lexeme = left->lexeme;
         //PARSER_ASSERT(0, "Cannot cast class to interface outside `unsafe` expression/block");
-        printf("Cannot cast class to interface outside `unsafe` expression/block\n");
+        printf("Warning: Cannot cast class to interface outside `unsafe` expression/block\n");
         return 0;
     }
 
