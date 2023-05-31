@@ -107,7 +107,7 @@ uint8_t match_keyword(LexerState* lexerState, const char* pattern) {
         }
     }
 
-    if(isalpha(getCurrentChar(lexerState))){
+    if(isalpha(getCurrentChar(lexerState)) || (i < len)){
         // invalid match, put old position back
         lexerState->pos = oldState.pos;
         lexerState->line = oldState.line;
