@@ -228,8 +228,13 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             expr->dataType = ti_call_check(parser, scope, expr);
             break;
         case ET_MEMBER_ACCESS:
-            printf("%s\n", ast_json_serializeExpr(expr));
+            //printf("%s\n", ast_json_serializeExpr(expr));
             ti_infer_expr(parser, scope, expr->memberAccessExpr->lhs);
+            //ti_infer_expr(parser, scope, expr->memberAccessExpr->rhs);
+            ti_member_access(parser, scope, expr->memberAccessExpr->lhs, expr->memberAccessExpr->rhs);
+            // check if lhs expression has field rhs
+
+
             break;
         case ET_INDEX_ACCESS:
             break;
@@ -264,6 +269,20 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
         case ET_WILDCARD:
             break;
     }
+}
+
+DataType* ti_member_access(Parser* parser, ASTScope* currentScope, Expr* expr, Expr* element){
+    // checks if the expr has a field defined in element and returns the type of the field
+
+    // assert element is of type ElementExpr
+    ASSERT(element->type == ET_ELEMENT, "Expected element expression");
+    char* name = element->elementExpr->name;
+    // assert expr->dataType is either a struct, class or interface
+    DataType* dt = ti_type_findBase(parser, currentScope, expr->dataType);
+    Lexeme lexeme = expr->lexeme;
+    PARSER_ASSERT((dt->kind == DT_STRUCT) || (dt->kind == DT_CLASS) || (dt->kind == DT_INTERFACE), "Expected struct type");
+
+    return NULL;
 }
 
 DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toType) {

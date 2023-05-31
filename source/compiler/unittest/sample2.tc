@@ -41,10 +41,11 @@ let x2: User2 = new User("hello", 32)
 // ["hi", "cool", 1] // Error
 [x1, x2, call(32), x1]
 
-a.b.c
+let x3: struct {name: String, age: u32} = {name: "hello", age: 32}
 
-(a.b).c
+let z: u32 = 1
 
+z.name
 
 
 

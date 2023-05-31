@@ -159,8 +159,6 @@ Statement* parser_parseStmtUnsafe(Parser* parser, ASTScope* currentScope);
 Statement* parser_parseStmtSync(Parser* parser, ASTScope* currentScope);
 Statement* parser_parseStmtExpr(Parser* parser, ASTScope* currentScope);
 
-
-
 #endif //TYPE_C_PARSER_H
 
 /*
