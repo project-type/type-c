@@ -238,8 +238,20 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             expr->dataType = res;
             break;
         }
-        case ET_INDEX_ACCESS:
+        case ET_INDEX_ACCESS: {
+            // infer main expression
+            ti_infer_expr(parser, scope, expr->indexAccessExpr->expr);
+
+            // infer indecies
+            uint32_t i = 0;
+            Expr* indexExpr;
+            vec_foreach(&expr->indexAccessExpr->indexes, indexExpr, i){
+                ti_infer_expr(parser, scope, indexExpr);
+            }
+
+
             break;
+        }
         case ET_CAST:
             ti_infer_expr(parser, scope, expr->castExpr->expr);
             expr->dataType = ti_cast_check(parser, scope, expr->castExpr->expr, expr->castExpr->type);
