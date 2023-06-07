@@ -227,15 +227,19 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             ti_infer_expr(parser, scope, expr->callExpr->lhs);
             expr->dataType = ti_call_check(parser, scope, expr);
             break;
-        case ET_MEMBER_ACCESS:
+        case ET_MEMBER_ACCESS: {
             //printf("%s\n", ast_json_serializeExpr(expr));
             ti_infer_expr(parser, scope, expr->memberAccessExpr->lhs);
             //ti_infer_expr(parser, scope, expr->memberAccessExpr->rhs);
-            ti_member_access(parser, scope, expr->memberAccessExpr->lhs, expr->memberAccessExpr->rhs);
+            DataType * res = ti_member_access(parser, scope, expr->memberAccessExpr->lhs, expr->memberAccessExpr->rhs);
             // check if lhs expression has field rhs
+            Lexeme lexeme = expr->memberAccessExpr->rhs->lexeme;
+            PARSER_ASSERT(res!=NULL, "Field %s not exist on lhs expression", expr->memberAccessExpr->rhs->elementExpr->name);
+
 
 
             break;
+        }
         case ET_INDEX_ACCESS:
             break;
         case ET_CAST:
@@ -290,6 +294,19 @@ DataType* ti_member_access(Parser* parser, ASTScope* currentScope, Expr* expr, E
                 StructAttribute ** structAttribute = map_get(&dt->structType->attributes, att);
                 if(structAttribute != NULL){
                     return (*structAttribute)->type;
+                }
+            }
+        }
+    }
+
+    if(dt->kind == DT_INTERFACE) {
+        char* att;
+        uint32_t i = 0;
+        vec_foreach(&dt->interfaceType->methodNames, att, i) {
+            if(strcmp(att, name) == 0){
+                FnHeader ** fnHeader = map_get(&dt->interfaceType->methods, att);
+                if(fnHeader != NULL){
+                    return ti_fnheader_toType(parser, currentScope, *fnHeader, dt->lexeme);
                 }
             }
         }

@@ -48,6 +48,9 @@ let z: u32 = 1
 // z.name
 x3.name
 
+let x4: User2 = 1
+
+x4.serialize2
 
 
 
