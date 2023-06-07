@@ -280,7 +280,20 @@ DataType* ti_member_access(Parser* parser, ASTScope* currentScope, Expr* expr, E
     // assert expr->dataType is either a struct, class or interface
     DataType* dt = ti_type_findBase(parser, currentScope, expr->dataType);
     Lexeme lexeme = expr->lexeme;
-    PARSER_ASSERT((dt->kind == DT_STRUCT) || (dt->kind == DT_CLASS) || (dt->kind == DT_INTERFACE), "Expected struct type");
+    PARSER_ASSERT((dt->kind == DT_STRUCT) || (dt->kind == DT_CLASS) || (dt->kind == DT_INTERFACE), "Expected struct, interface or class type as lhs of member access ");
+
+    if(dt->kind == DT_STRUCT) {
+        char* att;
+        uint32_t i = 0;
+        vec_foreach(&dt->structType->attributeNames, att, i) {
+            if(strcmp(att, name) == 0){
+                StructAttribute ** structAttribute = map_get(&dt->structType->attributes, att);
+                if(structAttribute != NULL){
+                    return (*structAttribute)->type;
+                }
+            }
+        }
+    }
 
     return NULL;
 }

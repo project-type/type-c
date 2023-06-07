@@ -45,7 +45,8 @@ let x3: struct {name: String, age: u32} = {name: "hello", age: 32}
 
 let z: u32 = 1
 
-z.name
+// z.name
+x3.name
 
 
 
