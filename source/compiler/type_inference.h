@@ -8,6 +8,13 @@
 #include "ast.h"
 #include "parser.h"
 
+/**
+ * Finds the base type of the given type. I.E if it is a reference, it looks up its full definition
+ * @param parser
+ * @param scope
+ * @param dtype
+ * @return
+ */
 DataType* ti_type_findBase(Parser* parser, ASTScope * scope, DataType *dtype);
 
 DataType* ti_fnheader_toType(Parser * parser, ASTScope * currentScope, FnHeader* header, Lexeme lexeme);

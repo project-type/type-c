@@ -50,7 +50,9 @@ x3.name
 
 let x4: User2 = 1
 
-x4.serialize2
+x4.serialize
+
+x1.ages
 
 
 
