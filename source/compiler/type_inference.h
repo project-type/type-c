@@ -32,7 +32,8 @@ void ti_infer_exprArrayConstruction(Parser* parser, ASTScope* scope, Expr* expr)
 
 DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toType);
 DataType* ti_call_check(Parser* parser, ASTScope* currentScope, Expr* expr);
-DataType* ti_member_access(Parser* parser, ASTScope* currentScope, Expr* expr, Expr* element);
+DataType* ti_member_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, Expr* element);
+DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, vec_expr_t indexes);
 
 void ti_cast(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toType);
 

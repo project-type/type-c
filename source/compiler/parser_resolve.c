@@ -127,7 +127,37 @@ DataType* resolver_resolveClassField(Parser* parser, ASTScope* currentScope, Dat
     }
 
     return NULL;
+}
 
+DataType* resolver_resolveClassMethod(Parser* parser, ASTScope* currentScope, DataType* classType, char* field){
+    DataType * dt = ti_type_findBase(parser, currentScope, classType);
+
+    ASSERT(dt->kind == DT_CLASS, "Expected class type");
+
+    uint32_t i = 0;
+    char* att;
+    vec_foreach(&dt->classType->methodNames, att, i) {
+            if(strcmp(att, field) == 0){
+                ClassMethod ** method = map_get(&dt->classType->methods, att);
+                if(method != NULL){
+                    return (*method)->decl->dataType;
+                }
+            }
+        }
+
+    // look up parent interfaces
+    if(dt->classType->extends.length > 0){
+        DataType* parent;
+        i = 0;
+        vec_foreach(&dt->classType->extends, parent, i) {
+                DataType * parentMethod = resolver_resolveInterfaceMethod(parser, currentScope, parent, field);
+                if(parentMethod != NULL){
+                    return parentMethod;
+                }
+            }
+    }
+
+    return NULL;
 }
 
 uint8_t resolver_matchTypes(DataType* t1, DataType* t2){

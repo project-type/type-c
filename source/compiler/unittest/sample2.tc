@@ -7,6 +7,8 @@ type Serializable = interface {
 type User = class(Serializable) {
     let name: string = ""
     let age: u32 = 20
+
+    fn __index__(i: i32) -> u32 = i
 }
 
 type Bot = class(Serializable) {
@@ -52,7 +54,13 @@ let x4: User2 = 1
 
 x4.serialize
 
-x1.ages
+x1.age
+
+type U32Array = u32[]
+
+let y1: U32Array = 1
+
+x1[2]
 
 
 

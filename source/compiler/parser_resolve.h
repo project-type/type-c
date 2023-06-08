@@ -52,5 +52,14 @@ DataType* resolver_resolveInterfaceMethod(Parser* parser, ASTScope* currentScope
  */
 DataType* resolver_resolveClassField(Parser* parser, ASTScope* currentScope, DataType* classType, char* methodName);
 
+/**
+ * Resolved a method only in given class
+ * @param parser
+ * @param currentScope
+ * @param classType
+ * @param field
+ * @return
+ */
+DataType* resolver_resolveClassMethod(Parser* parser, ASTScope* currentScope, DataType* classType, char* field);
 
 #endif //TYPE_C_PARSER_RESOLVE_H

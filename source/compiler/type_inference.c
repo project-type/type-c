@@ -231,7 +231,8 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             //printf("%s\n", ast_json_serializeExpr(expr));
             ti_infer_expr(parser, scope, expr->memberAccessExpr->lhs);
             //ti_infer_expr(parser, scope, expr->memberAccessExpr->rhs);
-            DataType * res = ti_member_access(parser, scope, expr->memberAccessExpr->lhs, expr->memberAccessExpr->rhs);
+            DataType * res = ti_member_access_check(parser, scope, expr->memberAccessExpr->lhs,
+                                                    expr->memberAccessExpr->rhs);
             // check if lhs expression has field rhs
             Lexeme lexeme = expr->memberAccessExpr->rhs->lexeme;
             PARSER_ASSERT(res!=NULL, "Field %s not exist on lhs expression", expr->memberAccessExpr->rhs->elementExpr->name);
@@ -250,6 +251,10 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
                 ti_infer_expr(parser, scope, indexExpr);
             }
 
+            // index access works inherently on arrays, strings but also on objects with __index__ method
+            DataType* res = ti_index_access_check(parser, scope, expr->indexAccessExpr->expr, expr->indexAccessExpr->indexes);
+            Lexeme lexeme = expr->lexeme;
+            PARSER_ASSERT(res!=NULL, "Index access requires either an array or class/interface with `__index__` method");
 
             break;
         }
@@ -286,7 +291,25 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
     }
 }
 
-DataType* ti_member_access(Parser* parser, ASTScope* currentScope, Expr* expr, Expr* element){
+DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, vec_expr_t indexes){
+    DataType* dt = ti_type_findBase(parser, currentScope, expr->dataType);
+    Lexeme lexeme = expr->lexeme;
+
+    if(dt->kind == DT_ARRAY) {
+        return dt->arrayType->arrayOf;
+    }
+    else {
+        // check if the type has a __index__ method
+        if(dt->kind == DT_INTERFACE)
+            return resolver_resolveInterfaceMethod(parser, currentScope, dt, "__index__");
+        else if(dt->kind == DT_CLASS)
+            return resolver_resolveClassMethod(parser, currentScope, dt, "__index__");
+    }
+
+    return NULL;
+}
+
+DataType* ti_member_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, Expr* element){
     // checks if the expr has a field defined in element and returns the type of the field
 
     // assert element is of type ElementExpr
