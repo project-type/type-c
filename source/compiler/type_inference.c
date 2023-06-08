@@ -238,11 +238,12 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
             expr->dataType = res;
             break;
         }
+
         case ET_INDEX_ACCESS: {
             // infer main expression
             ti_infer_expr(parser, scope, expr->indexAccessExpr->expr);
 
-            // infer indecies
+            // infer indexes
             uint32_t i = 0;
             Expr* indexExpr;
             vec_foreach(&expr->indexAccessExpr->indexes, indexExpr, i){
