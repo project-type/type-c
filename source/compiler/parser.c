@@ -2967,9 +2967,9 @@ Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
         // TODO: update current
         stmt->fnDecl->expr = parser_parseExpr(parser, stmt->fnDecl->scope);
         // assert body is not null
-        PARSER_ASSERT(stmt->fnDecl->expr != NULL, "Invalid synbol %s while parsing function expression.");
-        ACCEPT;
-        CURRENT;
+        PARSER_ASSERT(stmt->fnDecl->expr != NULL, "Invalid symbol %s while parsing function expression.");
+        //ACCEPT;
+        //CURRENT;
     } else if (lexeme.type == TOK_LBRACE) {
         stmt->fnDecl->bodyType = FBT_BLOCK;
         parser_reject(parser);

@@ -296,6 +296,12 @@ DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* ex
     Lexeme lexeme = expr->lexeme;
 
     if(dt->kind == DT_ARRAY) {
+        // make sure we have only one index expression
+        PARSER_ASSERT(indexes.length == 1, "Index access on array requires exactly one index expression");
+        // make sure the datatype of the index is a valid positive int
+        Expr* indexExpr = indexes.data[0];
+        PARSER_ASSERT(indexExpr->dataType->kind <= DT_U64, "Index access on array requires an integer index");
+
         return dt->arrayType->arrayOf;
     }
     else {

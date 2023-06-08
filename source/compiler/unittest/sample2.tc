@@ -1,5 +1,3 @@
-
-
 type Serializable = interface {
     fn serialize() -> string
 }
@@ -8,7 +6,7 @@ type User = class(Serializable) {
     let name: string = ""
     let age: u32 = 20
 
-    fn __index__(i: i32) -> u32 = i
+    fn __index__(i: i32) = i
 }
 
 type Bot = class(Serializable) {
@@ -20,11 +18,9 @@ type Bot = class(Serializable) {
     }
 }
 
-
 type User2 = interface(Serializable) {
     fn serialize2() -> string
 }
-
 
 let X: User = new User("hello", 32)
 let Y: Serializable = 1
@@ -60,9 +56,4 @@ type U32Array = u32[]
 
 let y1: U32Array = 1
 
-x1[2]
-
-
-
-
-
+y1[1]
