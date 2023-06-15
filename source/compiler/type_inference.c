@@ -306,10 +306,18 @@ DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* ex
     }
     else {
         // check if the type has a __index__ method
-        if(dt->kind == DT_INTERFACE)
-            return resolver_resolveInterfaceMethod(parser, currentScope, dt, "__index__");
-        else if(dt->kind == DT_CLASS)
-            return resolver_resolveClassMethod(parser, currentScope, dt, "__index__");
+        if(dt->kind == DT_INTERFACE){
+            DataType* fn = resolver_resolveInterfaceMethod(parser, currentScope, dt, "__index__");
+
+            // TODO: make sure fn args match indexes
+            return fn->fnType->returnType;
+        }
+        else if(dt->kind == DT_CLASS){
+            DataType* fn = resolver_resolveClassMethod(parser, currentScope, dt, "__index__");
+
+            // TODO: make sure fn args match indexes
+            return fn->fnType->returnType;
+        }
     }
 
     return NULL;
