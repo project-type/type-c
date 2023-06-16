@@ -22,6 +22,10 @@ type User2 = interface(Serializable) {
     fn serialize2() -> string
 }
 
+type Something = interface {
+    fn canCool() -> bool
+}
+
 let X: User = new User("hello", 32)
 let Y: Serializable = 1
 
@@ -54,6 +58,6 @@ x1.age
 
 type U32Array = u32[]
 
-let y1: U32Array = 1
+let y1: (interface { fn cool() -> u32 } & Something) = 1
 
 y1[1]

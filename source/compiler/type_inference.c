@@ -292,6 +292,7 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
 }
 
 DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, vec_expr_t indexes){
+    printf("DataType: %s\n", ti_type_toString(parser, currentScope, expr->dataType));
     DataType* dt = ti_type_findBase(parser, currentScope, expr->dataType);
     Lexeme lexeme = expr->lexeme;
 
@@ -308,14 +309,19 @@ DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* ex
         // check if the type has a __index__ method
         if(dt->kind == DT_INTERFACE){
             DataType* fn = resolver_resolveInterfaceMethod(parser, currentScope, dt, "__index__");
+            // make sure the number of indexes and function args match
+            PARSER_ASSERT(fn->fnType->argNames.length == indexes.length, "Index access on interface requires exactly %d index expressions", fn->fnType->argNames.length);
 
             // TODO: make sure fn args match indexes
             return fn->fnType->returnType;
         }
         else if(dt->kind == DT_CLASS){
             DataType* fn = resolver_resolveClassMethod(parser, currentScope, dt, "__index__");
+            // make sure the number of indexes and function args match
+            PARSER_ASSERT(fn->fnType->argNames.length == indexes.length, "Index access on interface requires exactly %d index expressions", fn->fnType->argNames.length);
 
             // TODO: make sure fn args match indexes
+            // using ti_types_match(parser, currentScope, left, right)
             return fn->fnType->returnType;
         }
     }
@@ -463,4 +469,104 @@ DataType* ti_types_getCommonType(Parser* parser, ASTScope* currentScope, DataTyp
     }
 
     return NULL;
+}
+
+sds ti_type_toString(Parser* parser, ASTScope* currentScope, DataType* type){
+    // prepare string using sds
+    sds str = sdsnew("");
+
+    // if the type is a reference, we need to find its base type
+    if (type->name != NULL){
+        str = sdscat(str, type->name);
+        return str;
+    }
+
+    if (type->kind == DT_REFERENCE) {
+        if(type->refType->ref == NULL){
+            ASSERT(type->refType->pkg->ids.length > 0, "Invalid reference type");
+
+            // concatenate pkg->ids into str
+            uint32_t i = 0;
+            char* id = NULL;
+            vec_foreach(&type->refType->pkg->ids, id, i){
+                str = sdscat(str, id);
+                if(i < type->refType->pkg->ids.length - 1){
+                    str = sdscat(str, ".");
+                }
+            }
+        }
+        return str;
+    }
+
+    DataType* baseType = ti_type_findBase(parser, currentScope, type);
+
+    // add base type as string if its not join or union
+    if((baseType->kind != DT_TYPE_JOIN) && (baseType->kind != DT_TYPE_UNION)) {
+        str = sdscat(str, stringifyType(baseType));
+    }
+    else {
+        // we add (type1 & or | type2)
+        // start with (
+        str = sdscat(str, "(");
+        str = sdscat(str, ti_type_toString(parser, currentScope, baseType->joinType->left));
+        if(baseType->kind == DT_TYPE_JOIN){
+            str = sdscat(str, " & ");
+        }
+        else {
+            str = sdscat(str, " | ");
+        }
+        str = sdscat(str, ti_type_toString(parser, currentScope, baseType->joinType->right));
+        str = sdscat(str, ")");
+        return str;
+    }
+
+    // if it has a name we add it
+    if(baseType->name != NULL){
+        str = sdscat(str, " ");
+        str = sdscat(str, baseType->name);
+    }
+    else {
+        // else, if it is a struct we add its fields
+        if(baseType->kind == DT_STRUCT){
+            str = sdscat(str, " {");
+            uint32_t i = 0;
+            char* attName = NULL;
+            vec_foreach(&baseType->structType->attributeNames, attName, i){
+                StructAttribute** attr = map_get(&baseType->structType->attributes, attName);
+                str = sdscat(str, " ");
+                str = sdscat(str, stringifyType((*attr)->type));
+                str = sdscat(str, " ");
+                str = sdscat(str, (*attr)->name);
+                str = sdscat(str, ",");
+            }
+            str = sdscat(str, " }");
+        }
+        // if it is an interface we add its methods with args
+        else if(baseType->kind == DT_INTERFACE){
+            str = sdscat(str, " {");
+            uint32_t i = 0;
+            char* methodName = NULL;
+            vec_foreach(&baseType->interfaceType->methodNames, methodName, i){
+                FnHeader ** method = map_get(&baseType->interfaceType->methods, methodName);
+                str = sdscat(str, " ");
+                str = sdscat(str, (*method)->name);
+                str = sdscat(str, "(");
+                uint32_t j = 0;
+                char* argName = NULL;
+                vec_foreach(&(*method)->type->argNames, argName, j){
+                    FnArgument ** arg = map_get(&(*method)->type->args, argName);
+                    str = sdscat(str, " ");
+                    str = sdscat(str, stringifyType((*arg)->type));
+                    str = sdscat(str, " ");
+                    str = sdscat(str, argName);
+                    str = sdscat(str, ",");
+                }
+                str = sdscat(str, " ) -> ");
+                str = sdscat(str, stringifyType((*method)->type->returnType));
+            }
+            str = sdscat(str, " }");
+        }
+    }
+
+    return str;
 }

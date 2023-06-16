@@ -5,6 +5,7 @@
 #ifndef TYPE_C_TYPE_INFERENCE_H
 #define TYPE_C_TYPE_INFERENCE_H
 
+#include "../utils/sds.h"
 #include "ast.h"
 #include "parser.h"
 
@@ -41,4 +42,7 @@ uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* big
 
 uint8_t ti_types_match(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right);
 DataType* ti_types_getCommonType(Parser* parser, ASTScope* currentScope, DataType* left, DataType* right);
+
+sds ti_type_toString(Parser* parser, ASTScope* currentScope, DataType* type);
+
 #endif //TYPE_C_TYPE_INFERENCE_H
