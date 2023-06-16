@@ -2962,7 +2962,7 @@ Statement* parser_parseStmtFn(Parser* parser, ASTScope* currentScope) {
     if (lexeme.type == TOK_EQUAL) {
         stmt->fnDecl->bodyType = FBT_EXPR;
         ACCEPT;
-        CURRENT;
+        //CURRENT;
         // parse the body
         // TODO: update current
         stmt->fnDecl->expr = parser_parseExpr(parser, stmt->fnDecl->scope);
