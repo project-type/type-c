@@ -534,7 +534,7 @@ sds ti_type_toString(Parser* parser, ASTScope* currentScope, DataType* type){
             vec_foreach(&baseType->structType->attributeNames, attName, i){
                 StructAttribute** attr = map_get(&baseType->structType->attributes, attName);
                 str = sdscat(str, " ");
-                str = sdscat(str, stringifyType((*attr)->type));
+                str = sdscat(str, ti_type_toString(parser, currentScope, (*attr)->type));
                 str = sdscat(str, " ");
                 str = sdscat(str, (*attr)->name);
                 str = sdscat(str, ",");
@@ -556,16 +556,64 @@ sds ti_type_toString(Parser* parser, ASTScope* currentScope, DataType* type){
                 vec_foreach(&(*method)->type->argNames, argName, j){
                     FnArgument ** arg = map_get(&(*method)->type->args, argName);
                     str = sdscat(str, " ");
-                    str = sdscat(str, stringifyType((*arg)->type));
+                    str = sdscat(str, ti_type_toString(parser, currentScope, (*arg)->type));
                     str = sdscat(str, " ");
                     str = sdscat(str, argName);
                     str = sdscat(str, ",");
                 }
                 str = sdscat(str, " ) -> ");
-                str = sdscat(str, stringifyType((*method)->type->returnType));
+                str = sdscat(str, ti_type_toString(parser, currentScope, (*method)->type->returnType));
             }
             str = sdscat(str, " }");
         }
+    }
+    // if it is a class we add its methods and attributes
+    if(baseType->kind == DT_CLASS){
+        str = sdscat(str, " {");
+        uint32_t i = 0;
+
+        char* methodName = NULL;
+        vec_foreach(&baseType->classType->methodNames, methodName, i){
+            ClassMethod ** method = map_get(&baseType->classType->methods, methodName);
+            str = sdscat(str, " ");
+            str = sdscat(str, (*method)->decl->header->name);
+            str = sdscat(str, "(");
+            uint32_t j = 0;
+            char* argName = NULL;
+            vec_foreach(&(*method)->decl->header->type->argNames, argName, j){
+                FnArgument ** arg = map_get(&(*method)->decl->header->type->args, argName);
+                str = sdscat(str, " ");
+                str = sdscat(str, ti_type_toString(parser, currentScope, (*arg)->type));
+                str = sdscat(str, " ");
+                str = sdscat(str, argName);
+                str = sdscat(str, ",");
+            }
+            str = sdscat(str, " ) -> ");
+            str = sdscat(str, ti_type_toString(parser, currentScope, (*method)->decl->header->type->returnType));
+        }
+
+        // add attributes, iterate over each letList
+        i = 0;
+        LetExprDecl * letDecl = NULL;
+        vec_foreach(&baseType->classType->letList, letDecl, i){
+            // iterate over variableNames of LetExprDecl
+            uint32_t j = 0;
+            char* varName = NULL;
+            vec_foreach(&letDecl->variableNames, varName, j){
+                str = sdscat(str, " ");
+                // get the variable of that name
+                FnArgument ** var = map_get(&letDecl->variables, varName);
+
+                str = sdscat(str, " ");
+                str = sdscat(str, varName);
+                str = sdscat(str, ": ");
+                str = sdscat(str, ti_type_toString(parser, currentScope, (*var)->type));
+                str = sdscat(str, ",");
+            }
+        }
+
+
+        str = sdscat(str, " }");
     }
 
     return str;
