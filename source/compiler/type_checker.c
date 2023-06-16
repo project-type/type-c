@@ -166,8 +166,8 @@ char* tc_accumulate_type_methods_attribute(Parser* parser, ASTScope * scope, Dat
 }
 
 uint8_t tc_check_canJoinOrUnion(Parser* parser, ASTScope* scope, DataType* left, DataType* right){
-    DataTypeKind leftKind = tc_gettype_base(parser, scope, left);
-    DataTypeKind rightKind = tc_gettype_base(parser, scope, right);
+    DataTypeKind leftKind = tc_gettype_base(parser, scope, ti_type_findBase(parser, scope, left));
+    DataTypeKind rightKind = tc_gettype_base(parser, scope, ti_type_findBase(parser, scope, right));
 
 
     if(leftKind == DT_INVALID || rightKind == DT_INVALID){
