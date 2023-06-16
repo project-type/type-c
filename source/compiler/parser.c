@@ -329,7 +329,7 @@ DataType* parser_parseTypeIntersection(Parser* parser, DataType* parentReferee, 
         // create intersection type
         JoinType * join = ast_type_makeJoin();
         join->left = type;
-        join->left = type2;
+        join->right = type2;
 
         // create new datatype to hold joints
         DataType* newType = ast_type_makeType(currentScope, parser->stack.data[0], DT_TYPE_JOIN);
