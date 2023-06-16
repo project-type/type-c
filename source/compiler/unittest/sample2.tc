@@ -58,6 +58,6 @@ x1.age
 
 type U32Array = u32[]
 
-let y1: (interface { fn cool() -> u32 } & Something) = 1
+let y1: interface { fn init(x: u32) -> U32Array[] fn __index__(idx: u32) -> f32  } & interface {fn print(str: string) -> void} = 1
 
 y1[1]

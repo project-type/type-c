@@ -36,6 +36,10 @@ DataType* ti_call_check(Parser* parser, ASTScope* currentScope, Expr* expr);
 DataType* ti_member_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, Expr* element);
 DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, vec_expr_t indexes);
 
+// checks if a given datatype can be indexed.
+DataType* ti_index_access_dataTypeCanIndex(Parser* parser, ASTScope* currentScope, DataType* dt, vec_expr_t indexes);
+
+
 void ti_cast(Parser* parser, ASTScope* currentScope, Expr* expr, DataType* toType);
 
 uint8_t ti_struct_contains(Parser* parser, ASTScope* currentScope, DataType* bigStruct, DataType* smallStruct);

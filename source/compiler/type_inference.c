@@ -294,7 +294,11 @@ void ti_infer_expr(Parser* parser, ASTScope* scope, Expr* expr) {
 DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* expr, vec_expr_t indexes){
     printf("DataType: %s\n", ti_type_toString(parser, currentScope, expr->dataType));
     DataType* dt = ti_type_findBase(parser, currentScope, expr->dataType);
-    Lexeme lexeme = expr->lexeme;
+    return ti_index_access_dataTypeCanIndex(parser, currentScope, dt, indexes);
+}
+
+DataType* ti_index_access_dataTypeCanIndex(Parser* parser, ASTScope* currentScope, DataType* dt, vec_expr_t indexes){
+    Lexeme lexeme = dt->lexeme;
 
     if(dt->kind == DT_ARRAY) {
         // make sure we have only one index expression
@@ -309,6 +313,7 @@ DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* ex
         // check if the type has a __index__ method
         if(dt->kind == DT_INTERFACE){
             DataType* fn = resolver_resolveInterfaceMethod(parser, currentScope, dt, "__index__");
+            PARSER_ASSERT(fn != NULL, "Index access on interface requires a __index__ method");
             // make sure the number of indexes and function args match
             PARSER_ASSERT(fn->fnType->argNames.length == indexes.length, "Index access on interface requires exactly %d index expressions", fn->fnType->argNames.length);
 
@@ -317,6 +322,7 @@ DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* ex
         }
         else if(dt->kind == DT_CLASS){
             DataType* fn = resolver_resolveClassMethod(parser, currentScope, dt, "__index__");
+            PARSER_ASSERT(fn != NULL, "Index access on class requires a __index__ method");
             // make sure the number of indexes and function args match
             PARSER_ASSERT(fn->fnType->argNames.length == indexes.length, "Index access on interface requires exactly %d index expressions", fn->fnType->argNames.length);
 
@@ -324,6 +330,23 @@ DataType* ti_index_access_check(Parser* parser, ASTScope* currentScope, Expr* ex
             // using ti_types_match(parser, currentScope, left, right)
             return fn->fnType->returnType;
         }
+
+            // if it is a join, if one element implements index it is fine
+        else if (dt->kind == DT_TYPE_JOIN){
+            DataType* lhsType = ti_index_access_dataTypeCanIndex(parser, currentScope, dt->joinType->left, indexes);
+            if(lhsType == NULL){
+                return ti_index_access_dataTypeCanIndex(parser, currentScope, dt->joinType->right, indexes);
+            }
+            else {
+                return lhsType;
+            }
+        }
+
+        else if(dt->kind == DT_TYPE_UNION){
+            // throw an error, cannot perform index access on a union
+            PARSER_ASSERT(0, "Index access on union type is not supported");
+        }
+
     }
 
     return NULL;
@@ -375,7 +398,10 @@ DataType* ti_cast_check(Parser* parser, ASTScope* currentScope, Expr* expr, Data
 
     // we swap because match types checks if left is compatible with right, not the other way around.
     // this is important for example if x = y, we check match_types(x.type, y.type)
-    PARSER_ASSERT(ti_types_match(parser, currentScope, targetType, fromType), "Cannot cast %s to %s", stringifyType(fromType), stringifyType(targetType));
+    PARSER_ASSERT(ti_types_match(parser, currentScope, targetType, fromType),
+                  "Cannot cast %s to %s",
+                  ti_type_toString(parser, currentScope, fromType),
+                  ti_type_toString(parser, currentScope, targetType));
     return NULL;
 }
 
@@ -383,7 +409,7 @@ DataType* ti_call_check(Parser* parser, ASTScope* currentScope, Expr* expr){
     // make sure the lhs is a function
     DataType* lhsType = ti_type_findBase(parser, currentScope, expr->callExpr->lhs->dataType);
     Lexeme lexeme=expr->lexeme;
-    PARSER_ASSERT(lhsType->kind == DT_FN, "Cannot call non-function type %s", stringifyType(lhsType));
+    PARSER_ASSERT(lhsType->kind == DT_FN, "Cannot call non-function type %s", ti_type_toString(parser, currentScope, lhsType));
 
     return expr->callExpr->lhs->dataType->fnType->returnType;
 }
@@ -407,6 +433,29 @@ uint8_t ti_types_match(Parser* parser, ASTScope* currentScope, DataType* left, D
     // check if any of left or right is a reference
     DataType* L = NULL;
     DataType* R = NULL;
+
+    // if left is a union, we return true if either union->left or union->right match right
+    if(left->kind == DT_TYPE_UNION){
+        return ti_types_match(parser, currentScope, left->unionType->left, right) ||
+               ti_types_match(parser, currentScope, left->unionType->right, right);
+    }
+
+    // if left is a join, both left and right must match
+    if(left->kind == DT_TYPE_JOIN){
+        return ti_types_match(parser, currentScope, left->joinType->left, right) &&
+               ti_types_match(parser, currentScope, left->joinType->right, right);
+    }
+
+    // if right is a union, we return true if either union->left or union->right match right
+    if(right->kind == DT_TYPE_UNION){
+        return ti_types_match(parser, currentScope, left, right->unionType->left) ||
+               ti_types_match(parser, currentScope, left, right->unionType->right);
+    }
+    // if right is a join, both left and right must match
+    if(right->kind == DT_TYPE_JOIN){
+        return ti_types_match(parser, currentScope, left, right->joinType->left) &&
+               ti_types_match(parser, currentScope, left, right->joinType->right);
+    }
 
     if (left->kind == DT_REFERENCE) {
         L = ti_type_findBase(parser, currentScope, left);
@@ -537,10 +586,13 @@ sds ti_type_toString(Parser* parser, ASTScope* currentScope, DataType* type){
                 str = sdscat(str, ti_type_toString(parser, currentScope, (*attr)->type));
                 str = sdscat(str, " ");
                 str = sdscat(str, (*attr)->name);
-                str = sdscat(str, ",");
+                // if it is not the last attribute we add a comma
+                if(i < baseType->structType->attributeNames.length - 1)
+                    str = sdscat(str, ",");
             }
             str = sdscat(str, " }");
         }
+
         // if it is an interface we add its methods with args
         else if(baseType->kind == DT_INTERFACE){
             str = sdscat(str, " {");
@@ -555,65 +607,84 @@ sds ti_type_toString(Parser* parser, ASTScope* currentScope, DataType* type){
                 char* argName = NULL;
                 vec_foreach(&(*method)->type->argNames, argName, j){
                     FnArgument ** arg = map_get(&(*method)->type->args, argName);
-                    str = sdscat(str, " ");
+                        str = sdscat(str, " ");
+                        str = sdscat(str, argName);
+                    str = sdscat(str, " : ");
                     str = sdscat(str, ti_type_toString(parser, currentScope, (*arg)->type));
-                    str = sdscat(str, " ");
-                    str = sdscat(str, argName);
-                    str = sdscat(str, ",");
+                    if(j < (*method)->type->argNames.length - 1){
+                        str = sdscat(str, ",");
+                    }
                 }
                 str = sdscat(str, " ) -> ");
                 str = sdscat(str, ti_type_toString(parser, currentScope, (*method)->type->returnType));
+                // if it is not the last method we add a comma
+                if(i < baseType->interfaceType->methodNames.length - 1){
+                    str = sdscat(str, ",");
+                }
             }
             str = sdscat(str, " }");
         }
-    }
-    // if it is a class we add its methods and attributes
-    if(baseType->kind == DT_CLASS){
-        str = sdscat(str, " {");
-        uint32_t i = 0;
 
-        char* methodName = NULL;
-        vec_foreach(&baseType->classType->methodNames, methodName, i){
-            ClassMethod ** method = map_get(&baseType->classType->methods, methodName);
-            str = sdscat(str, " ");
-            str = sdscat(str, (*method)->decl->header->name);
-            str = sdscat(str, "(");
-            uint32_t j = 0;
-            char* argName = NULL;
-            vec_foreach(&(*method)->decl->header->type->argNames, argName, j){
-                FnArgument ** arg = map_get(&(*method)->decl->header->type->args, argName);
-                str = sdscat(str, " ");
-                str = sdscat(str, ti_type_toString(parser, currentScope, (*arg)->type));
-                str = sdscat(str, " ");
-                str = sdscat(str, argName);
-                str = sdscat(str, ",");
+        // if it is a class we add its methods and attributes
+        if(baseType->kind == DT_CLASS){
+            str = sdscat(str, " {");
+            uint32_t i = 0;
+
+            char* methodName = NULL;
+            vec_foreach(&baseType->classType->methodNames, methodName, i){
+                    ClassMethod ** method = map_get(&baseType->classType->methods, methodName);
+                    str = sdscat(str, " ");
+                    str = sdscat(str, (*method)->decl->header->name);
+                    str = sdscat(str, "(");
+                    uint32_t j = 0;
+                    char* argName = NULL;
+                    vec_foreach(&(*method)->decl->header->type->argNames, argName, j){
+                            FnArgument ** arg = map_get(&(*method)->decl->header->type->args, argName);
+                            str = sdscat(str, " ");
+                            str = sdscat(str, argName);
+                            str = sdscat(str, " : ");
+                            str = sdscat(str, ti_type_toString(parser, currentScope, (*arg)->type));
+                            // if it is the last argument we dont add a comma
+                            if(j < (*method)->decl->header->type->argNames.length - 1){
+                                str = sdscat(str, ",");
+                            }
+                        }
+                    str = sdscat(str, " ) -> ");
+                    str = sdscat(str, ti_type_toString(parser, currentScope, (*method)->decl->header->type->returnType));
+                    // if it is the last method we dont add a comma
+                    if(i < baseType->classType->methodNames.length - 1){
+                        str = sdscat(str, ",");
+                    }
+                }
+
+            // add attributes, iterate over each letList
+            i = 0;
+            LetExprDecl * letDecl = NULL;
+            vec_foreach(&baseType->classType->letList, letDecl, i){
+                // iterate over variableNames of LetExprDecl
+                uint32_t j = 0;
+                char* varName = NULL;
+                vec_foreach(&letDecl->variableNames, varName, j){
+                        str = sdscat(str, " let ");
+                        // get the variable of that name
+                        FnArgument ** var = map_get(&letDecl->variables, varName);
+
+                        str = sdscat(str, " ");
+                        str = sdscat(str, varName);
+                        str = sdscat(str, ": ");
+                        str = sdscat(str, ti_type_toString(parser, currentScope, (*var)->type));
+                        // add , if not last element
+                        if(j < letDecl->variableNames.length - 1){
+                            str = sdscat(str, ",");
+                        }
+                }
+                // add , if not last element
+                if(i < baseType->classType->letList.length - 1){
+                    str = sdscat(str, ",");
+                }
             }
-            str = sdscat(str, " ) -> ");
-            str = sdscat(str, ti_type_toString(parser, currentScope, (*method)->decl->header->type->returnType));
+            str = sdscat(str, " }");
         }
-
-        // add attributes, iterate over each letList
-        i = 0;
-        LetExprDecl * letDecl = NULL;
-        vec_foreach(&baseType->classType->letList, letDecl, i){
-            // iterate over variableNames of LetExprDecl
-            uint32_t j = 0;
-            char* varName = NULL;
-            vec_foreach(&letDecl->variableNames, varName, j){
-                str = sdscat(str, " ");
-                // get the variable of that name
-                FnArgument ** var = map_get(&letDecl->variables, varName);
-
-                str = sdscat(str, " ");
-                str = sdscat(str, varName);
-                str = sdscat(str, ": ");
-                str = sdscat(str, ti_type_toString(parser, currentScope, (*var)->type));
-                str = sdscat(str, ",");
-            }
-        }
-
-
-        str = sdscat(str, " }");
     }
 
     return str;
